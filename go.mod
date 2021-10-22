@@ -11,6 +11,7 @@ replace (
 
 require (
 	github.com/alicebob/miniredis/v2 v2.15.1
+	github.com/allinbits/demeris-backend-models v0.0.0-20211022115747-df6f5881eb00
 	github.com/allinbits/starport-operator v0.0.1-alpha.26
 	github.com/cockroachdb/cockroach-go/v2 v2.1.1
 	github.com/cosmos/cosmos-sdk v0.42.8
@@ -25,7 +26,7 @@ require (
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/jmoiron/sqlx v1.3.3
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/lib/pq v1.10.2
+	github.com/lib/pq v1.10.3
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/spf13/viper v1.7.1

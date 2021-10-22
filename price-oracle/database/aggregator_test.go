@@ -3,8 +3,8 @@ package database_test
 import (
 	"bufio"
 	"context"
+	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-price-oracle/cns/database"
-	"github.com/allinbits/emeris-price-oracle/models"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"

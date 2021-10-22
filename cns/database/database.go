@@ -6,7 +6,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/allinbits/emeris-price-oracle/models"
+	models "github.com/allinbits/demeris-backend-models/cns"
 	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
 )
 
