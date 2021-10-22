@@ -1,7 +1,7 @@
 package database_test
 
 import (
-	"github.com/allinbits/demeris-backend/price-oracle/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
 	"strings"

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/allinbits/demeris-backend/utils/configuration"
+	"github.com/allinbits/emeris-price-oracle/utils/configuration"
 )
 
 const progName = "test"

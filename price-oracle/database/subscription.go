@@ -17,8 +17,8 @@ import (
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"go.uber.org/zap"
 
-	"github.com/allinbits/demeris-backend/price-oracle/config"
-	"github.com/allinbits/demeris-backend/price-oracle/types"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 )
 
 const (

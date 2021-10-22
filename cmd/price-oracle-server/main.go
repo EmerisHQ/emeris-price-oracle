@@ -7,11 +7,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/allinbits/demeris-backend/price-oracle/config"
-	"github.com/allinbits/demeris-backend/price-oracle/database"
-	"github.com/allinbits/demeris-backend/price-oracle/rest"
-	"github.com/allinbits/demeris-backend/utils/logging"
-	"github.com/allinbits/demeris-backend/utils/store"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
+	"github.com/allinbits/emeris-price-oracle/utils/logging"
+	"github.com/allinbits/emeris-price-oracle/utils/store"
 )
 
 var Version = "not specified"

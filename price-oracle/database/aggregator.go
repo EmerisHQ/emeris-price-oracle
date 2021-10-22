@@ -10,8 +10,8 @@ import (
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 
-	"github.com/allinbits/demeris-backend/price-oracle/config"
-	"github.com/allinbits/demeris-backend/price-oracle/types"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 )
 
 func StartAggregate(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) {

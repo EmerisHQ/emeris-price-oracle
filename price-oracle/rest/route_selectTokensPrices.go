@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/allinbits/demeris-backend/price-oracle/types"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 )

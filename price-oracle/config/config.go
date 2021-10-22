@@ -3,8 +3,8 @@ package config
 import (
 	"time"
 
-	"github.com/allinbits/demeris-backend/utils/configuration"
-	"github.com/allinbits/demeris-backend/utils/validation"
+	"github.com/allinbits/emeris-price-oracle/utils/configuration"
+	"github.com/allinbits/emeris-price-oracle/utils/validation"
 	"github.com/go-playground/validator/v10"
 )
 

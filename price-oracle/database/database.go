@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"strings"
 
-	dbutils "github.com/allinbits/demeris-backend/utils/database"
+	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
 	"github.com/jmoiron/sqlx"
 
 	_ "github.com/lib/pq"

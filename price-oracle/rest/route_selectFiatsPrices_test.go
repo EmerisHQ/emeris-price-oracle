@@ -3,7 +3,7 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/allinbits/demeris-backend/price-oracle/types"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
