@@ -90,16 +90,16 @@ The list of non-{Cosmos, AiB, Tendermint} dependencies and their licenses are:
 
 |Module   	                  |License          |
 |---	                      |---  	        |
+|alicebob/miniredis           |MIT    	        |
+|gin-contrib/zap   	          |MIT    	        |
 |gin-gonic/gin   	          |MIT   	        |
 |go-playground/validator   	  |MIT   	        |
-|jmoiron/sqlx   	          |MIT   	        |
-|go.uber.org/zap   	          |MIT           	|
-|sigs.k8s.io/controller-runtime |MIT            |
-|sony/sonyflake               |MIT              |
-|lib/pq                       |Open use         |
-|alicebob/miniredis           |MIT    	        |
 |go-playground/validator   	  |MIT   	        |
 |go.uber.org/zap   	          |MIT           	|
-|superoo7/go-gecko            |MIT              |
-|gin-contrib/zap   	          |MIT    	        |
 |jackc/pgx         	          |MIT    	        |
+|jmoiron/sqlx   	          |MIT   	        |
+|lib/pq                       |Open use         |
+|sigs.k8s.io/controller-runtime |MIT            |
+|sony/sonyflake               |MIT              |
+|superoo7/go-gecko            |MIT              |
+
