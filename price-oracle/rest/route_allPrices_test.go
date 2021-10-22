@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/alicebob/miniredis/v2"
 	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-price-oracle/cns/database"
+	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
