@@ -57,33 +57,8 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2.5.2
-        with:
-          # Required: the version of golangci-lint is required and must be
-          # specified without patch version: we always use the latest patch version.
-          version: v1.33
-
       - name: Unit Test
         run: go test -covermode=count -coverprofile=coverage.txt -count=1 ./...
 
       - name: Coverage
         uses: codecov/codecov-action@v2.1.0
-
-#   lint:
-#     name: Lint
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-      
-#       - name: Setup Go
-#         uses: actions/setup-go@v2
-#         with:
-#           go-version: 1.16.x
-      
-#       - name: golangci-lint
-#         uses: golangci/golangci-lint-action@v2.5.2
-#         with:
-#           # Required: the version of golangci-lint is required and must be
-#           # specified without patch version: we always use the latest patch version.
-#           version: v1.33
