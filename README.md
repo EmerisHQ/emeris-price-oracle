@@ -1,5 +1,7 @@
 # price-oracle
 
+![example workflow](https://github.com/allinbits/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
+
 Aggregates and caches price data feeds from external data providers.
 
 ## Usage
