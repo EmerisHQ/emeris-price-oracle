@@ -1,11 +1,11 @@
-# price-oracle 
+# price-oracle
 
-Aggregates and caches price data feeds from external data providers. 
+Aggregates and caches price data feeds from external data providers.
 
 ## Usage
 
 ### Configuration
-Description of the `demeris-price-oracle.toml` setting file.
+Description of the `emeris-price-oracle.toml` setting file.
 
 Key Feature Settings
 
@@ -90,11 +90,16 @@ The list of non-{Cosmos, AiB, Tendermint} dependencies and their licenses are:
 
 |Module   	                  |License          |
 |---	                      |---  	        |
+|gin-gonic/gin   	          |MIT   	        |
+|go-playground/validator   	  |MIT   	        |
+|jmoiron/sqlx   	          |MIT   	        |
+|go.uber.org/zap   	          |MIT           	|
+|sigs.k8s.io/controller-runtime |MIT            |
+|sony/sonyflake               |MIT              |
+|lib/pq                       |Open use         |
+|alicebob/miniredis           |MIT    	        |
 |go-playground/validator   	  |MIT   	        |
 |go.uber.org/zap   	          |MIT           	|
-|lib/pq                       |Open use         |
 |superoo7/go-gecko            |MIT              |
 |gin-contrib/zap   	          |MIT    	        |
-|gin-gonic/gin   	          |MIT    	        |
 |jackc/pgx         	          |MIT    	        |
-|alicebob/miniredis           |MIT    	        |
