@@ -18,6 +18,8 @@ env:
   GO111MODULE: on
   GOPRIVATE: "github.com/allinbits/*"
   GOFLAGS: -mod=readonly
+  TOKEN: ${{ secrets.TENDERBOT_GIT_TOKEN }}
+  run: git config --global url."https://git:${{ secrets.TENDERBOT_GIT_TOKEN }}@github.com".insteadOf "https://github.com"
 
 jobs:
   test:
@@ -29,11 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Configure git for private modules
-        env:
-          TOKEN: ${{ secrets.TENDERBOT_GIT_TOKEN }}
-        run: git config --global url."https://git:${{ secrets.TENDERBOT_GIT_TOKEN }}@github.com".insteadOf "https://github.com"
-        
+    
       - name: Checkout code
         uses: actions/checkout@v2
 
