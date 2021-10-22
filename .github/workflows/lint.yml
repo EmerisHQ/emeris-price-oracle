@@ -7,6 +7,13 @@ on:
       - setup-ci
   pull_request:
 
+env:
+  GO111MODULE: on
+  GOPRIVATE: "github.com/allinbits/*"
+  GOFLAGS: -mod=readonly
+  TOKEN: ${{ secrets.TENDERBOT_GIT_TOKEN }}
+  run: git config --global url."https://git:${TOKEN}@github.com".insteadOf "https://github.com"
+
 jobs:
   golangci:
     name: lint
