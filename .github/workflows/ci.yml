@@ -16,6 +16,7 @@ on:
 
 env:
   GO111MODULE: on
+  GOPRIVATE: "github.com/allinbits/*"
   GOFLAGS: -mod=readonly
 
 jobs:
