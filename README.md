@@ -1,5 +1,7 @@
 # price-oracle
 
+![example workflow](https://github.com/allinbits/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
+
 Aggregates and caches price data feeds from external data providers.
 
 ## Usage
@@ -83,6 +85,14 @@ If you have multiple copy of in-memory cockroach db, it can happen that when you
 `testserver.NewTestServer()` it can stuck at `waiting for download of SOME TMP DIR`
 
 **Solution:** if this happens manually delete **ALL** instances of test server from your machine.
+
+### Known issue
+When try to download some private module from `allinbits` you can get:
+`fatal: could not read Username for 'https://github.com': terminal prompts disabled`
+
+**Solution:** Set the goprivate env variable. 
+
+go env -w GOPRIVATE="github.com/allinbits/{module}"
 
 ## Dependencies & Licenses
 

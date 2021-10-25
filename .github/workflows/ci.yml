@@ -14,22 +14,24 @@ on:
       - "*.md"
       - "Dockerfile"
 
-env:
-  GO111MODULE: on
-  GOFLAGS: -mod=readonly
-
 jobs:
   test:
     name: Run Unit Test
     strategy:
       matrix:
-        go-version: [1.16.x]
+        go-version: [1.17.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
+    
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Setup token for pulling from allinbits private repos
+        run: |
+          go env -w GOPRIVATE=github.com/allinbits/*
+          git config --global url."https://git:${{ secrets.TENDERBOT_GIT_TOKEN }}@github.com".insteadOf "https://github.com"
 
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -53,20 +55,8 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
-      - name: Unit Test (SQLite)
-        run: go test -covermode=count -coverprofile=coverage.txt -count=1 ./...
-
-      - name: Coverage
-        uses: codecov/codecov-action@v2.1.0
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2.5.2
-        with:
-          # Required: the version of golangci-lint is required and must be
-          # specified without patch version: we always use the latest patch version.
-          version: v1.33
+      - name: Unit Test
+        run: go test ./...
+#
+#      - name: Coverage
+#        uses: codecov/codecov-action@v2.1.0
