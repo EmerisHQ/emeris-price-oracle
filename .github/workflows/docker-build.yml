@@ -6,6 +6,8 @@ on:
     branches:
       - master
       - develop
+      - migration
+      - setup-ci
 
 jobs:
   docker-build-push: # NOT pushing to gcr now.
