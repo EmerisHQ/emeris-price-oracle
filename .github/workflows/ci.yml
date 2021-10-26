@@ -38,6 +38,11 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Setup token for pulling from allinbits private repos
+        run: |
+          go env -w GOPRIVATE=github.com/allinbits/*
+          git config --global url."https://git:${{ secrets.TENDERBOT_GIT_TOKEN }}@github.com".insteadOf "https://github.com"
+
       - id: go-cache-paths
         run: |
           echo "::set-output name=go-build::$(go env GOCACHE)"
