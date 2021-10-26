@@ -1,6 +1,7 @@
 # price-oracle
 
 ![example workflow](https://github.com/allinbits/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
+[![Build docker images](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml/badge.svg)](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml)
 
 Aggregates and caches price data feeds from external data providers.
 
