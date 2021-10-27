@@ -1,0 +1,61 @@
+name: Deploy on Emeris Dev Environment
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build docker images"]
+    branches: [develop]
+    types:
+      - completed
+
+jobs:
+  redis:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy
+        uses: WyriHaximus/github-action-helm3@v2
+        with:
+          kubeconfig: '${{ secrets.KUBECONFIG }}'
+          exec: |
+            helm repo add bitnami https://charts.bitnami.com/bitnami;
+            helm upgrade redis \
+              --install \
+              --namespace emeris \
+              --set auth.enabled=false \
+              --set auth.sentinel=false \
+              --set architecture=standalone \
+              bitnami/redis
+
+  cockroachdb:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy
+        uses: WyriHaximus/github-action-helm3@v2
+        with:
+          kubeconfig: '${{ secrets.KUBECONFIG }}'
+          exec: |
+            helm repo add cockroachdb https://charts.cockroachdb.com;
+            helm upgrade cockroachdb \
+              --install \
+              --namespace emeris \
+              --set tls.enabled=false \
+              --set statefulset.replicas=3 \
+              cockroachdb/cockroachdb
+
+  price-oracle:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Deploy
+        uses: WyriHaximus/github-action-helm3@v2
+        with:
+          kubeconfig: '${{ secrets.KUBECONFIG }}'
+          exec: |
+            helm upgrade price-oracle \
+              --install \
+              --namespace emeris \
+              --set image=gcr.io/tendermint-dev/emeris-price-oracle:${{ github.sha }} \
+              --set fixerKey=${{ secrets.FIXER_KEY }} \
+              ./helm/emeris-price-oracle-server
