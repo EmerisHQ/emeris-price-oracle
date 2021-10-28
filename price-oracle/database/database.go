@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 
 	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
@@ -26,12 +25,19 @@ func New(connString string) (*Instance, error) {
 		d:          i,
 		connString: connString,
 	}
-	_, err = ii.Query("SHOW TABLES FROM oracle")
+	q, err := ii.Query("SHOW TABLES FROM oracle")
+	if q != nil {
+		defer q.Close()
+	}
 	if err != nil {
 		ii.runMigrations()
 	}
+
 	//interim measures
-	_, err = ii.Query("SELECT * FROM oracle.coingecko")
+	q, err = ii.Query("SELECT * FROM oracle.coingecko")
+	if q != nil {
+		defer q.Close()
+	}
 	if err != nil {
 		ii.runMigrationsCoingecko()
 	}
@@ -70,7 +76,6 @@ func CnsPriceIdQuery(db *sqlx.DB) ([]string, error) {
 		var price_id sql.NullString
 		var fetch_price bool
 		err := q.Scan(&price_id, &fetch_price)
-		fmt.Println("priceId", price_id, "price", fetch_price)
 		if err != nil {
 			return nil, err
 		}
