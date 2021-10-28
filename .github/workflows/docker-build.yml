@@ -2,12 +2,13 @@ name: Build docker images
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: [CI Unit test]
+    types: [completed]
+
   push:
     branches:
-      - master
-      - develop
-      - migration
-      - setup-ci
+      - main
 
 jobs:
   docker-build-push: # NOT pushing to gcr now.
