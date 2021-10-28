@@ -4,11 +4,9 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows: [CI Unit test]
+    branches: [main]
     types: [completed]
 
-  push:
-    branches:
-      - main
 
 jobs:
   docker-build-push: # NOT pushing to gcr now.
