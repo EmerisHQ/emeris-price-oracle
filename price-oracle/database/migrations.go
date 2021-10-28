@@ -36,11 +36,16 @@ var migrationList = []string{
 	createTableBinance,
 	createTableCoinmarketcap,
 	createTableCoinmarketcapSupply,
-	createTableCoingecko,
-	createTableCoingeckoSupply,
+	// createTableCoingecko,
+	// createTableCoingeckoSupply,
 	createTableFixer,
 	createTableTokens,
 	createTableFiats,
+}
+
+var migrationCoingecko = []string{
+	createTableCoingecko,
+	createTableCoingeckoSupply,
 }
 
 func (i *Instance) runMigrations() {
@@ -50,10 +55,6 @@ func (i *Instance) runMigrations() {
 }
 
 func (i *Instance) runMigrationsCoingecko() {
-	var migrationCoingecko = []string{
-		createTableCoingecko,
-		createTableCoingeckoSupply,
-	}
 	if err := database.RunMigrations(i.connString, migrationCoingecko); err != nil {
 		panic(err)
 	}
