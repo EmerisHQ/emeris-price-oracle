@@ -3,6 +3,10 @@ package database_test
 import (
 	"bufio"
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
@@ -12,9 +16,6 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -98,12 +99,14 @@ func insertToken(t *testing.T, connStr string) {
 		Denoms: []models.Denom{
 			{
 				Name:        "ATOM",
+				PriceID:     "cosmos",
 				DisplayName: "ATOM",
 				FetchPrice:  true,
 				Ticker:      "ATOM",
 			},
 			{
 				Name:        "LUNA",
+				PriceID:     "terra-luna",
 				DisplayName: "LUNA",
 				FetchPrice:  true,
 				Ticker:      "LUNA",

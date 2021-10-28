@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"testing"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -12,16 +16,21 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"testing"
 )
 
-func TestStartSubscription(t *testing.T) {
+// func TestStartSubscription(t *testing.T) {
+// 	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+// 	defer tDown()
+// 	defer cancel()
+// 	database.StartSubscription(ctx, logger, cfg)
+// }
+
+func TestSubscriptionBinance(t *testing.T) {
 	binance := types.Binance{
 		Symbol: "ATOMUSDT",
 		Price:  "-50.0", // A value that is never possible in real world.
 	}
+
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
@@ -48,6 +57,68 @@ func TestStartSubscription(t *testing.T) {
 
 	price := getTokenPrices(t, cfg.DatabaseConnectionURL, "oracle.binance", []string{"ATOMUSDT"})
 	require.Equal(t, price["ATOMUSDT"], -50.0)
+}
+
+func TestSubscriptionCoingecko(t *testing.T) {
+
+	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	defer tDown()
+	defer cancel()
+
+	instance, err := database.New(cfg.DatabaseConnectionURL)
+	require.NoError(t, err)
+
+	api := database.Api{
+		Client:   nil,
+		Instance: instance,
+	}
+
+	err = api.SubscriptionCoingecko(ctx, logger, cfg)
+	require.NoError(t, err)
+
+}
+
+func TestSubscriptionFixer(t *testing.T) {
+
+	fixer := types.Fixer{
+		Success: true,
+		Rates: []byte(`
+		{
+			"CHF": 0.933058,
+			"EUR": 0.806942,
+			"KRW": 0.719154
+		}
+	`),
+	}
+
+	b, err := json.Marshal(&fixer)
+	require.NoError(t, err)
+
+	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	defer tDown()
+	defer cancel()
+
+	instance, err := database.New(cfg.DatabaseConnectionURL)
+	require.NoError(t, err)
+
+	client := newTestClient(func(req *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(bytes.NewReader(b)),
+		}
+	})
+
+	api := database.Api{
+		Client:   client,
+		Instance: instance,
+	}
+
+	err = api.SubscriptionFixer(ctx, logger, cfg)
+	require.NoError(t, err)
+
+	price := getTokenPrices(t, cfg.DatabaseConnectionURL, "oracle.fixer", []string{"USDEUR"})
+	require.Equal(t, price["USDEUR"], 0.806942)
+
 }
 
 type roundTripFunc func(req *http.Request) *http.Response
