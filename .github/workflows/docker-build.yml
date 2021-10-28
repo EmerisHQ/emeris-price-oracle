@@ -8,7 +8,7 @@ on:
 
   push:
     branches:
-      - master
+      - main
 
 jobs:
   docker-build-push: # NOT pushing to gcr now.
