@@ -119,6 +119,10 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		return
 	}
 	bz, err := json.Marshal(AllPriceResponse)
+	if err != nil {
+		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
+		return
+	}
 	err = r.s.ri.SetWithExpiryTime("prices", string(bz), 10*time.Second)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)

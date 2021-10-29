@@ -89,7 +89,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		fiats := types.USDBasecurrency + fiat
 		basefiats = append(basefiats, fiats)
 	}
-	if Diffpair(selectFiat.Fiats, basefiats) == false {
+	if !Diffpair(selectFiat.Fiats, basefiats) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
@@ -126,6 +126,10 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "SelectFiatQuery", err.Error(), "Duration", time.Second)
 	}
 	bz, err := json.Marshal(symbols)
+	if err != nil {
+		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
+		return
+	}
 	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), 10*time.Second)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)

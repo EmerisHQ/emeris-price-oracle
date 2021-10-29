@@ -94,8 +94,7 @@ func e(c *gin.Context, status int, err error) {
 
 func Diffpair(a []string, b []string) bool {
 	// Turn b into a map
-	var m map[string]bool
-	m = make(map[string]bool, len(b))
+	m := make(map[string]bool, len(b))
 	for _, s := range b {
 		m[s] = false
 	}
@@ -109,8 +108,10 @@ func Diffpair(a []string, b []string) bool {
 		m[s] = true
 	}
 
-	if diff == nil {
-		return true
-	}
-	return false
+	// if diff == nil {
+	// 	return true
+	// }
+	// return false
+
+	return diff == nil
 }

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRest(t *testing.T) {
