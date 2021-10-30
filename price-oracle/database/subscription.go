@@ -93,7 +93,7 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
 	}
 	if len(Whitelisttokens) == 0 {
-		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist.")
+		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist")
 	}
 	for _, token := range Whitelisttokens {
 		tokensum := token + types.USDTBasecurrency
@@ -131,6 +131,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		}
 
 		strToFloat, err := strconv.ParseFloat(bp.Price, 64)
+		if err != nil {
+			return fmt.Errorf("SubscriptionBinance convert price to float: %w", err)
+		}
 		if strToFloat == float64(0) {
 			continue
 		}
@@ -258,7 +261,7 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
 	}
 	if len(Whitelisttokens) == 0 {
-		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: The token does not exist.")
+		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: The token does not exist")
 	}
 
 	cg := gecko.NewClient(api.Client)
@@ -343,7 +346,7 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
-	if bp.Success != true {
+	if !bp.Success {
 		logger.Infow("SubscriptionFixer", "The status message of the query is fail(Maybe the apikey problem)", bp.Success)
 		return nil
 	}

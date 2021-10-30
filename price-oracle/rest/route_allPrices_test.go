@@ -3,6 +3,11 @@ package rest
 import (
 	"bufio"
 	"encoding/json"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/alicebob/miniredis/v2"
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
@@ -15,10 +20,6 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"net/http/httptest"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestAllPricesHandler(t *testing.T) {
@@ -117,12 +118,14 @@ func insertToken(t *testing.T, connStr string) {
 		Denoms: []models.Denom{
 			{
 				Name:        "ATOM",
+				PriceID:     "cosmos",
 				DisplayName: "ATOM",
 				FetchPrice:  true,
 				Ticker:      "ATOM",
 			},
 			{
 				Name:        "LUNA",
+				PriceID:     "terra-luna",
 				DisplayName: "LUNA",
 				FetchPrice:  true,
 				Ticker:      "LUNA",

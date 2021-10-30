@@ -25,15 +25,22 @@ func New(connString string) (*Instance, error) {
 		d:          i,
 		connString: connString,
 	}
-	_, err = ii.Query("SHOW TABLES FROM oracle")
+	q, err := ii.Query("SHOW TABLES FROM oracle")
+	if q != nil {
+		defer q.Close()
+	}
 	if err != nil {
 		ii.runMigrations()
 	}
+
 	//interim measures
-	//_, err = ii.Query("SELECT * FROM oracle.coingecko")
-	//if err != nil {
-	//	ii.runMigrationsCoingecko()
-	//}
+	q, err = ii.Query("SELECT * FROM oracle.coingecko")
+	if q != nil {
+		defer q.Close()
+	}
+	if err != nil {
+		ii.runMigrationsCoingecko()
+	}
 	return ii, nil
 }
 
@@ -50,7 +57,7 @@ func CnsTokenQuery(db *sqlx.DB) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if fetch_price == true {
+		if fetch_price {
 			ticker = strings.TrimRight(ticker, "\"")
 			ticker = strings.TrimLeft(ticker, "\"")
 			Whitelists = append(Whitelists, ticker)
@@ -73,7 +80,7 @@ func CnsPriceIdQuery(db *sqlx.DB) ([]string, error) {
 			return nil, err
 		}
 		if price_id.Valid {
-			if fetch_price == true {
+			if fetch_price {
 				price_id.String = strings.TrimRight(price_id.String, "\"")
 				price_id.String = strings.TrimLeft(price_id.String, "\"")
 				Whitelists = append(Whitelists, price_id.String)
@@ -95,6 +102,14 @@ func (i *Instance) Query(query string, args ...interface{}) (*sqlx.Rows, error) 
 
 func (i *Instance) CnstokenQueryHandler() ([]string, error) {
 	Whitelists, err := CnsTokenQuery(i.d.DB)
+	if err != nil {
+		return nil, err
+	}
+	return Whitelists, nil
+}
+
+func (i *Instance) CnsPriceIdQueryHandler() ([]string, error) {
+	Whitelists, err := CnsPriceIdQuery(i.d.DB)
 	if err != nil {
 		return nil, err
 	}
