@@ -19,13 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// func TestStartSubscription(t *testing.T) {
-// 	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
-// 	defer tDown()
-// 	defer cancel()
-// 	database.StartSubscription(ctx, logger, cfg)
-// }
-
 func TestSubscriptionBinance(t *testing.T) {
 	binance := types.Binance{
 		Symbol: "ATOMUSDT",
