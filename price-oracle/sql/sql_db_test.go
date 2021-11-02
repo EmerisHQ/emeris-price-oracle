@@ -15,9 +15,10 @@ func TestNew(t *testing.T) {
 	connStr := testServer.PGURL().String()
 	require.NotNil(t, connStr)
 
-	mDB, err := New(connStr)
+	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
+	defer mDB.Close()
 
 	err = mDB.InitDB()
 	require.NoError(t, err)

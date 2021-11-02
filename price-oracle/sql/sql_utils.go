@@ -15,18 +15,18 @@ const (
 )
 
 // New returns an Instance connected to the database pointed by connString.
-func New(connString string) (*MySQLDB, error) {
+func NewDB(connString string) (*SqlDB, error) {
 	return NewWithDriver(connString, DriverPGX)
 }
 
 // NewWithDriver returns an Instance connected to the database pointed by connString with the given driver.
-func NewWithDriver(connString string, driver string) (*MySQLDB, error) {
+func NewWithDriver(connString string, driver string) (*SqlDB, error) {
 	db, err := sqlx.Connect(driver, connString)
 	if err != nil {
 		return nil, err
 	}
 
-	m := &MySQLDB{
+	m := &SqlDB{
 		db:         db,
 		connString: connString,
 	}
@@ -43,13 +43,13 @@ func NewWithDriver(connString string, driver string) (*MySQLDB, error) {
 }
 
 // Close closes the connection held by i.
-func (m *MySQLDB) Close() error {
+func (m *SqlDB) Close() error {
 	return m.db.Close()
 }
 
 // Exec executes query with the given params.
 // If params is nil, query is assumed to be of the `SELECT` kind, and the resulting data will be written in dest.
-func (m *MySQLDB) Exec(query string, params interface{}, dest interface{}) error {
+func (m *SqlDB) Exec(query string, params interface{}, dest interface{}) error {
 	return crdbsqlx.ExecuteTx(context.Background(), m.db, nil, func(tx *sqlx.Tx) error {
 		if dest != nil {
 			if params != nil {

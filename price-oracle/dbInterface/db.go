@@ -1,8 +1,8 @@
-package dbinterface
+package dbInterface
 
 import "github.com/allinbits/emeris-price-oracle/price-oracle/types"
 
-type db interface {
+type DB interface {
 	InitDB() error                                                         //runs migrations
 	GetAllTokens() []types.TokenPriceResponse                              //fetches all tokens from db
 	GetAllFiats() []types.FiatPriceResponse                                //fetches all fiat tokens from db

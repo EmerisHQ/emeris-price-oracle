@@ -48,22 +48,22 @@ var migrationCoingecko = []string{
 	createTableCoingeckoSupply,
 }
 
-func (m *MySQLDB) runMigrations() error {
-	if err := RunMigrations(m.connString, migrationList); err != nil {
+func (m *SqlDB) runMigrations() error {
+	if err := m.RunMigrations(m.connString, migrationList); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *MySQLDB) runMigrationsCoingecko() error {
-	if err := RunMigrations(m.connString, migrationCoingecko); err != nil {
+func (m *SqlDB) runMigrationsCoingecko() error {
+	if err := m.RunMigrations(m.connString, migrationCoingecko); err != nil {
 		return err
 	}
 	return nil
 }
 
-func RunMigrations(dbConnString string, migrations []string) error {
-	m, err := New(dbConnString)
+func (m *SqlDB) RunMigrations(dbConnString string, migrations []string) error {
+	m, err := NewDB(dbConnString)
 	if err != nil {
 		return err
 	}

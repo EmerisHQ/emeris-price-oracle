@@ -108,10 +108,5 @@ func Diffpair(a []string, b []string) bool {
 		m[s] = true
 	}
 
-	// if diff == nil {
-	// 	return true
-	// }
-	// return false
-
 	return diff == nil
 }
