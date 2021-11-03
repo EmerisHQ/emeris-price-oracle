@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 	require.Equal(t, mDB.GetConnectionString(), connStr)
 	defer mDB.Close()
 
-	err = mDB.InitDB()
+	err = mDB.Init()
 	require.NoError(t, err)
 
 	rows, err := mDB.Query("SHOW TABLES FROM oracle")
