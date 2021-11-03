@@ -9,6 +9,7 @@ import (
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
 )
 

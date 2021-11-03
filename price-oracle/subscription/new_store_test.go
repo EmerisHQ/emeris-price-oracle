@@ -34,6 +34,8 @@ func TestCnsTokenQuery(t *testing.T) {
 	whiteList, err := storeHandler.NewCnsTokenQuery()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
+
+	require.Equal(t, []string{"ATOM", "LUNA"}, whiteList)
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
@@ -50,7 +52,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
-	require.Equal(t, []string{"ATOM", "LUNA"}, whiteList)
+	require.Equal(t, []string{"cosmos", "terra-luna"}, whiteList)
 }
 
 func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
