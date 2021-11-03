@@ -7,33 +7,33 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type DBHandler struct {
-	DB Store.Store
+type StoreHandler struct {
+	Store Store.Store
 }
 
-func NewDBHandler(db Store.Store) (*DBHandler, error) {
-	if db == nil {
-		return nil, fmt.Errorf("nil dbInterface.DB")
+func NewStoreHandler(store Store.Store) (*StoreHandler, error) {
+	if store == nil {
+		return nil, fmt.Errorf("new_store.go, NewStoreHandler : nil store passed")
 	}
 
-	err := db.Init()
+	err := store.Init()
 	if err != nil {
 		return nil, err
 	}
 
-	return &DBHandler{DB: db}, nil
+	return &StoreHandler{Store: store}, nil
 }
 
-func (dbHandler *DBHandler) NewCnsTokenQuery() ([]string, error) {
-	Whitelists, err := dbHandler.DB.GetTokenNames()
+func (storeHandler *StoreHandler) NewCnsTokenQuery() ([]string, error) {
+	Whitelists, err := storeHandler.Store.GetTokenNames()
 	if err != nil {
 		return nil, err
 	}
 	return Whitelists, nil
 }
 
-func (dbHandler *DBHandler) NewCnsPriceIdQuery() ([]string, error) {
-	Whitelists, err := dbHandler.DB.GetPriceIDs()
+func (storeHandler *StoreHandler) NewCnsPriceIdQuery() ([]string, error) {
+	Whitelists, err := storeHandler.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
 	}

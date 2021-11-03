@@ -12,26 +12,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewDBHandler(t *testing.T) {
+func TestNewstoreHandler(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	dbHandler, err := getDBHandler(t, testServer)
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
-	require.NotNil(t, dbHandler)
+	require.NotNil(t, storeHandler)
 }
 
 func TestCnsTokenQuery(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	dbHandler, err := getDBHandler(t, testServer)
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
-	require.NotNil(t, dbHandler.DB)
+	require.NotNil(t, storeHandler.Store)
 
 	insertToken(t, testServer.PGURL().String())
 
-	whiteList, err := dbHandler.NewCnsTokenQuery()
+	whiteList, err := storeHandler.NewCnsTokenQuery()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 }
@@ -40,15 +40,17 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	dbHandler, err := getDBHandler(t, testServer)
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
-	require.NotNil(t, dbHandler)
+	require.NotNil(t, storeHandler)
 
 	insertToken(t, testServer.PGURL().String())
 
-	whiteList, err := dbHandler.NewCnsPriceIdQuery()
+	whiteList, err := storeHandler.NewCnsPriceIdQuery()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
+
+	require.Equal(t, []string{"ATOM", "LUNA"}, whiteList)
 }
 
 func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
@@ -56,18 +58,18 @@ func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
 	return sql.NewDB(connStr)
 }
 
-func getDBHandler(t *testing.T, ts testserver.TestServer) (*subscription.DBHandler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer) (*subscription.StoreHandler, error) {
 	db, err := getdb(t, ts)
 	if err != nil {
 		return nil, err
 	}
 
-	dbHandler, err := subscription.NewDBHandler(db)
+	storeHandler, err := subscription.NewStoreHandler(db)
 	if err != nil {
 		return nil, err
 	}
 
-	return dbHandler, nil
+	return storeHandler, nil
 }
 
 func setup(t *testing.T) testserver.TestServer {
