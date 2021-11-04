@@ -3,12 +3,28 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
 )
+
+func StartAggregate(ctx context.Context, storeHandler StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		AggregateWokers(ctx, storeHandler, logger, cfg, PricetokenAggregator)
+	}()
+	go func() {
+		defer wg.Done()
+		AggregateWokers(ctx, storeHandler, logger, cfg, PricefiatAggregator)
+	}()
+
+	wg.Wait()
+}
 
 func AggregateWokers(ctx context.Context, storeHandler StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, fn func(StoreHandler, *config.Config) error) {
 	logger.Infow("INFO", "Subscription", "Aggregate WORK Start")
@@ -34,7 +50,7 @@ func AggregateWokers(ctx context.Context, storeHandler StoreHandler, logger *zap
 
 func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{"binance", "coingecko"}
+	query := []string{types.BinanceStore, types.CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
 	cnswhitelist, err := storeHandler.CnsTokenQuery()
@@ -85,7 +101,7 @@ func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config) error {
 
 func PricefiatAggregator(storeHandler StoreHandler, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{"fixer"}
+	query := []string{types.FixerStore}
 
 	whitelist := make(map[string]struct{})
 	for _, fiat := range cfg.Whitelistfiats {
