@@ -8,7 +8,7 @@ on:
     types: [completed]
 
 jobs:
-  docker-build-push: # NOT pushing to gcr now.
+  price-oracle-server:
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -31,9 +31,22 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          push: false  # TODO: Push to gcr when migration is done
+          push: true # TODO: Push to gcr when migration is done
           context: .
           file: Dockerfile
           tags: gcr.io/tendermint-dev/emeris-price-oracle:${{ steps.get_version.outputs.version-without-v }},gcr.io/tendermint-dev/emeris-price-oracle:${{ github.sha }}
           build-args: |
             GIT_TOKEN=${{ secrets.TENDERBOT_GIT_TOKEN }}
+
+  deploy-on-dev:
+    runs-on: self-hosted
+    needs: price-oracle-server
+
+    steps:
+      - name: Call repository_dispatch on demeris-backend
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.TENDERBOT_GIT_TOKEN }}
+          repository: allinbits/demeris-backend
+          event-type: dev-push-price-oracle-server
+          client-payload: '{"repo_name":"emeris-price-oracle","branch_name":"main","image_name":"emeris-price-oracle","image_sha":"${{ github.sha }}","service_name":"price-oracle"}'
