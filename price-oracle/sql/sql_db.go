@@ -11,6 +11,7 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
 const (
@@ -106,22 +107,98 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 
 func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	var prices []types.Prices
+	var price types.Prices
+	rows, err := m.Query("SELECT * FROM oracle.($1)", from)
+	if err != nil {
+		return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.StructScan(&price)
+		if err != nil {
+			return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
+		}
+		prices = append(prices, price)
+	}
 	return prices, nil
 }
 
-func (m *SqlDB) UpsertTokenPrice(price float64, token string) error {
+func (m *SqlDB) UpsertTokenPrice(price float64, token string, logger *zap.SugaredLogger) error {
+	tx := m.db.MustBegin()
+
+	result := tx.MustExec("UPDATE oracle.tokens SET price = ($1) WHERE symbol = ($2)", price, token)
+	updateresult, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("DB update: %w", err)
+	}
+	//If you perform an update without a token column, it does not respond as an error; it responds with zero.
+	//So you have to insert a new one in the column.
+	if updateresult == 0 {
+		tx.MustExec("INSERT INTO oracle.tokens VALUES (($1),($2));", token, price)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("DB commit: %w", err)
+	}
+	logger.Infow("Insert to tokens", token, price)
 	return nil
 }
 
-func (m *SqlDB) UpsertFiatPrice(price float64, token string) error {
+func (m *SqlDB) UpsertFiatPrice(price float64, fiat string, logger *zap.SugaredLogger) error {
+	tx := m.db.MustBegin()
+
+	result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", price, fiat)
+	updateresult, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("DB update: %w", err)
+	}
+	if updateresult == 0 {
+		tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, price)
+	}
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("DB commit: %w", err)
+	}
+	logger.Infow("Insert to fiats", fiat, price)
 	return nil
 }
 
-func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64) error {
+func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error {
+	tx := m.db.MustBegin()
+	result := tx.MustExec("UPDATE oracle.($1) SET price = ($2),updatedat = ($3) WHERE symbol = ($4)", to, price, time, symbol)
+
+	updateresult, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
+	}
+	if updateresult == 0 {
+		tx.MustExec("INSERT INTO oracle.($1) VALUES (($2),($3),($4));", to, symbol, price, time)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("UpsertToken DB commit: %w", err)
+	}
 	return nil
 }
 
-func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64) error {
+func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error {
+	tx := m.db.MustBegin()
+	resultsupply := tx.MustExec("UPDATE oracle.($1) SET supply = ($2) WHERE symbol = ($3)", to, supply, symbol)
+
+	updateresultsupply, err := resultsupply.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
+	}
+	if updateresultsupply == 0 {
+		tx.MustExec("INSERT INTO oracle.($1) VALUES (($2),($3));", to, symbol, supply)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("UpsertTokenSupply DB commit: %w", err)
+	}
 	return nil
 }
 
