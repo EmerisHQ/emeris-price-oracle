@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,14 +48,88 @@ func (m *SqlDB) Init() error {
 	return nil
 }
 
-func (m *SqlDB) GetAllTokens() ([]types.TokenPriceResponse, error) {
-	var tokens []types.TokenPriceResponse
-	return tokens, nil
+func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
+	var Tokens []types.TokenPriceResponse
+	var Token types.TokenPriceResponse
+	var symbolList []interface{}
+
+	symbolNum := len(selectToken.Tokens)
+
+	query := "SELECT * FROM " + types.TokensStore + " WHERE symbol=$1"
+
+	for i := 2; i <= symbolNum; i++ {
+		query += " OR" + " symbol=$" + strconv.Itoa(i)
+	}
+
+	for _, usersymbol := range selectToken.Tokens {
+		symbolList = append(symbolList, usersymbol)
+	}
+
+	rows, err := m.Query(query, symbolList...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var symbol string
+		var price float64
+		var supply float64
+		err := rows.Scan(&symbol, &price)
+		if err != nil {
+			return nil, err
+		}
+		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
+		rowCmcSupply, err := m.Query("SELECT * FROM "+types.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		if err != nil {
+			return nil, err
+		}
+		defer rowCmcSupply.Close()
+		for rowCmcSupply.Next() {
+			if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
+				return nil, err
+			}
+		}
+		Token.Symbol = symbol
+		Token.Price = price
+		Token.Supply = supply
+
+		Tokens = append(Tokens, Token)
+	}
+
+	return Tokens, nil
 }
 
-func (m *SqlDB) GetAllFiats() ([]types.FiatPriceResponse, error) {
-	var fiats []types.FiatPriceResponse
-	return fiats, nil
+func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
+	var symbols []types.FiatPriceResponse
+	var symbol types.FiatPriceResponse
+	var symbolList []interface{}
+
+	symbolNum := len(selectFiat.Fiats)
+
+	query := "SELECT * FROM " + types.FiatsStore + " WHERE symbol=$1"
+
+	for i := 2; i <= symbolNum; i++ {
+		query += " OR" + " symbol=$" + strconv.Itoa(i)
+	}
+
+	for _, usersymbol := range selectFiat.Fiats {
+		symbolList = append(symbolList, usersymbol)
+	}
+
+	rows, err := m.Query(query, symbolList...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.StructScan(&symbol)
+		if err != nil {
+			return nil, err
+		}
+		symbols = append(symbols, symbol)
+	}
+
+	return symbols, nil
 }
 
 func (m *SqlDB) GetTokenNames() ([]string, error) {
@@ -108,7 +183,7 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	var prices []types.Prices
 	var price types.Prices
-	rows, err := m.Query("SELECT * FROM oracle.($1)", from)
+	rows, err := m.Query("SELECT * FROM " + from)
 	if err != nil {
 		return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
 	}
@@ -126,7 +201,7 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 func (m *SqlDB) UpsertTokenPrice(price float64, token string, logger *zap.SugaredLogger) error {
 	tx := m.db.MustBegin()
 
-	result := tx.MustExec("UPDATE oracle.tokens SET price = ($1) WHERE symbol = ($2)", price, token)
+	result := tx.MustExec("UPDATE "+types.TokensStore+" SET price = ($1) WHERE symbol = ($2)", price, token)
 	updateresult, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("DB update: %w", err)
@@ -134,7 +209,7 @@ func (m *SqlDB) UpsertTokenPrice(price float64, token string, logger *zap.Sugare
 	//If you perform an update without a token column, it does not respond as an error; it responds with zero.
 	//So you have to insert a new one in the column.
 	if updateresult == 0 {
-		tx.MustExec("INSERT INTO oracle.tokens VALUES (($1),($2));", token, price)
+		tx.MustExec("INSERT INTO "+types.TokensStore+" VALUES (($1),($2));", token, price)
 	}
 
 	err = tx.Commit()
@@ -148,13 +223,13 @@ func (m *SqlDB) UpsertTokenPrice(price float64, token string, logger *zap.Sugare
 func (m *SqlDB) UpsertFiatPrice(price float64, fiat string, logger *zap.SugaredLogger) error {
 	tx := m.db.MustBegin()
 
-	result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", price, fiat)
+	result := tx.MustExec("UPDATE "+types.FiatsStore+" SET price = ($1) WHERE symbol = ($2)", price, fiat)
 	updateresult, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("DB update: %w", err)
 	}
 	if updateresult == 0 {
-		tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, price)
+		tx.MustExec("INSERT INTO "+types.FiatsStore+" VALUES (($1),($2));", fiat, price)
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -166,14 +241,14 @@ func (m *SqlDB) UpsertFiatPrice(price float64, fiat string, logger *zap.SugaredL
 
 func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error {
 	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE oracle.($1) SET price = ($2),updatedat = ($3) WHERE symbol = ($4)", to, price, time, symbol)
+	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 
 	updateresult, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
 	}
 	if updateresult == 0 {
-		tx.MustExec("INSERT INTO oracle.($1) VALUES (($2),($3),($4));", to, symbol, price, time)
+		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
 	}
 
 	err = tx.Commit()
@@ -185,14 +260,14 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64,
 
 func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error {
 	tx := m.db.MustBegin()
-	resultsupply := tx.MustExec("UPDATE oracle.($1) SET supply = ($2) WHERE symbol = ($3)", to, supply, symbol)
+	resultsupply := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
 
 	updateresultsupply, err := resultsupply.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
 	}
 	if updateresultsupply == 0 {
-		tx.MustExec("INSERT INTO oracle.($1) VALUES (($2),($3));", to, symbol, supply)
+		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
 	}
 
 	err = tx.Commit()

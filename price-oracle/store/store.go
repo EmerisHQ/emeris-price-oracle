@@ -7,8 +7,8 @@ import (
 
 type Store interface {
 	Init() error                                                                                      //runs migrations
-	GetAllTokens() ([]types.TokenPriceResponse, error)                                                //fetches all tokens from db
-	GetAllFiats() ([]types.FiatPriceResponse, error)                                                  //fetches all fiat tokens from db
+	GetTokens(types.SelectToken) ([]types.TokenPriceResponse, error)                                  //fetches all tokens from db
+	GetFiats(types.SelectFiat) ([]types.FiatPriceResponse, error)                                     //fetches all fiat tokens from db
 	GetTokenNames() ([]string, error)                                                                 //fetches whilelist with token names
 	GetPriceIDs() ([]string, error)                                                                   //fetches whilelist with price ids
 	GetPrices(from string) ([]types.Prices, error)                                                    //fetches prices from db table ex: binance,coingecko,fixer,tokens
