@@ -53,6 +53,25 @@ func TestStartAggregate(t *testing.T) {
 	require.Equal(t, lunaPrice, 16.0)
 }
 
+func TestStartAggregate2(t *testing.T) {
+	ctx, cancel, logger, cfg, tDown := setupAgg(t)
+	defer tDown()
+	defer cancel()
+
+	atomPrice, lunaPrice := getAggTokenPrice(t, cfg.DatabaseConnectionURL)
+	require.Equal(t, atomPrice, 10.0)
+	require.Equal(t, lunaPrice, 10.0)
+
+	go database.StartAggregate2(ctx, logger, cfg, 3)
+
+	time.Sleep(25 * time.Second)
+
+	atomPrice, lunaPrice = getAggTokenPrice(t, cfg.DatabaseConnectionURL)
+	// Validate data updated on DB ..
+	require.Equal(t, atomPrice, 15.0)
+	require.Equal(t, lunaPrice, 16.0)
+}
+
 func setupAgg(t *testing.T) (context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
