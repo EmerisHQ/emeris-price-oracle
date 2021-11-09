@@ -3,9 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +15,7 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 )
 
-func StartAggregate2(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
+func StartAggregate(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
 	fetchInterval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		logger.Fatal(err)
@@ -52,11 +49,15 @@ func StartAggregate2(ctx context.Context, logger *zap.SugaredLogger, cfg *config
 					return
 				case heartbeat := <-heartbeatCh:
 					logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
-				case err := <-errCh:
-					logger.Debugf("Error: %T : %v", workerName, err)
+				case err, ok := <-errCh:
+					// errCh is closed. Daemon process returned.
+					if !ok {
+						return
+					}
+					logger.Errorf("Error: %T : %v", workerName, err)
 				}
 			}
-		}(ctx, properties.doneCh, getFunctionName(properties.worker))
+		}(ctx, properties.doneCh, daemon.GetFunctionName(properties.worker))
 	}
 	// TODO: Handle signal. Start/stop worker.
 	wg.Wait()
@@ -70,7 +71,6 @@ func AggregateManager(
 	cfg *config.Config,
 	fn daemon.AggFunc,
 ) (chan interface{}, chan error) {
-	logger.Infow("INFO", "DB AggregateManager Starts: ", getFunctionName(fn))
 	heartbeatCh := make(chan interface{})
 	errCh := make(chan error)
 	go func() {
@@ -90,67 +90,17 @@ func AggregateManager(
 				return
 			case <-ticker:
 				if err := fn(nil, db, logger, cfg); err != nil {
-					logger.Errorw("DB", "Aggregate WORK err", err)
 					errCh <- err
 				}
 			case <-pulse:
 				select {
-				case heartbeatCh <- fmt.Sprintf("AggregateManager(%v)", getFunctionName(fn)):
+				case heartbeatCh <- fmt.Sprintf("AggregateManager(%v)", daemon.GetFunctionName(fn)):
 				default:
 				}
 			}
 		}
 	}()
 	return heartbeatCh, errCh
-}
-
-func getFunctionName(i interface{}) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
-	parts := strings.Split(fullName, "/")
-	return parts[len(parts)-1]
-}
-
-func StartAggregate(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) {
-
-	d, err := New(cfg.DatabaseConnectionURL)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	defer d.d.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		AggregateWokers(ctx, d.d.DB, logger, cfg, PricetokenAggregator)
-	}()
-	go func() {
-		defer wg.Done()
-		AggregateWokers(ctx, d.d.DB, logger, cfg, PricefiatAggregator)
-	}()
-
-	wg.Wait()
-}
-
-func AggregateWokers(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config, fn daemon.AggFunc) {
-	logger.Infow("INFO", "DB", "Aggregate WORK Start")
-	interval, err := time.ParseDuration(cfg.Interval)
-	ticker := time.Tick(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker:
-			if err := fn(ctx, db, logger, cfg); err != nil {
-				logger.Errorw("DB", "Aggregate WORK err", err)
-			}
-
-			if err != nil {
-				logger.Errorw("DB", "Aggregate WORK err", err)
-				return
-			}
-		}
-	}
 }
 
 func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
@@ -173,7 +123,10 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
+		Prices, err := PriceQuery(db, q)
+		if err != nil {
+			return err
+		}
 		for _, apitokenList := range Prices {
 			if _, ok := whitelist[apitokenList.Symbol]; !ok {
 				continue
@@ -233,7 +186,10 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
+		Prices, err := PriceQuery(db, q)
+		if err != nil {
+			return err
+		}
 		for _, apifiatList := range Prices {
 			if _, ok := whitelist[apifiatList.Symbol]; !ok {
 				continue
@@ -276,20 +232,20 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	return nil
 }
 
-func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Prices {
+func PriceQuery(db *sqlx.DB, Query string) ([]types.Prices, error) {
 	var symbols []types.Prices
 	var symbol types.Prices
 	rows, err := db.Queryx(Query)
 	if err != nil {
-		logger.Fatalw("Fatal", "DB", err.Error(), "Duration", time.Second)
+		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err := rows.StructScan(&symbol)
 		if err != nil {
-			logger.Fatalw("Fatal", "DB", err.Error(), "Duration", time.Second)
+			return nil, err
 		}
 		symbols = append(symbols, symbol)
 	}
-	return symbols
+	return symbols, nil
 }

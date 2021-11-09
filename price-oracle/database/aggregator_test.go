@@ -3,6 +3,7 @@ package database_test
 import (
 	"bufio"
 	"context"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 	"os"
 	"testing"
 	"time"
@@ -36,40 +37,68 @@ func TestStartAggregate(t *testing.T) {
 	require.Equal(t, atomPrice, 10.0)
 	require.Equal(t, lunaPrice, 10.0)
 
-	go database.StartAggregate(ctx, logger, cfg)
+	go database.StartAggregate(ctx, logger, cfg, 3)
 
-	// TODO: Comeback here again once the aggregator is refactored
-	// and sending heart bit as pulse. Use that heart bit to determine
-	// that aggregation has done one iteration.
-	//
-	// We can also try to capture the log output. But don't see how we
-	// can achieve that with small refactoring. So, I am sleeping for
-	// 5 seconds. It's nondeterministic, but good enough for now!
-	time.Sleep(5 * time.Second)
-
-	atomPrice, lunaPrice = getAggTokenPrice(t, cfg.DatabaseConnectionURL)
 	// Validate data updated on DB ..
-	require.Equal(t, atomPrice, 15.0)
-	require.Equal(t, lunaPrice, 16.0)
+	require.Eventually(t, func() bool {
+		atomPrice, lunaPrice = getAggTokenPrice(t, cfg.DatabaseConnectionURL)
+		return atomPrice == 15.0 && lunaPrice == 16.0
+
+	}, 25*time.Second, 2*time.Second)
 }
 
-func TestStartAggregate2(t *testing.T) {
-	ctx, cancel, logger, cfg, tDown := setupAgg(t)
+func TestAggregateManager_closes(t *testing.T) {
+	_, cancel, logger, cfg, tDown := setupAgg(t)
 	defer tDown()
 	defer cancel()
 
-	atomPrice, lunaPrice := getAggTokenPrice(t, cfg.DatabaseConnectionURL)
-	require.Equal(t, atomPrice, 10.0)
-	require.Equal(t, lunaPrice, 10.0)
+	instance, err := database.New(cfg.DatabaseConnectionURL)
+	require.NoError(t, err)
 
-	go database.StartAggregate2(ctx, logger, cfg, 3)
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, database.AggregateManager)
+	done := make(chan struct{})
+	hbCh, errCh := runAsDaemon(done, 100*time.Millisecond, instance.GetDB(), logger, cfg, database.PricefiatAggregator)
 
-	time.Sleep(25 * time.Second)
+	// Collect 5 heartbeats and then close
+	for i := 0; i < 5; i++ {
+		<-hbCh
+	}
+	close(done)
+	_, ok := <-hbCh
+	require.Equal(t, false, ok)
+	_, ok = <-errCh
+	require.Equal(t, false, ok)
+}
 
-	atomPrice, lunaPrice = getAggTokenPrice(t, cfg.DatabaseConnectionURL)
-	// Validate data updated on DB ..
-	require.Equal(t, atomPrice, 15.0)
-	require.Equal(t, lunaPrice, 16.0)
+func TestAggregateManager_worker_restarts(t *testing.T) {
+	_, cancel, logger, cfg, tDown := setupAgg(t)
+	defer tDown()
+	defer cancel()
+
+	instance, err := database.New(cfg.DatabaseConnectionURL)
+	require.NoError(t, err)
+
+	numRecover := 2
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, database.AggregateManager)
+	done := make(chan struct{})
+	db := instance.GetDB()
+	hbCh, errCh := runAsDaemon(done, 6*time.Second, db, logger, cfg, database.PricefiatAggregator)
+
+	// Wait for the process to start
+	<-hbCh
+	// Close the DB
+	err = db.Close()
+	require.NoError(t, err)
+	// Collect 2 error logs
+	for i := 0; i < numRecover; i++ {
+		require.Equal(t, "sql: database is closed", (<-errCh).Error())
+	}
+	// Ensure everything is closed
+	_, ok := <-errCh
+	require.Equal(t, false, ok)
+	close(done)
+	_, ok = <-hbCh
+	require.Equal(t, false, ok)
 }
 
 func setupAgg(t *testing.T) (context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {

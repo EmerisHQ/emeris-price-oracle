@@ -7,6 +7,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 	"math/rand"
+	"reflect"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
@@ -88,6 +91,7 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			var workerFatalErr <-chan error
 
 			startWorker := func() {
+				logger.Infof("Daemon: starts function %v", GetFunctionName(fn))
 				workerDone = make(chan struct{})
 				workerHeartbeat, workerFatalErr = worker(or(workerDone, done), pulseInterval, db, logger, cfg, fn)
 			}
@@ -116,6 +120,8 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 					case beat := <-workerHeartbeat:
 						// TODO: Send useful metric in future. Or metrics should be handled by
 						// the worker? Revisit here later when implement monitoring for price-oracle.
+						//
+						// Until we figure what to do with the heartbeat, we just log it.
 						logger.Infof("Daemon: heartbeat received: %v", beat)
 						continue monitorLoop
 					case err := <-workerFatalErr:
@@ -141,4 +147,10 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 		}()
 		return heartbeat, errCh
 	}
+}
+
+func GetFunctionName(i interface{}) string {
+	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	parts := strings.Split(fullName, "/")
+	return parts[len(parts)-1]
 }
