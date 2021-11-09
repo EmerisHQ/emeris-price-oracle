@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
@@ -16,7 +15,7 @@ import (
 )
 
 type (
-	AggFunc    = func(context.Context, *sqlx.DB, *zap.SugaredLogger, *config.Config) error
+	AggFunc    = func(*sqlx.DB, *zap.SugaredLogger, *config.Config) error
 	WorkerFunc = func(
 		chan struct{},
 		time.Duration,

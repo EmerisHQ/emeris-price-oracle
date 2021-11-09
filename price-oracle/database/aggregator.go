@@ -89,7 +89,7 @@ func AggregateManager(
 			case <-done:
 				return
 			case <-ticker:
-				if err := fn(nil, db, logger, cfg); err != nil {
+				if err := fn(db, logger, cfg); err != nil {
 					errCh <- err
 				}
 			case <-pulse:
@@ -103,7 +103,7 @@ func AggregateManager(
 	return heartbeatCh, errCh
 }
 
-func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
+func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
 	var query []string
 	binanceQuery := "SELECT * FROM oracle.binance"
@@ -173,7 +173,7 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	return nil
 }
 
-func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
+func PricefiatAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
 	var query []string
 	fixerQuery := "SELECT * FROM oracle.fixer"

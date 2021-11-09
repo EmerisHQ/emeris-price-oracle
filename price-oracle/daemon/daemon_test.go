@@ -1,7 +1,6 @@
 package daemon_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
@@ -142,7 +141,7 @@ func TestDaemon_worker_not_responding_restart_twice(t *testing.T) {
 					plsCnt++
 				case <-callFn:
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(nil, db, logger, cfg); err != nil {
+					if err := fn(db, logger, cfg); err != nil {
 						errCh <- err
 					}
 				}
@@ -194,7 +193,7 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 	observedZapCore, logs := observer.New(zap.InfoLevel)
 	logger := zap.New(observedZapCore).Sugar()
 
-	dummyAgg := func(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
+	dummyAgg := func(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
 		return fmt.Errorf("not implemented")
 	}
 	dummyWorker := func(
@@ -222,7 +221,7 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 				case <-callFn:
 					logger.Infof("Worker: calling fn")
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(nil, db, logger, cfg); err != nil {
+					if err := fn(db, logger, cfg); err != nil {
 						logger.Infof("Worker: found Error: %v", err)
 						errCh <- err
 					}
