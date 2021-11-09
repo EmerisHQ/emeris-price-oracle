@@ -28,6 +28,13 @@ type (
 // ErrWorkerRestarted is used to indicate a restarting process is taking place.
 var ErrWorkerRestarted = errors.New("daemon: process not responsive; restarting")
 
+// or takes an arbitrary number of channels (chans) and return a channel
+// named orDone. If any of the channels in (chans) is closed, orDone
+// is also closed.
+//
+// If we have 4 channels named ch1...ch4, the logic is,
+// if closed(ch1) || closed(ch2) || closed(ch3) || closed(ch4) -> return True.
+// And thus the name `or`
 func or(chans ...chan struct{}) chan struct{} {
 	switch len(chans) {
 	case 0:
