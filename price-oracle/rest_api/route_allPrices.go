@@ -1,4 +1,4 @@
-package rest
+package rest_api
 
 import (
 	"context"
@@ -20,9 +20,13 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
+	var tokens []string
+	for _, token := range Whitelists {
+		tokens = append(tokens, token+types.USDTBasecurrency)
+	}
 
 	selectTokens := types.SelectToken{
-		Tokens: Whitelists,
+		Tokens: tokens,
 	}
 	Tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
@@ -30,8 +34,13 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		return nil, nil, err
 	}
 
+	WhitelistFiats := r.s.c.Whitelistfiats
+	var fiats []string
+	for _, fiat := range WhitelistFiats {
+		fiats = append(fiats, types.USDBasecurrency+fiat)
+	}
 	selectFiats := types.SelectFiat{
-		Fiats: r.s.c.Whitelistfiats,
+		Fiats: fiats,
 	}
 	Fiats, err := r.s.sh.Store.GetFiats(selectFiats)
 	if err != nil {
