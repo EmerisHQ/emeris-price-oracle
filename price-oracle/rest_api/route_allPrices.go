@@ -84,7 +84,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime("prices", string(bz), 10*time.Second)
+	err = r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return

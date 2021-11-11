@@ -202,6 +202,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Interval:              "10s",
 		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
 		ListenAddr:            "127.0.0.1:9898",
+		RedisExpiry:           10 * time.Second,
 	}
 
 	logger := logging.New(logging.LoggingConfig{

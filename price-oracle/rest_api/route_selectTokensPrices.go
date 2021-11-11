@@ -101,7 +101,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), 10*time.Second)
+	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), r.s.c.RedisExpiry)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
