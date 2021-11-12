@@ -3,6 +3,7 @@ package database_test
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -159,4 +160,19 @@ func readLinesFromFile(t *testing.T, s string) []string {
 		commands = append(commands, cmd)
 	}
 	return commands
+}
+
+func TestAveraging(t *testing.T) {
+	nums := []float64{1.1, 2.2, 3.3, 4.4, 5.5, 6.6}
+	avg, err := database.Averaging(nums)
+	require.NoError(t, err)
+	require.Equal(t, 3.85, avg)
+
+	_, err = database.Averaging(nil)
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("nil price list recieved"), err)
+
+	_, err = database.Averaging([]float64{})
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("empty price list recieved"), err)
 }

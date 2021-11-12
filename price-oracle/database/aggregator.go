@@ -154,7 +154,7 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	}
 	for fiat := range whitelist {
 
-		mean, err := averaging(symbolkv[fiat])
+		mean, err := Averaging(symbolkv[fiat])
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Pr
 	return symbols
 }
 
-func averaging(prices []float64) (float64, error) {
+func Averaging(prices []float64) (float64, error) {
 	if prices == nil {
 		return 0, fmt.Errorf("nil price list recieved")
 	}
