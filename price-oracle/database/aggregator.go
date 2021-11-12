@@ -153,14 +153,11 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 		}
 	}
 	for fiat := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[fiat] {
-			total += value
+
+		median, err := averaging(symbolkv[fiat])
+		if err != nil {
+			return err
 		}
-		if len(symbolkv[fiat]) == 0 {
-			return nil
-		}
-		median := total / float64(len(symbolkv[fiat]))
 
 		tx := db.MustBegin()
 
@@ -197,4 +194,18 @@ func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Pr
 		symbols = append(symbols, symbol)
 	}
 	return symbols
+}
+
+func averaging(prices []float64) (float64, error) {
+	if prices == nil {
+		return 0, fmt.Errorf("nil price list recieved")
+	}
+	if len(prices) == 0 {
+		return 0, fmt.Errorf("empty price list recieved")
+	}
+	var total float64
+	for _, p := range prices {
+		total += p
+	}
+	return total / float64(len(prices)), nil
 }
