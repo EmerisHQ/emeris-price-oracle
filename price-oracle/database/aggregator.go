@@ -154,26 +154,26 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	}
 	for fiat := range whitelist {
 
-		median, err := averaging(symbolkv[fiat])
+		mean, err := averaging(symbolkv[fiat])
 		if err != nil {
 			return err
 		}
 
 		tx := db.MustBegin()
 
-		result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", median, fiat)
+		result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", mean, fiat)
 		updateresult, err := result.RowsAffected()
 		if err != nil {
 			return fmt.Errorf("DB update: %w", err)
 		}
 		if updateresult == 0 {
-			tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, median)
+			tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, mean)
 		}
 		err = tx.Commit()
 		if err != nil {
 			return fmt.Errorf("DB commit: %w", err)
 		}
-		logger.Infow("Insert to median Fiat Price", fiat, median)
+		logger.Infow("Insert to median Fiat Price", fiat, mean)
 	}
 	return nil
 }
