@@ -291,19 +291,19 @@ func insertToken(t *testing.T, connStr string) {
 
 func insertWantData(r router, wantData types.AllPriceResponse, l *zap.SugaredLogger) error {
 	for _, f := range wantData.Fiats {
-		err := r.s.sh.Store.UpsertFiatPrice(f.Price, f.Symbol, l)
+		err := r.s.sh.Store.UpsertPrice(database.FiatsStore, f.Price, f.Symbol, l)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
-		err := r.s.sh.Store.UpsertTokenPrice(t.Price, t.Symbol, l)
+		err := r.s.sh.Store.UpsertPrice(database.TokensStore, t.Price, t.Symbol, l)
 		if err != nil {
 			return err
 		}
 
-		err = r.s.sh.Store.UpsertTokenSupply(types.CoingeckoSupplyStore, t.Symbol, t.Supply, l)
+		err = r.s.sh.Store.UpsertTokenSupply(database.CoingeckoSupplyStore, t.Symbol, t.Supply, l)
 		if err != nil {
 			return err
 		}

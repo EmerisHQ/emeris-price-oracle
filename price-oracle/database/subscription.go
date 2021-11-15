@@ -30,11 +30,11 @@ type Api struct {
 	StoreHandler *StoreHandler
 }
 
-func StartSubscription(ctx context.Context, storeHandler StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
+func StartSubscription(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
 
 	api := Api{
 		Client:       &http.Client{Timeout: 2 * time.Second},
-		StoreHandler: &storeHandler,
+		StoreHandler: storeHandler,
 	}
 
 	var wg sync.WaitGroup
@@ -129,9 +129,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 			continue
 		}
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(types.BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger)
+		err = storeHandler.Store.UpsertToken(BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", types.BinanceStore, bp.Symbol, strToFloat, err)
+			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", BinanceStore, bp.Symbol, strToFloat, err)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -165,13 +165,13 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 		tokensum := strings.ToUpper(token.Symbol) + types.USDTBasecurrency
 
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(types.CoingeckoStore, tokensum, token.CurrentPrice, now.Unix(), logger)
+		err = storeHandler.Store.UpsertToken(CoingeckoStore, tokensum, token.CurrentPrice, now.Unix(), logger)
 		if err != nil {
-			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", types.CoingeckoStore, tokensum, token.CurrentPrice, err)
+			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", CoingeckoStore, tokensum, token.CurrentPrice, err)
 		}
-		err = storeHandler.Store.UpsertTokenSupply(types.CoingeckoSupplyStore, tokensum, token.CirculatingSupply, logger)
+		err = storeHandler.Store.UpsertTokenSupply(CoingeckoSupplyStore, tokensum, token.CirculatingSupply, logger)
 		if err != nil {
-			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", types.CoingeckoSupplyStore, tokensum, token.CirculatingSupply, err)
+			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", CoingeckoSupplyStore, tokensum, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -231,9 +231,9 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 		}
 
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(types.FixerStore, fiatsum, d, now.Unix(), logger)
+		err = storeHandler.Store.UpsertToken(FixerStore, fiatsum, d, now.Unix(), logger)
 		if err != nil {
-			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", types.FixerStore, fiatsum, d, err)
+			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", FixerStore, fiatsum, d, err)
 		}
 	}
 	return nil

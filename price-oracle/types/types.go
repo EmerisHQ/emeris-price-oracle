@@ -6,14 +6,8 @@ import (
 )
 
 const (
-	USDTBasecurrency     = "USDT"
-	USDBasecurrency      = "USD"
-	BinanceStore         = "oracle.binance"
-	CoingeckoStore       = "oracle.coingecko"
-	FixerStore           = "oracle.fixer"
-	TokensStore          = "oracle.tokens"
-	FiatsStore           = "oracle.fiats"
-	CoingeckoSupplyStore = "oracle.coingeckosupply"
+	USDTBasecurrency = "USDT"
+	USDBasecurrency  = "USD"
 )
 
 type AllPriceResponse struct {

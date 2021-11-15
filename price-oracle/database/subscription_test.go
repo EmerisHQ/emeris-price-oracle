@@ -40,13 +40,13 @@ func TestSubscriptionBinance(t *testing.T) {
 
 	api := database.Api{
 		Client:       client,
-		StoreHandler: &storeHandler,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionBinance(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(types.BinanceStore)
+	prices, err := storeHandler.Store.GetPrices(database.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -50.0)
@@ -79,13 +79,13 @@ func TestSubscriptionCoingecko(t *testing.T) {
 
 	api := database.Api{
 		Client:       client,
-		StoreHandler: &storeHandler,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionCoingecko(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(types.CoingeckoStore)
+	prices, err := storeHandler.Store.GetPrices(database.CoingeckoStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -39.41)
@@ -119,13 +119,13 @@ func TestSubscriptionFixer(t *testing.T) {
 
 	api := database.Api{
 		Client:       client,
-		StoreHandler: &storeHandler,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionFixer(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(types.FixerStore)
+	prices, err := storeHandler.Store.GetPrices(database.FixerStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[1].Symbol, "USDEUR")
 	require.Equal(t, prices[1].Price, 0.806942)
@@ -143,7 +143,7 @@ func newTestClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-func setupSubscription(t *testing.T) (database.StoreHandler, context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
+func setupSubscription(t *testing.T) (*database.StoreHandler, context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -172,5 +172,5 @@ func setupSubscription(t *testing.T) (database.StoreHandler, context.Context, fu
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	return *storeHandler, ctx, cancel, logger, cfg, func() { testServer.Stop() }
+	return storeHandler, ctx, cancel, logger, cfg, func() { testServer.Stop() }
 }

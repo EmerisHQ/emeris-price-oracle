@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(ctx context.Context, storeHandler StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
+func StartAggregate(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -26,7 +26,7 @@ func StartAggregate(ctx context.Context, storeHandler StoreHandler, logger *zap.
 	wg.Wait()
 }
 
-func AggregateWokers(ctx context.Context, storeHandler StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, fn func(StoreHandler, *config.Config, *zap.SugaredLogger) error) {
+func AggregateWokers(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, fn func(*StoreHandler, *config.Config, *zap.SugaredLogger) error) {
 	logger.Infow("INFO", "Subscription", "Aggregate WORK Start")
 	for {
 		select {
@@ -48,9 +48,9 @@ func AggregateWokers(ctx context.Context, storeHandler StoreHandler, logger *zap
 	}
 }
 
-func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
+func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{types.BinanceStore, types.CoingeckoStore}
+	query := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
 	cnswhitelist, err := storeHandler.CnsTokenQuery()
@@ -91,7 +91,7 @@ func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config, logger 
 		}
 
 		mean := total / float64(len(symbolkv[token]))
-		err = storeHandler.Store.UpsertTokenPrice(mean, token, logger)
+		err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger)
 		if err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
@@ -99,9 +99,9 @@ func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config, logger 
 	return nil
 }
 
-func PricefiatAggregator(storeHandler StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
+func PricefiatAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{types.FixerStore}
+	query := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
 	for _, fiat := range cfg.Whitelistfiats {
@@ -137,7 +137,7 @@ func PricefiatAggregator(storeHandler StoreHandler, cfg *config.Config, logger *
 		}
 		mean := total / float64(len(symbolkv[fiat]))
 
-		err := storeHandler.Store.UpsertFiatPrice(mean, fiat, logger)
+		err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger)
 		if err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}

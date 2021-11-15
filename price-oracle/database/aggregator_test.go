@@ -17,7 +17,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 	tokens := types.SelectToken{
 		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
 	}
-	stores := []string{types.BinanceStore, types.CoingeckoStore}
+	stores := []string{database.BinanceStore, database.CoingeckoStore}
 
 	for _, tk := range tokens.Tokens {
 		for i, s := range stores {
@@ -46,7 +46,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 	fiats := types.SelectFiat{
 		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
 	}
-	stores := []string{types.FixerStore}
+	stores := []string{database.FixerStore}
 
 	for _, tk := range fiats.Fiats {
 		for i, s := range stores {

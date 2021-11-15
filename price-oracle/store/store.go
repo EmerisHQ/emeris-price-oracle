@@ -12,8 +12,7 @@ type Store interface {
 	GetTokenNames() ([]string, error)                                                                 //fetches whilelist with token names
 	GetPriceIDs() ([]string, error)                                                                   //fetches whilelist with price ids
 	GetPrices(from string) ([]types.Prices, error)                                                    //fetches prices from db table ex: binance,coingecko,fixer,tokens
-	UpsertTokenPrice(price float64, token string, logger *zap.SugaredLogger) error                    //upsert token price in db
-	UpsertFiatPrice(price float64, token string, logger *zap.SugaredLogger) error                     //upsert fiat price in db
+	UpsertPrice(to string, price float64, token string, logger *zap.SugaredLogger) error              //upsert token or fiat price in db
 	UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error //upsert token or fiat to db. "to" indicates db name
 	UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error      //upsert token supply to db. "to" indicates db name
 }

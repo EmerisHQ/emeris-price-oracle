@@ -7,6 +7,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	BinanceStore         = "oracle.binance"
+	CoingeckoStore       = "oracle.coingecko"
+	FixerStore           = "oracle.fixer"
+	TokensStore          = "oracle.tokens"
+	FiatsStore           = "oracle.fiats"
+	CoingeckoSupplyStore = "oracle.coingeckosupply"
+)
+
 type StoreHandler struct {
 	Store Store.Store
 }
