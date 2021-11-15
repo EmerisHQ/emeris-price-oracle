@@ -63,11 +63,11 @@ func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config, logger 
 	}
 
 	for _, q := range query {
-		Prices, err := storeHandler.Store.GetPrices(q)
+		prices, err := storeHandler.Store.GetPrices(q)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", q, err)
 		}
-		for _, apitokenList := range Prices {
+		for _, apitokenList := range prices {
 			if _, ok := whitelist[apitokenList.Symbol]; !ok {
 				continue
 			}
@@ -75,9 +75,9 @@ func PricetokenAggregator(storeHandler StoreHandler, cfg *config.Config, logger 
 			if apitokenList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apitokenList.Symbol]
-			Pricelist = append(Pricelist, apitokenList.Price)
-			symbolkv[apitokenList.Symbol] = Pricelist
+			pricelist := symbolkv[apitokenList.Symbol]
+			pricelist = append(pricelist, apitokenList.Price)
+			symbolkv[apitokenList.Symbol] = pricelist
 		}
 	}
 
@@ -110,11 +110,11 @@ func PricefiatAggregator(storeHandler StoreHandler, cfg *config.Config, logger *
 	}
 
 	for _, q := range query {
-		Prices, err := storeHandler.Store.GetPrices(q)
+		prices, err := storeHandler.Store.GetPrices(q)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", q, err)
 		}
-		for _, apifiatList := range Prices {
+		for _, apifiatList := range prices {
 			if _, ok := whitelist[apifiatList.Symbol]; !ok {
 				continue
 			}
@@ -122,9 +122,9 @@ func PricefiatAggregator(storeHandler StoreHandler, cfg *config.Config, logger *
 			if apifiatList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apifiatList.Symbol]
-			Pricelist = append(Pricelist, apifiatList.Price)
-			symbolkv[apifiatList.Symbol] = Pricelist
+			pricelist := symbolkv[apifiatList.Symbol]
+			pricelist = append(pricelist, apifiatList.Price)
+			symbolkv[apifiatList.Symbol] = pricelist
 		}
 	}
 	for fiat := range whitelist {
