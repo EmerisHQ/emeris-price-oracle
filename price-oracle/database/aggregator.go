@@ -50,7 +50,7 @@ func AggregateWokers(ctx context.Context, storeHandler *StoreHandler, logger *za
 
 func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{BinanceStore, CoingeckoStore}
+	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
 	cnswhitelist, err := storeHandler.CnsTokenQuery()
@@ -62,22 +62,22 @@ func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger
 		whitelist[basetoken] = struct{}{}
 	}
 
-	for _, q := range query {
-		prices, err := storeHandler.Store.GetPrices(q)
+	for _, s := range stores {
+		prices, err := storeHandler.Store.GetPrices(s)
 		if err != nil {
-			return fmt.Errorf("Store.GetPrices(%s): %w", q, err)
+			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
-		for _, apitokenList := range prices {
-			if _, ok := whitelist[apitokenList.Symbol]; !ok {
+		for _, token := range prices {
+			if _, ok := whitelist[token.Symbol]; !ok {
 				continue
 			}
 			now := time.Now()
-			if apitokenList.UpdatedAt < now.Unix()-60 {
+			if token.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[apitokenList.Symbol]
-			pricelist = append(pricelist, apitokenList.Price)
-			symbolkv[apitokenList.Symbol] = pricelist
+			pricelist := symbolkv[token.Symbol]
+			pricelist = append(pricelist, token.Price)
+			symbolkv[token.Symbol] = pricelist
 		}
 	}
 
@@ -101,7 +101,7 @@ func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger
 
 func PricefiatAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
-	query := []string{FixerStore}
+	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
 	for _, fiat := range cfg.Whitelistfiats {
@@ -109,22 +109,22 @@ func PricefiatAggregator(storeHandler *StoreHandler, cfg *config.Config, logger 
 		whitelist[basefiat] = struct{}{}
 	}
 
-	for _, q := range query {
-		prices, err := storeHandler.Store.GetPrices(q)
+	for _, s := range stores {
+		prices, err := storeHandler.Store.GetPrices(s)
 		if err != nil {
-			return fmt.Errorf("Store.GetPrices(%s): %w", q, err)
+			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
-		for _, apifiatList := range prices {
-			if _, ok := whitelist[apifiatList.Symbol]; !ok {
+		for _, fiat := range prices {
+			if _, ok := whitelist[fiat.Symbol]; !ok {
 				continue
 			}
 			now := time.Now()
-			if apifiatList.UpdatedAt < now.Unix()-60 {
+			if fiat.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[apifiatList.Symbol]
-			pricelist = append(pricelist, apifiatList.Price)
-			symbolkv[apifiatList.Symbol] = pricelist
+			pricelist := symbolkv[fiat.Symbol]
+			pricelist = append(pricelist, fiat.Price)
+			symbolkv[fiat.Symbol] = pricelist
 		}
 	}
 	for fiat := range whitelist {

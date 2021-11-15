@@ -34,17 +34,17 @@ func NewStoreHandler(store Store.Store) (*StoreHandler, error) {
 }
 
 func (storeHandler *StoreHandler) CnsTokenQuery() ([]string, error) {
-	Whitelists, err := storeHandler.Store.GetTokenNames()
+	whitelists, err := storeHandler.Store.GetTokenNames()
 	if err != nil {
 		return nil, err
 	}
-	return Whitelists, nil
+	return whitelists, nil
 }
 
 func (storeHandler *StoreHandler) CnsPriceIdQuery() ([]string, error) {
-	Whitelists, err := storeHandler.Store.GetPriceIDs()
+	whitelists, err := storeHandler.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
 	}
-	return Whitelists, nil
+	return whitelists, nil
 }

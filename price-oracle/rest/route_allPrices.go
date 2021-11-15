@@ -20,34 +20,34 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	var tokens []string
+	var tokensWhilelist []string
 	for _, token := range whitelists {
-		tokens = append(tokens, token+types.USDTBasecurrency)
+		tokensWhilelist = append(tokensWhilelist, token+types.USDTBasecurrency)
 	}
 
 	selectTokens := types.SelectToken{
-		Tokens: tokens,
+		Tokens: tokensWhilelist,
 	}
-	Tokens, err := r.s.sh.Store.GetTokens(selectTokens)
+	tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
 		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
 
-	var fiats []string
+	var fiats_whitelist []string
 	for _, fiat := range r.s.c.Whitelistfiats {
-		fiats = append(fiats, types.USDBasecurrency+fiat)
+		fiats_whitelist = append(fiats_whitelist, types.USDBasecurrency+fiat)
 	}
 	selectFiats := types.SelectFiat{
-		Fiats: fiats,
+		Fiats: fiats_whitelist,
 	}
-	Fiats, err := r.s.sh.Store.GetFiats(selectFiats)
+	fiats, err := r.s.sh.Store.GetFiats(selectFiats)
 	if err != nil {
 		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
-		return Tokens, nil, err
+		return tokens, nil, err
 	}
 
-	return Tokens, Fiats, nil
+	return tokens, fiats, nil
 }
 
 func (r *router) allPricesHandler(ctx *gin.Context) {

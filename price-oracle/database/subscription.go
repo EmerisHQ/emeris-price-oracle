@@ -38,12 +38,12 @@ func StartSubscription(ctx context.Context, storeHandler *StoreHandler, logger *
 	}
 
 	var wg sync.WaitGroup
-	for _, subscriber := range []func(context.Context, *zap.SugaredLogger, *config.Config) error{
+	for _, s := range []func(context.Context, *zap.SugaredLogger, *config.Config) error{
 		api.SubscriptionBinance,
 		api.SubscriptionCoingecko,
 		api.SubscriptionFixer,
 	} {
-		subscriber := subscriber
+		subscriber := s
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -79,14 +79,14 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
 	client := api.Client
 	storeHandler := api.StoreHandler
-	Whitelisttokens, err := storeHandler.CnsTokenQuery()
+	whitelisttokens, err := storeHandler.CnsTokenQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
 	}
-	if len(Whitelisttokens) == 0 {
+	if len(whitelisttokens) == 0 {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist")
 	}
-	for _, token := range Whitelisttokens {
+	for _, token := range whitelisttokens {
 		tokensum := token + types.USDTBasecurrency
 
 		req, err := http.NewRequest("GET", BinanceURL, nil)
@@ -140,11 +140,11 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 
 func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
 	storeHandler := api.StoreHandler
-	Whitelisttokens, err := storeHandler.CnsPriceIdQuery()
+	whitelisttokens, err := storeHandler.CnsPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
 	}
-	if len(Whitelisttokens) == 0 {
+	if len(whitelisttokens) == 0 {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: The token does not exist")
 	}
 
@@ -156,7 +156,7 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
-	market, err := cg.CoinsMarket(vsCurrency, Whitelisttokens, order, perPage, page, sparkline, priceChangePercentage)
+	market, err := cg.CoinsMarket(vsCurrency, whitelisttokens, order, perPage, page, sparkline, priceChangePercentage)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko Market Query: %w", err)
 	}

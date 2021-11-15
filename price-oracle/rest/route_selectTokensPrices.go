@@ -48,13 +48,13 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		return
 	}
 
-	Whitelists, err := r.s.sh.CnsTokenQuery()
+	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
 		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
 		return
 	}
 	var basetokens []string
-	for _, token := range Whitelists {
+	for _, token := range whitelists {
 		tokens := token + types.USDTBasecurrency
 		basetokens = append(basetokens, tokens)
 	}
