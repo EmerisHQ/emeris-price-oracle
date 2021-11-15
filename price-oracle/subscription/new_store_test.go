@@ -29,8 +29,6 @@ func TestCnsTokenQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	insertToken(t, testServer.PGURL().String())
-
 	whiteList, err := storeHandler.CnsTokenQuery()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
@@ -45,8 +43,6 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler)
-
-	insertToken(t, testServer.PGURL().String())
 
 	whiteList, err := storeHandler.CnsPriceIdQuery()
 	require.NoError(t, err)
@@ -78,6 +74,8 @@ func setup(t *testing.T) testserver.TestServer {
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
 	require.NoError(t, ts.WaitForInit())
+
+	insertToken(t, ts.PGURL().String())
 
 	return ts
 }

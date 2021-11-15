@@ -15,13 +15,13 @@ const getAllPriceRoute = "/prices"
 
 func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
 
-	Whitelists, err := r.s.sh.CnsTokenQuery()
+	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
 		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
 	var tokens []string
-	for _, token := range Whitelists {
+	for _, token := range whitelists {
 		tokens = append(tokens, token+types.USDTBasecurrency)
 	}
 
@@ -34,9 +34,8 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		return nil, nil, err
 	}
 
-	WhitelistFiats := r.s.c.Whitelistfiats
 	var fiats []string
-	for _, fiat := range WhitelistFiats {
+	for _, fiat := range r.s.c.Whitelistfiats {
 		fiats = append(fiats, types.USDBasecurrency+fiat)
 	}
 	selectFiats := types.SelectFiat{
@@ -57,12 +56,12 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), "prices").Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
-			return
+			goto STORE
 		}
 		err = json.Unmarshal(bz, &AllPriceResponse)
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
-			return
+			goto STORE
 		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status":  http.StatusOK,
@@ -72,13 +71,15 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 		return
 	}
+STORE:
 	Tokens, Fiats, err := allPrices(r)
-	AllPriceResponse.Tokens = Tokens
-	AllPriceResponse.Fiats = Fiats
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	AllPriceResponse.Tokens = Tokens
+	AllPriceResponse.Fiats = Fiats
+
 	bz, err := json.Marshal(AllPriceResponse)
 	if err != nil {
 		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)

@@ -49,21 +49,21 @@ var migrationCoingecko = []string{
 }
 
 func (m *SqlDB) runMigrations() error {
-	if err := m.RunMigrations(m.connString, migrationList); err != nil {
+	if err := m.RunMigrations(migrationList); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (m *SqlDB) runMigrationsCoingecko() error {
-	if err := m.RunMigrations(m.connString, migrationCoingecko); err != nil {
+	if err := m.RunMigrations(migrationCoingecko); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *SqlDB) RunMigrations(dbConnString string, migrations []string) error {
-	m, err := NewDB(dbConnString)
+func (m *SqlDB) RunMigrations(migrations []string) error {
+	m, err := NewDB(m.connString)
 	if err != nil {
 		return err
 	}

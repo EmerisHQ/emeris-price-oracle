@@ -34,7 +34,10 @@ func (m *SqlDB) Init() error {
 		defer q.Close()
 	}
 	if err != nil {
-		m.runMigrations()
+		err = m.runMigrations()
+		if err != nil {
+			return err
+		}
 	}
 
 	//interim measures
@@ -43,7 +46,10 @@ func (m *SqlDB) Init() error {
 		defer q.Close()
 	}
 	if err != nil {
-		m.runMigrationsCoingecko()
+		err = m.runMigrationsCoingecko()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
