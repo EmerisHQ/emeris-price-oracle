@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -13,60 +12,6 @@ import (
 )
 
 const getselectTokensPricesRoute = "/tokens"
-
-func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
-	var Tokens []types.TokenPriceResponse
-	var Token types.TokenPriceResponse
-	var symbolList []interface{}
-
-	symbolNum := len(selectToken.Tokens)
-
-	query := "SELECT * FROM oracle.tokens WHERE symbol=$1"
-
-	for i := 2; i <= symbolNum; i++ {
-		query += " OR" + " symbol=$" + strconv.Itoa(i)
-	}
-
-	for _, usersymbol := range selectToken.Tokens {
-		symbolList = append(symbolList, usersymbol)
-	}
-
-	rows, err := r.s.d.Query(query, symbolList...)
-	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var symbol string
-		var price float64
-		var supply float64
-		err := rows.Scan(&symbol, &price)
-		if err != nil {
-			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, err
-		}
-		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
-		rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", symbol)
-		if err != nil {
-			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, err
-		}
-		defer rowCmcSupply.Close()
-		for rowCmcSupply.Next() {
-			if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
-				r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-			}
-		}
-		Token.Symbol = symbol
-		Token.Price = price
-		Token.Supply = supply
-
-		Tokens = append(Tokens, Token)
-	}
-
-	return Tokens, nil
-}
 
 func (r *router) TokensPrices(ctx *gin.Context) {
 	var selectToken types.SelectToken
@@ -103,7 +48,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		return
 	}
 
-	Whitelists, err := r.s.d.CnstokenQueryHandler()
+	Whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
 		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
 		return
@@ -145,9 +90,10 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 
 		return
 	}
-	symbols, err = selectTokensPrices(r, selectToken)
+	symbols, err = r.s.sh.Store.GetTokens(selectToken)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
+		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
 		return
 	}
 	bz, err := json.Marshal(symbols)
@@ -155,7 +101,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), 10*time.Second)
+	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), r.s.c.RedisExpiry)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return

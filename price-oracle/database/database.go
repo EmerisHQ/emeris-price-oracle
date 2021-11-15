@@ -1,121 +1,41 @@
 package database
 
 import (
-	"database/sql"
-	"strings"
+	"fmt"
 
-	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
-	"github.com/jmoiron/sqlx"
-
+	Store "github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	_ "github.com/lib/pq"
 )
 
-type Instance struct {
-	d          *dbutils.Instance
-	connString string
+type StoreHandler struct {
+	Store Store.Store
 }
 
-func New(connString string) (*Instance, error) {
-	i, err := dbutils.New(connString)
+func NewStoreHandler(store Store.Store) (*StoreHandler, error) {
+	if store == nil {
+		return nil, fmt.Errorf("new_store.go, NewStoreHandler : nil store passed")
+	}
+
+	err := store.Init()
 	if err != nil {
 		return nil, err
 	}
 
-	ii := &Instance{
-		d:          i,
-		connString: connString,
-	}
-	q, err := ii.Query("SHOW TABLES FROM oracle")
-	if q != nil {
-		defer q.Close()
-	}
-	if err != nil {
-		ii.runMigrations()
-	}
-
-	//interim measures
-	q, err = ii.Query("SELECT * FROM oracle.coingecko")
-	if q != nil {
-		defer q.Close()
-	}
-	if err != nil {
-		ii.runMigrationsCoingecko()
-	}
-	return ii, nil
+	return &StoreHandler{Store: store}, nil
 }
 
-func CnsTokenQuery(db *sqlx.DB) ([]string, error) {
-	var Whitelists []string
-	q, err := db.Queryx("SELECT  y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
-	if err != nil {
-		return nil, err
-	}
-	for q.Next() {
-		var ticker string
-		var fetch_price bool
-		err := q.Scan(&ticker, &fetch_price)
-		if err != nil {
-			return nil, err
-		}
-		if fetch_price {
-			ticker = strings.TrimRight(ticker, "\"")
-			ticker = strings.TrimLeft(ticker, "\"")
-			Whitelists = append(Whitelists, ticker)
-		}
-	}
-	return Whitelists, nil
-}
-
-func CnsPriceIdQuery(db *sqlx.DB) ([]string, error) {
-	var Whitelists []string
-	q, err := db.Queryx("SELECT  y.x->'price_id',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
-	if err != nil {
-		return nil, err
-	}
-	for q.Next() {
-		var price_id sql.NullString
-		var fetch_price bool
-		err := q.Scan(&price_id, &fetch_price)
-		if err != nil {
-			return nil, err
-		}
-		if price_id.Valid {
-			if fetch_price {
-				price_id.String = strings.TrimRight(price_id.String, "\"")
-				price_id.String = strings.TrimLeft(price_id.String, "\"")
-				Whitelists = append(Whitelists, price_id.String)
-			}
-		} else {
-			continue
-		}
-	}
-	return Whitelists, nil
-}
-
-func (i *Instance) Query(query string, args ...interface{}) (*sqlx.Rows, error) {
-	q, err := i.d.DB.Queryx(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return q, nil
-}
-
-func (i *Instance) CnstokenQueryHandler() ([]string, error) {
-	Whitelists, err := CnsTokenQuery(i.d.DB)
+func (storeHandler *StoreHandler) CnsTokenQuery() ([]string, error) {
+	Whitelists, err := storeHandler.Store.GetTokenNames()
 	if err != nil {
 		return nil, err
 	}
 	return Whitelists, nil
 }
 
-func (i *Instance) CnsPriceIdQueryHandler() ([]string, error) {
-	Whitelists, err := CnsPriceIdQuery(i.d.DB)
+func (storeHandler *StoreHandler) CnsPriceIdQuery() ([]string, error) {
+	Whitelists, err := storeHandler.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
 	}
 	return Whitelists, nil
-}
-
-func (i *Instance) GetConnectionString() string {
-	return i.connString
 }

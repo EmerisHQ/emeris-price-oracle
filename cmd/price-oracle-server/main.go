@@ -10,6 +10,7 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/allinbits/emeris-price-oracle/utils/store"
 )
@@ -29,7 +30,12 @@ func main() {
 
 	logger.Infow("price-oracle-server", "version", Version)
 
-	di, err := database.New(config.DatabaseConnectionURL)
+	db, err := sql.NewDB(config.DatabaseConnectionURL)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	storeHandler, err := database.NewStoreHandler(db)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -46,17 +52,17 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		database.StartAggregate(ctx, logger, config)
+		database.StartAggregate(ctx, *storeHandler, logger, config)
 	}()
 	go func() {
 		defer wg.Done()
-		database.StartSubscription(ctx, logger, config)
+		database.StartSubscription(ctx, *storeHandler, logger, config)
 	}()
 
 	restServer := rest.NewServer(
+		storeHandler,
 		ri,
 		logger,
-		di,
 		config,
 	)
 	go func() {

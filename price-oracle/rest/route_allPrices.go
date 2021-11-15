@@ -14,77 +14,37 @@ import (
 const getAllPriceRoute = "/prices"
 
 func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
-	var Fiats []types.FiatPriceResponse
-	var Fiat types.FiatPriceResponse
-	var Tokens []types.TokenPriceResponse
-	var Token types.TokenPriceResponse
 
-	rowsToken, err := r.s.d.Query("SELECT * FROM oracle.tokens")
+	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	defer rowsToken.Close()
-	Whitelists, err := r.s.d.CnstokenQueryHandler()
-	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-		return nil, nil, err
-	}
-	for rowsToken.Next() {
-		var symbol string
-		var price float64
-		var supply float64
-		err := rowsToken.Scan(&symbol, &price)
-		if err != nil {
-			r.s.l.Fatalw("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, nil, err
-		}
-		for _, Whitelisttoken := range Whitelists {
-			Whitelisttoken = Whitelisttoken + types.USDTBasecurrency
-			if symbol == Whitelisttoken {
-				//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
-				rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", Whitelisttoken)
-				if err != nil {
-					r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-					return nil, nil, err
-				}
-				defer rowCmcSupply.Close()
-				for rowCmcSupply.Next() {
-					if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
-						r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-					}
-				}
-				Token.Symbol = symbol
-				Token.Price = price
-				Token.Supply = supply
-				Tokens = append(Tokens, Token)
-			}
-		}
+	var tokens []string
+	for _, token := range whitelists {
+		tokens = append(tokens, token+types.USDTBasecurrency)
 	}
 
-	rowsFiat, err := r.s.d.Query("SELECT * FROM oracle.fiats")
+	selectTokens := types.SelectToken{
+		Tokens: tokens,
+	}
+	Tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
-		r.s.l.Fatalw("Error", "DB", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	defer rowsFiat.Close()
-	for rowsFiat.Next() {
-		var symbol string
-		var price float64
-		err := rowsFiat.Scan(&symbol, &price)
-		if err != nil {
-			r.s.l.Errorw("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, nil, err
-		}
-		for _, fiat := range r.s.c.Whitelistfiats {
-			fiat = types.USDBasecurrency + fiat
 
-			Fiat.Symbol = symbol
-			Fiat.Price = price
-			if symbol == fiat {
-				Fiats = append(Fiats, Fiat)
-			}
-		}
+	var fiats []string
+	for _, fiat := range r.s.c.Whitelistfiats {
+		fiats = append(fiats, types.USDBasecurrency+fiat)
+	}
+	selectFiats := types.SelectFiat{
+		Fiats: fiats,
+	}
+	Fiats, err := r.s.sh.Store.GetFiats(selectFiats)
+	if err != nil {
+		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
+		return Tokens, nil, err
 	}
 
 	return Tokens, Fiats, nil
@@ -96,12 +56,12 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), "prices").Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
-			return
+			goto STORE
 		}
 		err = json.Unmarshal(bz, &AllPriceResponse)
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
-			return
+			goto STORE
 		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status":  http.StatusOK,
@@ -111,19 +71,21 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 		return
 	}
+STORE:
 	Tokens, Fiats, err := allPrices(r)
-	AllPriceResponse.Tokens = Tokens
-	AllPriceResponse.Fiats = Fiats
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	AllPriceResponse.Tokens = Tokens
+	AllPriceResponse.Fiats = Fiats
+
 	bz, err := json.Marshal(AllPriceResponse)
 	if err != nil {
 		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime("prices", string(bz), 10*time.Second)
+	err = r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return

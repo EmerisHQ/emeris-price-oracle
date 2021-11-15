@@ -3,16 +3,25 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSelectFiatsPrice(t *testing.T) {
 	router, ctx, w, tDown := setup(t)
 	defer tDown()
+
+	want := []types.FiatPriceResponse{
+		{Symbol: "USDEUR", Price: 20},
+		{Symbol: "USDKRW", Price: 5},
+	}
+
+	err := insertWantData(router, types.AllPriceResponse{Fiats: want}, router.s.l)
+	require.NoError(t, err)
 
 	ctx.Request = &http.Request{
 		Header: make(http.Header),
@@ -35,11 +44,6 @@ func TestSelectFiatsPrice(t *testing.T) {
 	}
 	err = json.Unmarshal(w.Body.Bytes(), &got)
 	require.NoError(t, err)
-
-	want := []types.FiatPriceResponse{
-		{Symbol: "USDEUR", Price: 20},
-		{Symbol: "USDKRW", Price: 5},
-	}
 
 	require.Equal(t, want, got.Data)
 }

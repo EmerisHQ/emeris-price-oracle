@@ -1,162 +1,69 @@
 package database_test
 
 import (
-	"bufio"
-	"context"
-	"os"
 	"testing"
 	"time"
 
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
-	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/cockroachdb/cockroach-go/v2/testserver"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
-func TestMain(m *testing.M) {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-	zap.ReplaceGlobals(logger)
-	os.Exit(m.Run())
-}
-
-func TestStartAggregate(t *testing.T) {
-	ctx, cancel, logger, cfg, tDown := setupAgg(t)
+func TestPriceTokenAggregator(t *testing.T) {
+	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
-	atomPrice, lunaPrice := getAggTokenPrice(t, cfg.DatabaseConnectionURL)
-	require.Equal(t, atomPrice, 10.0)
-	require.Equal(t, lunaPrice, 10.0)
+	tokens := types.SelectToken{
+		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
+	}
+	stores := []string{types.BinanceStore, types.CoingeckoStore}
 
-	go database.StartAggregate(ctx, logger, cfg)
-
-	// TODO: Comeback here again once the aggregator is refactored
-	// and sending heart bit as pulse. Use that heart bit to determine
-	// that aggregation has done one iteration.
-	//
-	// We can also try to capture the log output. But don't see how we
-	// can achieve that with small refactoring. So, I am sleeping for
-	// 5 seconds. It's nondeterministic, but good enough for now!
-	time.Sleep(5 * time.Second)
-
-	atomPrice, lunaPrice = getAggTokenPrice(t, cfg.DatabaseConnectionURL)
-	// Validate data updated on DB ..
-	require.Equal(t, atomPrice, 15.0)
-	require.Equal(t, lunaPrice, 16.0)
-}
-
-func setupAgg(t *testing.T) (context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
-	t.Helper()
-	testServer, err := testserver.NewTestServer()
-	require.NoError(t, err)
-	require.NoError(t, testServer.WaitForInit())
-
-	connStr := testServer.PGURL().String()
-	require.NotNil(t, connStr)
-
-	// Seed DB with data in schema file
-	oracleMigration := readLinesFromFile(t, "schema-unittest")
-	err = dbutils.RunMigrations(connStr, oracleMigration)
-	require.NoError(t, err)
-
-	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
-		LogPath:               "",
-		Debug:                 true,
-		DatabaseConnectionURL: connStr,
-		Interval:              "10s",
-		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+	for _, tk := range tokens.Tokens {
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
 	}
 
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: cfg.LogPath,
-		Debug:   cfg.Debug,
-	})
+	err := database.PricetokenAggregator(storeHandler, cfg, logger)
+	require.NoError(t, err)
 
-	insertToken(t, connStr)
-	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, cancel, logger, cfg, func() { testServer.Stop() }
+	prices, err := storeHandler.Store.GetTokens(tokens)
+	require.NoError(t, err)
+
+	for i, p := range prices {
+		require.Equal(t, tokens.Tokens[i], p.Symbol)
+		require.Equal(t, 10.5, p.Price)
+	}
 }
 
-func insertToken(t *testing.T, connStr string) {
-	chain := models.Chain{
-		ChainName:        "cosmos-hub",
-		DemerisAddresses: []string{"addr1"},
-		DisplayName:      "ATOM display name",
-		GenesisHash:      "hash",
-		NodeInfo:         models.NodeInfo{},
-		ValidBlockThresh: models.Threshold(1 * time.Second),
-		DerivationPath:   "derivation_path",
-		SupportedWallets: []string{"metamask"},
-		Logo:             "logo 1",
-		Denoms: []models.Denom{
-			{
-				Name:        "ATOM",
-				PriceID:     "cosmos",
-				DisplayName: "ATOM",
-				FetchPrice:  true,
-				Ticker:      "ATOM",
-			},
-			{
-				Name:        "LUNA",
-				PriceID:     "terra-luna",
-				DisplayName: "LUNA",
-				FetchPrice:  true,
-				Ticker:      "LUNA",
-			},
-		},
-		PrimaryChannel: models.DbStringMap{
-			"cosmos-hub":  "ch0",
-			"persistence": "ch2",
-		},
+func TestPriceFiatAggregator(t *testing.T) {
+	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
+	defer tDown()
+	defer cancel()
+
+	fiats := types.SelectFiat{
+		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
 	}
-	cnsInstanceDB, err := cnsDB.New(connStr)
-	require.NoError(t, err)
+	stores := []string{types.FixerStore}
 
-	err = cnsInstanceDB.AddChain(chain)
-	require.NoError(t, err)
-
-	cc, err := cnsInstanceDB.Chains()
-	require.NoError(t, err)
-	require.Equal(t, 1, len(cc))
-}
-
-func getAggTokenPrice(t *testing.T, connStr string) (float64, float64) {
-	instance, err := database.New(connStr)
-	require.NoError(t, err)
-
-	tokenPrice := make(map[string]float64)
-	rows, err := instance.Query("SELECT * FROM oracle.tokens")
-	require.NoError(t, err)
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var tokenName string
-		var price float64
-		err := rows.Scan(&tokenName, &price)
-		require.NoError(t, err)
-		tokenPrice[tokenName] = price
+	for _, tk := range fiats.Fiats {
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
 	}
-	return tokenPrice["ATOMUSDT"], tokenPrice["LUNAUSDT"]
-}
 
-func readLinesFromFile(t *testing.T, s string) []string {
-	file, err := os.Open(s)
+	err := database.PricefiatAggregator(storeHandler, cfg, logger)
 	require.NoError(t, err)
-	defer func() { _ = file.Close() }()
 
-	var commands []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		cmd := scanner.Text()
-		commands = append(commands, cmd)
+	prices, err := storeHandler.Store.GetFiats(fiats)
+	require.NoError(t, err)
+	require.NotNil(t, prices)
+
+	for i, p := range prices {
+		require.Equal(t, fiats.Fiats[i], p.Symbol)
+		require.Equal(t, float64(10), p.Price)
 	}
-	return commands
 }

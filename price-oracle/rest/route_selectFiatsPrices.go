@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -13,40 +12,6 @@ import (
 )
 
 const getselectFiatsPricesRoute = "/fiats"
-
-func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	var symbols []types.FiatPriceResponse
-	var symbol types.FiatPriceResponse
-	var symbolList []interface{}
-
-	symbolNum := len(selectFiat.Fiats)
-
-	query := "SELECT * FROM oracle.fiats WHERE symbol=$1"
-
-	for i := 2; i <= symbolNum; i++ {
-		query += " OR" + " symbol=$" + strconv.Itoa(i)
-	}
-
-	for _, usersymbol := range selectFiat.Fiats {
-		symbolList = append(symbolList, usersymbol)
-	}
-
-	rows, err := r.s.d.Query(query, symbolList...)
-	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		err := rows.StructScan(&symbol)
-		if err != nil {
-			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, err
-		}
-		symbols = append(symbols, symbol)
-	}
-
-	return symbols, nil
-}
 
 func (r *router) FiatsPrices(ctx *gin.Context) {
 	var selectFiat types.SelectFiat
@@ -121,16 +86,16 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 
 		return
 	}
-	symbols, err = selectFiatsPrices(r, selectFiat)
+	symbols, err = r.s.sh.Store.GetFiats(selectFiat)
 	if err != nil {
-		r.s.l.Error("Error", "SelectFiatQuery", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
 	}
 	bz, err := json.Marshal(symbols)
 	if err != nil {
 		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), 10*time.Second)
+	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), r.s.c.RedisExpiry)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
