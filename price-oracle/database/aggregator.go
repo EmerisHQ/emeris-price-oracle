@@ -11,54 +11,99 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 )
 
-func StartAggregate(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) {
-
+func StartAggregate(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
+	fetchInterval, err := time.ParseDuration(cfg.Interval)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	d, err := New(cfg.DatabaseConnectionURL)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	defer d.d.Close()
+	defer func() { _ = d.d.Close() }()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		AggregateWokers(ctx, d.d.DB, logger, cfg, PricetokenAggregator)
-	}()
-	go func() {
-		defer wg.Done()
-		AggregateWokers(ctx, d.d.DB, logger, cfg, PricefiatAggregator)
-	}()
+	runAsDaemon := daemon.MakeDaemon(fetchInterval*3, maxRecover, AggregateManager)
 
+	workers := map[string]struct {
+		worker daemon.AggFunc
+		doneCh chan struct{}
+	}{
+		"token": {worker: PricetokenAggregator, doneCh: make(chan struct{})},
+		"fiat":  {worker: PricefiatAggregator, doneCh: make(chan struct{})},
+	}
+	for _, properties := range workers {
+		wg.Add(1)
+		// TODO: Hack!! Move pulse (3 * time.Second) on abstraction later.
+		heartbeatCh, errCh := runAsDaemon(properties.doneCh, 3*time.Second, d.d.DB, logger, cfg, properties.worker)
+		go func(ctx context.Context, done chan struct{}, workerName string) {
+			defer close(done)
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case heartbeat := <-heartbeatCh:
+					logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
+				case err, ok := <-errCh:
+					// errCh is closed. Daemon process returned.
+					if !ok {
+						return
+					}
+					logger.Errorf("Error: %T : %v", workerName, err)
+				}
+			}
+		}(ctx, properties.doneCh, daemon.GetFunctionName(properties.worker))
+	}
+	// TODO: Handle signal. Start/stop worker.
 	wg.Wait()
 }
 
-func AggregateWokers(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config, fn func(context.Context, *sqlx.DB, *zap.SugaredLogger, *config.Config) error) {
-	logger.Infow("INFO", "DB", "Aggregate WORK Start")
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		if err := fn(ctx, db, logger, cfg); err != nil {
-			logger.Errorw("DB", "Aggregate WORK err", err)
-		}
-
-		interval, err := time.ParseDuration(cfg.Interval)
+func AggregateManager(
+	done chan struct{},
+	pulseInterval time.Duration,
+	db *sqlx.DB,
+	logger *zap.SugaredLogger,
+	cfg *config.Config,
+	fn daemon.AggFunc,
+) (chan interface{}, chan error) {
+	heartbeatCh := make(chan interface{})
+	errCh := make(chan error)
+	go func() {
+		defer close(heartbeatCh)
+		defer close(errCh)
+		fetchInterval, err := time.ParseDuration(cfg.Interval)
 		if err != nil {
 			logger.Errorw("DB", "Aggregate WORK err", err)
+			errCh <- err
 			return
 		}
-		time.Sleep(interval)
-	}
+		ticker := time.Tick(fetchInterval)
+		pulse := time.Tick(pulseInterval)
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker:
+				if err := fn(db, logger, cfg); err != nil {
+					errCh <- err
+				}
+			case <-pulse:
+				select {
+				case heartbeatCh <- fmt.Sprintf("AggregateManager(%v)", daemon.GetFunctionName(fn)):
+				default:
+				}
+			}
+		}
+	}()
+	return heartbeatCh, errCh
 }
 
-func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
+func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
 	var query []string
 	binanceQuery := "SELECT * FROM oracle.binance"
@@ -78,7 +123,10 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
+		Prices, err := PriceQuery(db, q)
+		if err != nil {
+			return err
+		}
 		for _, apitokenList := range Prices {
 			if _, ok := whitelist[apitokenList.Symbol]; !ok {
 				continue
@@ -125,7 +173,7 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	return nil
 }
 
-func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
+func PricefiatAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolkv := make(map[string][]float64)
 	var query []string
 	fixerQuery := "SELECT * FROM oracle.fixer"
@@ -138,7 +186,10 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
+		Prices, err := PriceQuery(db, q)
+		if err != nil {
+			return err
+		}
 		for _, apifiatList := range Prices {
 			if _, ok := whitelist[apifiatList.Symbol]; !ok {
 				continue
@@ -181,20 +232,20 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	return nil
 }
 
-func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Prices {
+func PriceQuery(db *sqlx.DB, Query string) ([]types.Prices, error) {
 	var symbols []types.Prices
 	var symbol types.Prices
 	rows, err := db.Queryx(Query)
 	if err != nil {
-		logger.Fatalw("Fatal", "DB", err.Error(), "Duration", time.Second)
+		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err := rows.StructScan(&symbol)
 		if err != nil {
-			logger.Fatalw("Fatal", "DB", err.Error(), "Duration", time.Second)
+			return nil, err
 		}
 		symbols = append(symbols, symbol)
 	}
-	return symbols
+	return symbols, nil
 }
