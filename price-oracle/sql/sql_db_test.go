@@ -6,14 +6,33 @@ import (
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
+func TestStore(t *testing.T) {
+	testServer, logger := setup(t)
+	defer tearDown(testServer)
+
+	connStr := testServer.PGURL().String()
+	require.NotNil(t, connStr)
+
+	mDB, err := NewDB(connStr)
+	require.NoError(t, err)
+	require.Equal(t, mDB.GetConnectionString(), connStr)
+	defer mDB.Close()
+
+	err = mDB.Init()
+	require.NoError(t, err)
+
+	store.StoreTest(t, mDB, logger)
+}
 func TestInit(t *testing.T) {
-	testServer := setup(t)
+	testServer, _ := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -70,7 +89,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestGetTokens(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -83,11 +102,6 @@ func TestGetTokens(t *testing.T) {
 
 	err = mDB.Init()
 	require.NoError(t, err)
-
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
 
 	token := types.TokenPriceResponse{
 		Symbol: "ATOM",
@@ -110,7 +124,7 @@ func TestGetTokens(t *testing.T) {
 }
 
 func TestGetFiats(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -123,11 +137,6 @@ func TestGetFiats(t *testing.T) {
 
 	err = mDB.Init()
 	require.NoError(t, err)
-
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
 
 	fiat := types.FiatPriceResponse{
 		Symbol: "USD",
@@ -146,7 +155,7 @@ func TestGetFiats(t *testing.T) {
 }
 
 func TestGetTokenNames(t *testing.T) {
-	testServer := setup(t)
+	testServer, _ := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -163,7 +172,7 @@ func TestGetTokenNames(t *testing.T) {
 }
 
 func TestGetPriceIDs(t *testing.T) {
-	testServer := setup(t)
+	testServer, _ := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -180,7 +189,7 @@ func TestGetPriceIDs(t *testing.T) {
 }
 
 func TestGetPrices(t *testing.T) {
-	testServer := setup(t)
+	testServer, _ := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -212,7 +221,7 @@ func TestGetPrices(t *testing.T) {
 }
 
 func TestUpsertTokenPrice(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -225,11 +234,6 @@ func TestUpsertTokenPrice(t *testing.T) {
 
 	err = mDB.Init()
 	require.NoError(t, err)
-
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
 
 	price := types.TokenPriceResponse{
 		Symbol: "ATOM",
@@ -255,7 +259,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 }
 
 func TestUpsertFiatPrice(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -268,11 +272,6 @@ func TestUpsertFiatPrice(t *testing.T) {
 
 	err = mDB.Init()
 	require.NoError(t, err)
-
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
 
 	price := types.FiatPriceResponse{
 		Symbol: "USD",
@@ -298,7 +297,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 }
 
 func TestUpsertToken(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -319,11 +318,6 @@ func TestUpsertToken(t *testing.T) {
 		UpdatedAt: now.Unix(),
 	}
 
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
-
 	err = mDB.UpsertToken(database.BinanceStore, price.Symbol, price.Price, now.Unix(), logger)
 	require.NoError(t, err)
 
@@ -333,7 +327,7 @@ func TestUpsertToken(t *testing.T) {
 }
 
 func TestUpsertTokenSupply(t *testing.T) {
-	testServer := setup(t)
+	testServer, logger := setup(t)
 	defer tearDown(testServer)
 
 	connStr := testServer.PGURL().String()
@@ -351,11 +345,6 @@ func TestUpsertTokenSupply(t *testing.T) {
 		Symbol: "ATOM",
 		Supply: -200,
 	}
-
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: "",
-		Debug:   true,
-	})
 
 	err = mDB.UpsertTokenSupply(database.CoingeckoSupplyStore, price.Symbol, price.Supply, logger)
 	require.NoError(t, err)
@@ -375,12 +364,17 @@ func TestUpsertTokenSupply(t *testing.T) {
 	require.Equal(t, price, prices[0])
 }
 
-func setup(t *testing.T) testserver.TestServer {
+func setup(t *testing.T) (testserver.TestServer, *zap.SugaredLogger) {
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
 	require.NoError(t, ts.WaitForInit())
 
-	return ts
+	logger := logging.New(logging.LoggingConfig{
+		LogPath: "",
+		Debug:   true,
+	})
+
+	return ts, logger
 }
 
 func tearDown(ts testserver.TestServer) {
