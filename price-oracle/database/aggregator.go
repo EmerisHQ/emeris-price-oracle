@@ -16,17 +16,17 @@ func StartAggregate(ctx context.Context, storeHandler *StoreHandler, logger *zap
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		AggregateWokers(ctx, storeHandler, logger, cfg, PricetokenAggregator)
+		AggregateWokers(ctx, logger, cfg, storeHandler.PricetokenAggregator)
 	}()
 	go func() {
 		defer wg.Done()
-		AggregateWokers(ctx, storeHandler, logger, cfg, PricefiatAggregator)
+		AggregateWokers(ctx, logger, cfg, storeHandler.PricefiatAggregator)
 	}()
 
 	wg.Wait()
 }
 
-func AggregateWokers(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, fn func(*StoreHandler, *config.Config, *zap.SugaredLogger) error) {
+func AggregateWokers(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, fn func(*config.Config, *zap.SugaredLogger) error) {
 	logger.Infow("INFO", "Subscription", "Aggregate WORK Start")
 	for {
 		select {
@@ -35,8 +35,8 @@ func AggregateWokers(ctx context.Context, storeHandler *StoreHandler, logger *za
 		default:
 		}
 
-		if err := fn(storeHandler, cfg, logger); err != nil {
-			logger.Errorw("Subscription", "Aggregate WORK err", err)
+		if err := fn(cfg, logger); err != nil {
+			logger.Errorw("Aggregator", "Aggregate WORK err", err)
 		}
 
 		interval, err := time.ParseDuration(cfg.Interval)
@@ -48,7 +48,7 @@ func AggregateWokers(ctx context.Context, storeHandler *StoreHandler, logger *za
 	}
 }
 
-func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
+func (storeHandler *StoreHandler) PricetokenAggregator(cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
@@ -99,7 +99,7 @@ func PricetokenAggregator(storeHandler *StoreHandler, cfg *config.Config, logger
 	return nil
 }
 
-func PricefiatAggregator(storeHandler *StoreHandler, cfg *config.Config, logger *zap.SugaredLogger) error {
+func (storeHandler *StoreHandler) PricefiatAggregator(cfg *config.Config, logger *zap.SugaredLogger) error {
 	symbolkv := make(map[string][]float64)
 	stores := []string{FixerStore}
 
