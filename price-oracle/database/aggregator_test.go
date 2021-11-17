@@ -26,7 +26,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 		}
 	}
 
-	err := storeHandler.PricetokenAggregator(cfg, logger)
+	err := storeHandler.PricetokenAggregator(logger, cfg)
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetTokens(tokens)
@@ -55,7 +55,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 		}
 	}
 
-	err := storeHandler.PricefiatAggregator(cfg, logger)
+	err := storeHandler.PricefiatAggregator(logger, cfg)
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetFiats(fiats)
