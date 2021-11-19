@@ -27,7 +27,7 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	storeHandler, ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -53,7 +53,7 @@ func TestSubscriptionBinance(t *testing.T) {
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-	storeHandler, ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -106,7 +106,7 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	storeHandler, ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -143,7 +143,7 @@ func newTestClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-func setupSubscription(t *testing.T) (*database.StoreHandler, context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
+func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, func(), *zap.SugaredLogger, *config.Config, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -172,5 +172,5 @@ func setupSubscription(t *testing.T) (*database.StoreHandler, context.Context, f
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	return storeHandler, ctx, cancel, logger, cfg, func() { testServer.Stop() }
+	return ctx, storeHandler, cancel, logger, cfg, func() { testServer.Stop() }
 }

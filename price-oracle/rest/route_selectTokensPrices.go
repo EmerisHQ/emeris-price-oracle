@@ -17,8 +17,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 	var selectToken types.SelectToken
 	var symbols []types.TokenPriceResponse
 
-	err := ctx.BindJSON(&selectToken)
-	if err != nil {
+	if err := ctx.BindJSON(&selectToken); err != nil {
 		r.s.l.Error("Error", "TokensPrices", err.Error(), "Duration", time.Second)
 	}
 	if len(selectToken.Tokens) > 10 {
@@ -77,8 +76,8 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
 			return
 		}
-		err = json.Unmarshal(bz, &symbols)
-		if err != nil {
+
+		if err = json.Unmarshal(bz, &symbols); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			return
 		}
@@ -101,8 +100,8 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), r.s.c.RedisExpiry)
-	if err != nil {
+
+	if err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}

@@ -58,8 +58,8 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
 			goto STORE
 		}
-		err = json.Unmarshal(bz, &AllPriceResponse)
-		if err != nil {
+
+		if err = json.Unmarshal(bz, &AllPriceResponse); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			goto STORE
 		}
@@ -85,8 +85,8 @@ STORE:
 		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry)
-	if err != nil {
+
+	if err = r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}

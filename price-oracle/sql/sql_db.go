@@ -31,26 +31,24 @@ func (m *SqlDB) GetConnectionString() string {
 
 func (m *SqlDB) Init() error {
 	q, err := m.Query("SHOW TABLES FROM oracle")
-	if q != nil {
-		defer q.Close()
-	}
 	if err != nil {
-		err = m.runMigrations()
-		if err != nil {
+		if err = m.runMigrations(); err != nil {
 			return err
 		}
+	}
+	if q != nil {
+		defer q.Close()
 	}
 
 	//interim measures
 	q, err = m.Query("SELECT * FROM oracle.coingecko")
-	if q != nil {
-		defer q.Close()
-	}
 	if err != nil {
-		err = m.runMigrationsCoingecko()
-		if err != nil {
+		if err = m.runMigrationsCoingecko(); err != nil {
 			return err
 		}
+	}
+	if q != nil {
+		defer q.Close()
 	}
 	return nil
 }
@@ -81,8 +79,8 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		var symbol string
 		var price float64
 		var supply float64
-		err := rows.Scan(&symbol, &price)
-		if err != nil {
+
+		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
 		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
@@ -129,8 +127,8 @@ func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.StructScan(&symbol)
-		if err != nil {
+
+		if err := rows.StructScan(&symbol); err != nil {
 			return nil, err
 		}
 		symbols = append(symbols, symbol)
@@ -148,8 +146,8 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 	for q.Next() {
 		var ticker string
 		var fetch_price bool
-		err := q.Scan(&ticker, &fetch_price)
-		if err != nil {
+
+		if err := q.Scan(&ticker, &fetch_price); err != nil {
 			return nil, err
 		}
 		if fetch_price {
@@ -170,8 +168,8 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 	for q.Next() {
 		var price_id sql.NullString
 		var fetch_price bool
-		err := q.Scan(&price_id, &fetch_price)
-		if err != nil {
+
+		if err := q.Scan(&price_id, &fetch_price); err != nil {
 			return nil, err
 		}
 		if price_id.Valid {
@@ -196,8 +194,8 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.StructScan(&price)
-		if err != nil {
+
+		if err := rows.StructScan(&price); err != nil {
 			return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
 		}
 		prices = append(prices, price)
@@ -219,8 +217,7 @@ func (m *SqlDB) UpsertPrice(to string, price float64, token string, logger *zap.
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("DB commit: %w", err)
 	}
 	logger.Infow("Insert to ", token, price)
@@ -239,8 +236,7 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64,
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("UpsertToken DB commit: %w", err)
 	}
 	return nil
@@ -258,8 +254,7 @@ func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64, logg
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("UpsertTokenSupply DB commit: %w", err)
 	}
 	return nil

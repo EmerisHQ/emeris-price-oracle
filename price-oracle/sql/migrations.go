@@ -69,8 +69,8 @@ func (m *SqlDB) RunMigrations(migrations []string) error {
 	}
 
 	for i, migration := range migrations {
-		_, err := m.db.Exec(migration)
-		if err != nil {
+
+		if _, err := m.db.Exec(migration); err != nil {
 			return fmt.Errorf("error while running migration #%d, %w", i, err)
 		}
 	}

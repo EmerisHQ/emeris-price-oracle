@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(storeHandler *StoreHandler, ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
+func StartAggregate(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
 	fetchInterval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		logger.Fatal(err)
@@ -137,8 +137,8 @@ func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger
 		}
 
 		mean := total / float64(len(symbolkv[token]))
-		err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger)
-		if err != nil {
+
+		if err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
 	}
@@ -183,8 +183,7 @@ func (storeHandler *StoreHandler) PricefiatAggregator(logger *zap.SugaredLogger,
 		}
 		mean := total / float64(len(symbolkv[fiat]))
 
-		err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger)
-		if err != nil {
+		if err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
 

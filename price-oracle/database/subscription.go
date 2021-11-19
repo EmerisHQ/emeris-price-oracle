@@ -115,9 +115,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 			}
 			return fmt.Errorf("SubscriptionBinance: %s, Status: %s", body, resp.Status)
 		}
+
 		bp := types.Binance{}
-		err = json.Unmarshal(body, &bp)
-		if err != nil {
+		if err = json.Unmarshal(body, &bp); err != nil {
 			return fmt.Errorf("SubscriptionBinance unmarshal body: %w", err)
 		}
 
@@ -128,9 +128,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		if strToFloat == float64(0) {
 			continue
 		}
+
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger)
-		if err != nil {
+		if err = storeHandler.Store.UpsertToken(BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger); err != nil {
 			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", BinanceStore, bp.Symbol, strToFloat, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -165,12 +165,12 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 		tokensum := strings.ToUpper(token.Symbol) + types.USDTBasecurrency
 
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(CoingeckoStore, tokensum, token.CurrentPrice, now.Unix(), logger)
-		if err != nil {
+
+		if err = storeHandler.Store.UpsertToken(CoingeckoStore, tokensum, token.CurrentPrice, now.Unix(), logger); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", CoingeckoStore, tokensum, token.CurrentPrice, err)
 		}
-		err = storeHandler.Store.UpsertTokenSupply(CoingeckoSupplyStore, tokensum, token.CirculatingSupply, logger)
-		if err != nil {
+
+		if err = storeHandler.Store.UpsertTokenSupply(CoingeckoSupplyStore, tokensum, token.CirculatingSupply, logger); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", CoingeckoSupplyStore, tokensum, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -208,8 +208,7 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	}
 
 	bp := types.Fixer{}
-	err = json.Unmarshal(body, &bp)
-	if err != nil {
+	if err = json.Unmarshal(body, &bp); err != nil {
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 	if !bp.Success {
@@ -217,8 +216,7 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 		return nil
 	}
 	var data map[string]float64
-	err = json.Unmarshal(bp.Rates, &data)
-	if err != nil {
+	if err = json.Unmarshal(bp.Rates, &data); err != nil {
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 
@@ -231,8 +229,7 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 		}
 
 		now := time.Now()
-		err = storeHandler.Store.UpsertToken(FixerStore, fiatsum, d, now.Unix(), logger)
-		if err != nil {
+		if err = storeHandler.Store.UpsertToken(FixerStore, fiatsum, d, now.Unix(), logger); err != nil {
 			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", FixerStore, fiatsum, d, err)
 		}
 	}

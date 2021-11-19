@@ -33,9 +33,8 @@ func TestRest(t *testing.T) {
 	ch := make(chan struct{})
 	go func() {
 		close(ch)
-		if err := s.Serve(router.s.c.ListenAddr); err != nil {
-			require.NoError(t, err)
-		}
+		err := s.Serve(router.s.c.ListenAddr)
+		require.NoError(t, err)
 	}()
 	<-ch // Wait for the goroutine to start. Still hack!!
 	wantData := types.AllPriceResponse{
@@ -291,20 +290,19 @@ func insertToken(t *testing.T, connStr string) {
 
 func insertWantData(r router, wantData types.AllPriceResponse, l *zap.SugaredLogger) error {
 	for _, f := range wantData.Fiats {
-		err := r.s.sh.Store.UpsertPrice(database.FiatsStore, f.Price, f.Symbol, l)
-		if err != nil {
+
+		if err := r.s.sh.Store.UpsertPrice(database.FiatsStore, f.Price, f.Symbol, l); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
-		err := r.s.sh.Store.UpsertPrice(database.TokensStore, t.Price, t.Symbol, l)
-		if err != nil {
+
+		if err := r.s.sh.Store.UpsertPrice(database.TokensStore, t.Price, t.Symbol, l); err != nil {
 			return err
 		}
 
-		err = r.s.sh.Store.UpsertTokenSupply(database.CoingeckoSupplyStore, t.Symbol, t.Supply, l)
-		if err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(database.CoingeckoSupplyStore, t.Symbol, t.Supply, l); err != nil {
 			return err
 		}
 	}

@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	Store "github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	_ "github.com/lib/pq"
 )
 
@@ -17,16 +17,15 @@ const (
 )
 
 type StoreHandler struct {
-	Store Store.Store
+	Store store.Store
 }
 
-func NewStoreHandler(store Store.Store) (*StoreHandler, error) {
+func NewStoreHandler(store store.Store) (*StoreHandler, error) {
 	if store == nil {
 		return nil, fmt.Errorf("new_store.go, NewStoreHandler : nil store passed")
 	}
 
-	err := store.Init()
-	if err != nil {
+	if err := store.Init(); err != nil {
 		return nil, err
 	}
 

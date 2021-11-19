@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStartAggregate(t *testing.T) {
-	storeHandler, ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -55,7 +55,7 @@ func TestStartAggregate(t *testing.T) {
 		require.Equal(t, tokens[i].Price, price.Price)
 	}
 
-	go database.StartAggregate(storeHandler, ctx, logger, cfg, 3)
+	go database.StartAggregate(ctx, storeHandler, logger, cfg, 3)
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {
@@ -70,7 +70,7 @@ func TestStartAggregate(t *testing.T) {
 }
 
 func TestAggregateManager_closes(t *testing.T) {
-	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -90,7 +90,7 @@ func TestAggregateManager_closes(t *testing.T) {
 }
 
 func TestAggregateManager_worker_restarts(t *testing.T) {
-	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -116,7 +116,7 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	require.Equal(t, false, ok)
 }
 func TestPriceTokenAggregator(t *testing.T) {
-	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -145,7 +145,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 }
 
 func TestPriceFiatAggregator(t *testing.T) {
-	storeHandler, _, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 

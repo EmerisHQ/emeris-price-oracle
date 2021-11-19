@@ -17,8 +17,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 	var selectFiat types.SelectFiat
 	var symbols []types.FiatPriceResponse
 
-	err := ctx.BindJSON(&selectFiat)
-	if err != nil {
+	if err := ctx.BindJSON(&selectFiat); err != nil {
 		r.s.l.Error("Error", "FiatsPrices", err.Error(), "Duration", time.Second)
 	}
 
@@ -73,8 +72,8 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
 			return
 		}
-		err = json.Unmarshal(bz, &symbols)
-		if err != nil {
+
+		if err = json.Unmarshal(bz, &symbols); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			return
 		}
@@ -95,8 +94,8 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
 		return
 	}
-	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), r.s.c.RedisExpiry)
-	if err != nil {
+
+	if err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
