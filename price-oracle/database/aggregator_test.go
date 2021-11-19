@@ -163,16 +163,22 @@ func readLinesFromFile(t *testing.T, s string) []string {
 }
 
 func TestAveraging(t *testing.T) {
-	nums := []float64{1.1, 2.2, 3.3, 4.4, 5.5, 6.6}
+	nums := map[string]float64{
+		"a": 1.1,
+		"b": 2.2,
+		"c": 3.3,
+		"d": 4.4,
+		"e": 5.5,
+	}
 	avg, err := database.Averaging(nums)
 	require.NoError(t, err)
-	require.Equal(t, 3.85, avg)
+	require.Equal(t, 3.3, avg)
 
 	_, err = database.Averaging(nil)
 	require.Error(t, err)
 	require.Equal(t, fmt.Errorf("nil price list recieved"), err)
 
-	_, err = database.Averaging([]float64{})
+	_, err = database.Averaging(map[string]float64{})
 	require.Error(t, err)
 	require.Equal(t, fmt.Errorf("empty price list recieved"), err)
 }

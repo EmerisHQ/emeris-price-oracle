@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +60,7 @@ func AggregateWokers(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger
 }
 
 func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	var query []string
 	binanceQuery := "SELECT * FROM oracle.binance"
 	//coinmarketcapQuery := "SELECT * FROM oracle.coinmarketcap"
@@ -78,8 +79,16 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
-		for _, apitokenList := range Prices {
+		var store string
+		switch {
+		case strings.Contains(q, "binance"):
+			store = "binance"
+		case strings.Contains(q, "coingecko"):
+			store = "coingecko"
+		default:
+			store = "unknown"
+		}
+		for _, apitokenList := range PriceQuery(db, logger, q) {
 			if _, ok := whitelist[apitokenList.Symbol]; !ok {
 				continue
 			}
@@ -87,9 +96,9 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 			if apitokenList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apitokenList.Symbol]
-			Pricelist = append(Pricelist, apitokenList.Price)
-			symbolkv[apitokenList.Symbol] = Pricelist
+			pricelist := symbolkv[apitokenList.Symbol]
+			pricelist[store] = apitokenList.Price
+			symbolkv[apitokenList.Symbol] = pricelist
 		}
 	}
 
@@ -126,7 +135,7 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 }
 
 func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	var query []string
 	fixerQuery := "SELECT * FROM oracle.fixer"
 
@@ -138,8 +147,14 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	}
 
 	for _, q := range query {
-		Prices := PriceQuery(db, logger, q)
-		for _, apifiatList := range Prices {
+		var store string
+		switch {
+		case strings.Contains(q, "fixer"):
+			store = "fixer"
+		default:
+			store = "unknown"
+		}
+		for _, apifiatList := range PriceQuery(db, logger, q) {
 			if _, ok := whitelist[apifiatList.Symbol]; !ok {
 				continue
 			}
@@ -147,9 +162,9 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 			if apifiatList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apifiatList.Symbol]
-			Pricelist = append(Pricelist, apifiatList.Price)
-			symbolkv[apifiatList.Symbol] = Pricelist
+			pricelist := symbolkv[apifiatList.Symbol]
+			pricelist[store] = apifiatList.Price
+			symbolkv[apifiatList.Symbol] = pricelist
 		}
 	}
 	for fiat := range whitelist {
@@ -196,7 +211,7 @@ func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Pr
 	return symbols
 }
 
-func Averaging(prices []float64) (float64, error) {
+func Averaging(prices map[string]float64) (float64, error) {
 	if prices == nil {
 		return 0, fmt.Errorf("nil price list recieved")
 	}
