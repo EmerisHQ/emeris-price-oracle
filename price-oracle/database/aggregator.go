@@ -96,7 +96,10 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 			if apitokenList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[apitokenList.Symbol]
+			pricelist, ok := symbolkv[apitokenList.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
 			pricelist[store] = apitokenList.Price
 			symbolkv[apitokenList.Symbol] = pricelist
 		}
@@ -162,7 +165,10 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 			if apifiatList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[apifiatList.Symbol]
+			pricelist, ok := symbolkv[apifiatList.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
 			pricelist[store] = apifiatList.Price
 			symbolkv[apifiatList.Symbol] = pricelist
 		}
