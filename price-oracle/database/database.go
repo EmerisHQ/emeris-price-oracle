@@ -119,3 +119,7 @@ func (i *Instance) CnsPriceIdQueryHandler() ([]string, error) {
 func (i *Instance) GetConnectionString() string {
 	return i.connString
 }
+
+func (i *Instance) GetDB() *sqlx.DB {
+	return i.d.DB
+}
