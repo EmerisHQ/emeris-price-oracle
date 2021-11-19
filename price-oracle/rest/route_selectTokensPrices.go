@@ -57,7 +57,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		tokens := token + types.USDTBasecurrency
 		basetokens = append(basetokens, tokens)
 	}
-	if !Diffpair(selectToken.Tokens, basetokens) {
+	if !SamePair(selectToken.Tokens, basetokens) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,

@@ -92,21 +92,19 @@ func e(c *gin.Context, status int, err error) {
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-func Diffpair(a []string, b []string) bool {
+//returns true is both lists are same else false
+func SamePair(a []string, b []string) bool {
 	// Turn b into a map
 	m := make(map[string]bool, len(b))
 	for _, s := range b {
 		m[s] = false
 	}
 	// Append values from the longest slice that don't exist in the map
-	var diff []string
 	for _, s := range a {
 		if _, ok := m[s]; !ok {
-			diff = append(diff, s)
-			continue
+			return false
 		}
 		m[s] = true
 	}
-
-	return diff == nil
+	return true
 }

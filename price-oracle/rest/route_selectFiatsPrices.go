@@ -53,7 +53,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		fiats := types.USDBasecurrency + fiat
 		basefiats = append(basefiats, fiats)
 	}
-	if !Diffpair(selectFiat.Fiats, basefiats) {
+	if !SamePair(selectFiat.Fiats, basefiats) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,

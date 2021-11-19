@@ -58,11 +58,9 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 	var token types.TokenPriceResponse
 	var symbolList []interface{}
 
-	symbolNum := len(selectToken.Tokens)
-
 	query := "SELECT * FROM " + database.TokensStore + " WHERE symbol=$1"
 
-	for i := 2; i <= symbolNum; i++ {
+	for i := 2; i <= len(selectToken.Tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
@@ -109,11 +107,9 @@ func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse
 	var symbol types.FiatPriceResponse
 	var symbolList []interface{}
 
-	symbolNum := len(selectFiat.Fiats)
-
 	query := "SELECT * FROM " + database.FiatsStore + " WHERE symbol=$1"
 
-	for i := 2; i <= symbolNum; i++ {
+	for i := 2; i <= len(selectFiat.Fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 

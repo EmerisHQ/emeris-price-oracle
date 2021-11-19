@@ -118,12 +118,12 @@ func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger
 				continue
 			}
 			now := time.Now()
+
+			//do not update if it was already updated in the last minute
 			if token.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[token.Symbol]
-			pricelist = append(pricelist, token.Price)
-			symbolkv[token.Symbol] = pricelist
+			symbolkv[token.Symbol] = append(symbolkv[token.Symbol], token.Price)
 		}
 	}
 
@@ -168,9 +168,7 @@ func (storeHandler *StoreHandler) PricefiatAggregator(logger *zap.SugaredLogger,
 			if fiat.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			pricelist := symbolkv[fiat.Symbol]
-			pricelist = append(pricelist, fiat.Price)
-			symbolkv[fiat.Symbol] = pricelist
+			symbolkv[fiat.Symbol] = append(symbolkv[fiat.Symbol], fiat.Price)
 		}
 	}
 	for fiat := range whitelist {

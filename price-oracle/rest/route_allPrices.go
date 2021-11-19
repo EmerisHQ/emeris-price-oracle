@@ -72,13 +72,13 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		return
 	}
 STORE:
-	Tokens, Fiats, err := allPrices(r)
+	tokens, fiats, err := allPrices(r)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	AllPriceResponse.Tokens = Tokens
-	AllPriceResponse.Fiats = Fiats
+	AllPriceResponse.Tokens = tokens
+	AllPriceResponse.Fiats = fiats
 
 	bz, err := json.Marshal(AllPriceResponse)
 	if err != nil {
