@@ -2,12 +2,12 @@ package rest
 
 import (
 	"errors"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	redis "github.com/allinbits/emeris-price-oracle/utils/store"
 	ginzap "github.com/gin-contrib/zap"
@@ -17,7 +17,7 @@ import (
 
 type Server struct {
 	l  *zap.SugaredLogger
-	sh *database.StoreHandler
+	sh *store.Handler
 	g  *gin.Engine
 	c  *config.Config
 	ri *redis.Store
@@ -27,7 +27,7 @@ type router struct {
 	s *Server
 }
 
-func NewServer(sh *database.StoreHandler, ri *redis.Store, l *zap.SugaredLogger, c *config.Config) *Server {
+func NewServer(sh *store.Handler, ri *redis.Store, l *zap.SugaredLogger, c *config.Config) *Server {
 	if !c.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}

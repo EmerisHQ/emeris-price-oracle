@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
@@ -109,10 +108,10 @@ func TestGetTokens(t *testing.T) {
 		Supply: -100000,
 	}
 
-	err = mDB.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
+	err = mDB.UpsertPrice(store.TokensStore, token.Price, token.Symbol, logger)
 	require.NoError(t, err)
 
-	err = mDB.UpsertTokenSupply(database.CoingeckoSupplyStore, token.Symbol, token.Supply, logger)
+	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply, logger)
 	require.NoError(t, err)
 
 	selectToken := types.SelectToken{
@@ -143,7 +142,7 @@ func TestGetFiats(t *testing.T) {
 		Price:  -1,
 	}
 
-	err = mDB.UpsertPrice(database.FiatsStore, fiat.Price, fiat.Symbol, logger)
+	err = mDB.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol, logger)
 	require.NoError(t, err)
 
 	selectFiats := types.SelectFiat{
@@ -215,7 +214,7 @@ func TestGetPrices(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	prices, err := mDB.GetPrices(database.BinanceStore)
+	prices, err := mDB.GetPrices(store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, price, prices[0])
 }
@@ -240,10 +239,10 @@ func TestUpsertTokenPrice(t *testing.T) {
 		Price:  -100,
 	}
 
-	err = mDB.UpsertPrice(database.TokensStore, price.Price, price.Symbol, logger)
+	err = mDB.UpsertPrice(store.TokensStore, price.Price, price.Symbol, logger)
 	require.NoError(t, err)
 
-	rows, err := mDB.Query("SELECT * FROM " + database.TokensStore)
+	rows, err := mDB.Query("SELECT * FROM " + store.TokensStore)
 	require.NoError(t, err)
 
 	var symbol string
@@ -278,10 +277,10 @@ func TestUpsertFiatPrice(t *testing.T) {
 		Price:  -1,
 	}
 
-	err = mDB.UpsertPrice(database.FiatsStore, price.Price, price.Symbol, logger)
+	err = mDB.UpsertPrice(store.FiatsStore, price.Price, price.Symbol, logger)
 	require.NoError(t, err)
 
-	rows, err := mDB.Query("SELECT * FROM " + database.FiatsStore)
+	rows, err := mDB.Query("SELECT * FROM " + store.FiatsStore)
 	require.NoError(t, err)
 
 	var symbol string
@@ -318,10 +317,10 @@ func TestUpsertToken(t *testing.T) {
 		UpdatedAt: now.Unix(),
 	}
 
-	err = mDB.UpsertToken(database.BinanceStore, price.Symbol, price.Price, now.Unix(), logger)
+	err = mDB.UpsertToken(store.BinanceStore, price.Symbol, price.Price, now.Unix(), logger)
 	require.NoError(t, err)
 
-	prices, err := mDB.GetPrices(database.BinanceStore)
+	prices, err := mDB.GetPrices(store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, price, prices[0])
 }
@@ -346,10 +345,10 @@ func TestUpsertTokenSupply(t *testing.T) {
 		Supply: -200,
 	}
 
-	err = mDB.UpsertTokenSupply(database.CoingeckoSupplyStore, price.Symbol, price.Supply, logger)
+	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, price.Symbol, price.Supply, logger)
 	require.NoError(t, err)
 
-	rows, err := mDB.Query("SELECT * FROM " + database.CoingeckoSupplyStore)
+	rows, err := mDB.Query("SELECT * FROM " + store.CoingeckoSupplyStore)
 	require.NoError(t, err)
 
 	var symbol string

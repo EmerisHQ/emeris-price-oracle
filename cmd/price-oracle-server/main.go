@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	store2 "github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"os"
 	"os/signal"
 	"sync"
@@ -35,7 +36,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	storeHandler, err := database.NewStoreHandler(db)
+	storeHandler, err := store2.NewStoreHandler(db)
 	if err != nil {
 		logger.Fatal(err)
 	}

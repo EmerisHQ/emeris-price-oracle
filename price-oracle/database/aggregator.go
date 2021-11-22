@@ -3,16 +3,16 @@ package database
 import (
 	"context"
 	"fmt"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"sync"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
 )
 
-func StartAggregate(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
+func StartAggregate(ctx context.Context, storeHandler *store.Handler, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
 	fetchInterval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		logger.Fatal(err)
@@ -92,99 +92,4 @@ func AggregateManager(
 		}
 	}()
 	return heartbeatCh, errCh
-}
-
-func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
-	stores := []string{BinanceStore, CoingeckoStore}
-
-	whitelist := make(map[string]struct{})
-	cnswhitelist, err := storeHandler.CnsTokenQuery()
-	if err != nil {
-		return fmt.Errorf("CnsTokenQuery: %w", err)
-	}
-	for _, token := range cnswhitelist {
-		basetoken := token + types.USDTBasecurrency
-		whitelist[basetoken] = struct{}{}
-	}
-
-	for _, s := range stores {
-		prices, err := storeHandler.Store.GetPrices(s)
-		if err != nil {
-			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
-		}
-		for _, token := range prices {
-			if _, ok := whitelist[token.Symbol]; !ok {
-				continue
-			}
-			now := time.Now()
-
-			//do not update if it was already updated in the last minute
-			if token.UpdatedAt < now.Unix()-60 {
-				continue
-			}
-			symbolkv[token.Symbol] = append(symbolkv[token.Symbol], token.Price)
-		}
-	}
-
-	for token := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[token] {
-			total += value
-		}
-		if len(symbolkv[token]) == 0 {
-			return nil
-		}
-
-		mean := total / float64(len(symbolkv[token]))
-
-		if err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
-			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
-		}
-	}
-	return nil
-}
-
-func (storeHandler *StoreHandler) PricefiatAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
-	stores := []string{FixerStore}
-
-	whitelist := make(map[string]struct{})
-	for _, fiat := range cfg.Whitelistfiats {
-		basefiat := types.USDBasecurrency + fiat
-		whitelist[basefiat] = struct{}{}
-	}
-
-	for _, s := range stores {
-		prices, err := storeHandler.Store.GetPrices(s)
-		if err != nil {
-			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
-		}
-		for _, fiat := range prices {
-			if _, ok := whitelist[fiat.Symbol]; !ok {
-				continue
-			}
-			now := time.Now()
-			if fiat.UpdatedAt < now.Unix()-60 {
-				continue
-			}
-			symbolkv[fiat.Symbol] = append(symbolkv[fiat.Symbol], fiat.Price)
-		}
-	}
-	for fiat := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[fiat] {
-			total += value
-		}
-		if len(symbolkv[fiat]) == 0 {
-			return nil
-		}
-		mean := total / float64(len(symbolkv[fiat]))
-
-		if err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
-			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
-		}
-
-	}
-	return nil
 }

@@ -9,15 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	BinanceStore         = "oracle.binance"
-	CoingeckoStore       = "oracle.coingecko"
-	FixerStore           = "oracle.fixer"
-	TokensStore          = "oracle.tokens"
-	FiatsStore           = "oracle.fiats"
-	CoingeckoSupplyStore = "oracle.coingeckosupply"
-)
-
 func StoreTest(t *testing.T, store Store, logger *zap.SugaredLogger) {
 	t.Run("Upsert and Get Tokens", func(t *testing.T) {
 		list := types.SelectToken{

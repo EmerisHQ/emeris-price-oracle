@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -58,7 +58,7 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 	var token types.TokenPriceResponse
 	var symbolList []interface{}
 
-	query := "SELECT * FROM " + database.TokensStore + " WHERE symbol=$1"
+	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
 
 	for i := 2; i <= len(selectToken.Tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
@@ -82,7 +82,7 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 			return nil, err
 		}
 		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
-		rowCmcSupply, err := m.Query("SELECT * FROM "+database.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		rowCmcSupply, err := m.Query("SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse
 	var symbol types.FiatPriceResponse
 	var symbolList []interface{}
 
-	query := "SELECT * FROM " + database.FiatsStore + " WHERE symbol=$1"
+	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
 
 	for i := 2; i <= len(selectFiat.Fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)

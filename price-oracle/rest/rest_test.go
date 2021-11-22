@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	store2 "github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,6 @@ import (
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
@@ -231,13 +231,13 @@ func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
 	return sql.NewDB(connStr)
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer) (*database.StoreHandler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store2.Handler, error) {
 	db, err := getdb(t, ts)
 	if err != nil {
 		return nil, err
 	}
 
-	storeHandler, err := database.NewStoreHandler(db)
+	storeHandler, err := store2.NewStoreHandler(db)
 	if err != nil {
 		return nil, err
 	}
@@ -291,18 +291,18 @@ func insertToken(t *testing.T, connStr string) {
 func insertWantData(r router, wantData types.AllPriceResponse, l *zap.SugaredLogger) error {
 	for _, f := range wantData.Fiats {
 
-		if err := r.s.sh.Store.UpsertPrice(database.FiatsStore, f.Price, f.Symbol, l); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store2.FiatsStore, f.Price, f.Symbol, l); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
 
-		if err := r.s.sh.Store.UpsertPrice(database.TokensStore, t.Price, t.Symbol, l); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store2.TokensStore, t.Price, t.Symbol, l); err != nil {
 			return err
 		}
 
-		if err := r.s.sh.Store.UpsertTokenSupply(database.CoingeckoSupplyStore, t.Symbol, t.Supply, l); err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(store2.CoingeckoSupplyStore, t.Symbol, t.Supply, l); err != nil {
 			return err
 		}
 	}

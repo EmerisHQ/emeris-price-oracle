@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"os"
 	"testing"
 	"time"
@@ -37,9 +38,9 @@ func TestStartAggregate(t *testing.T) {
 			Price:  10,
 		},
 	}
-	stores := []string{database.BinanceStore, database.CoingeckoStore}
+	stores := []string{store.BinanceStore, store.CoingeckoStore}
 	for _, token := range tokens {
-		err := storeHandler.Store.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
+		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol, logger)
 		require.NoError(t, err)
 		for i, s := range stores {
 			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), logger)
@@ -114,62 +115,4 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	close(done)
 	_, ok = <-hbCh
 	require.Equal(t, false, ok)
-}
-func TestPriceTokenAggregator(t *testing.T) {
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
-	defer tDown()
-	defer cancel()
-
-	tokens := types.SelectToken{
-		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
-	}
-	stores := []string{database.BinanceStore, database.CoingeckoStore}
-
-	for _, tk := range tokens.Tokens {
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
-	}
-
-	err := storeHandler.PricetokenAggregator(logger, cfg)
-	require.NoError(t, err)
-
-	prices, err := storeHandler.Store.GetTokens(tokens)
-	require.NoError(t, err)
-
-	for i, p := range prices {
-		require.Equal(t, tokens.Tokens[i], p.Symbol)
-		require.Equal(t, 10.5, p.Price)
-	}
-}
-
-func TestPriceFiatAggregator(t *testing.T) {
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
-	defer tDown()
-	defer cancel()
-
-	fiats := types.SelectFiat{
-		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
-	}
-	stores := []string{database.FixerStore}
-
-	for _, tk := range fiats.Fiats {
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
-	}
-
-	err := storeHandler.PricefiatAggregator(logger, cfg)
-	require.NoError(t, err)
-
-	prices, err := storeHandler.Store.GetFiats(fiats)
-	require.NoError(t, err)
-	require.NotNil(t, prices)
-
-	for i, p := range prices {
-		require.Equal(t, fiats.Fiats[i], p.Symbol)
-		require.Equal(t, float64(10), p.Price)
-	}
 }

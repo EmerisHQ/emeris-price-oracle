@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,18 +21,18 @@ import (
 )
 
 const (
-	BinanceURL       = "https://api.binance.com/api/v3/ticker/price"
-	CoinmarketcapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-	FixerURL         = "https://data.fixer.io/api/latest"
+	BinanceURL = "https://api.binance.com/api/v3/ticker/price"
+	FixerURL   = "https://data.fixer.io/api/latest"
+
+	//CoinmarketcapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
 )
 
 type Api struct {
 	Client       *http.Client
-	StoreHandler *StoreHandler
+	StoreHandler *store.Handler
 }
 
-func StartSubscription(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
-
+func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger *zap.SugaredLogger, cfg *config.Config) {
 	api := Api{
 		Client:       &http.Client{Timeout: 2 * time.Second},
 		StoreHandler: storeHandler,
@@ -77,22 +78,22 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 }
 
 func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
-	whitelisttokens, err := api.StoreHandler.CnsTokenQuery()
+	whitelistTokens, err := api.StoreHandler.CnsTokenQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
 	}
-	if len(whitelisttokens) == 0 {
+	if len(whitelistTokens) == 0 {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist")
 	}
-	for _, token := range whitelisttokens {
-		tokensum := token + types.USDTBasecurrency
-
+	for _, token := range whitelistTokens {
+		tokenSymbol := token + types.USDTBasecurrency
 		req, err := http.NewRequest("GET", BinanceURL, nil)
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance fetch binance: %w", err)
 		}
+
 		q := url.Values{}
-		q.Add("symbol", tokensum)
+		q.Add("symbol", tokenSymbol)
 		req.Header.Set("Accepts", "application/json")
 		req.URL.RawQuery = q.Encode()
 
@@ -101,17 +102,20 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 			return fmt.Errorf("SubscriptionBinance fetch binance: %w", err)
 		}
 
-		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance read body: %w", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == 400 {
+			if resp.StatusCode == http.StatusBadRequest {
 				logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
 				continue
 			}
 			return fmt.Errorf("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+		}
+
+		if err := resp.Body.Close(); err != nil {
+			return err
 		}
 
 		bp := types.Binance{}
@@ -128,8 +132,8 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger); err != nil {
-			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", BinanceStore, bp.Symbol, strToFloat, err)
+		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger); err != nil {
+			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, bp.Symbol, strToFloat, err)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -137,11 +141,11 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 }
 
 func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
-	whitelisttokens, err := api.StoreHandler.CnsPriceIdQuery()
+	whitelistTokens, err := api.StoreHandler.CnsPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
 	}
-	if len(whitelisttokens) == 0 {
+	if len(whitelistTokens) == 0 {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: The token does not exist")
 	}
 
@@ -149,26 +153,25 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 	vsCurrency := types.USDBasecurrency
 	perPage := 1
 	page := 1
-	sparkline := false
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
-	market, err := cg.CoinsMarket(vsCurrency, whitelisttokens, order, perPage, page, sparkline, priceChangePercentage)
+	market, err := cg.CoinsMarket(vsCurrency, whitelistTokens, order, perPage, page, false, priceChangePercentage)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko Market Query: %w", err)
 	}
 
 	for _, token := range *market {
-		tokensum := strings.ToUpper(token.Symbol) + types.USDTBasecurrency
+		tokenSymbol := strings.ToUpper(token.Symbol) + types.USDTBasecurrency
 
 		now := time.Now()
 
-		if err = api.StoreHandler.Store.UpsertToken(CoingeckoStore, tokensum, token.CurrentPrice, now.Unix(), logger); err != nil {
-			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", CoingeckoStore, tokensum, token.CurrentPrice, err)
+		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix(), logger); err != nil {
+			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", store.CoingeckoStore, tokenSymbol, token.CurrentPrice, err)
 		}
 
-		if err = api.StoreHandler.Store.UpsertTokenSupply(CoingeckoSupplyStore, tokensum, token.CirculatingSupply, logger); err != nil {
-			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", CoingeckoSupplyStore, tokensum, token.CirculatingSupply, err)
+		if err = api.StoreHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, logger); err != nil {
+			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -191,7 +194,6 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)
 	}
-	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -200,6 +202,10 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("SubscriptionFixer: %s, Status: %s", body, resp.Status)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		return err
 	}
 
 	bp := types.Fixer{}
@@ -216,16 +222,16 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	}
 
 	for _, fiat := range cfg.Whitelistfiats {
-		fiatsum := types.USDBasecurrency + fiat
+		fiatSymbol := types.USDBasecurrency + fiat
 		d, ok := data[fiat]
 		if !ok {
-			logger.Infow("SubscriptionFixer", "From the provider list of deliveries price for symbol not found", fiatsum)
+			logger.Infow("SubscriptionFixer", "From the provider list of deliveries price for symbol not found", fiatSymbol)
 			return nil
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(FixerStore, fiatsum, d, now.Unix(), logger); err != nil {
-			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", FixerStore, fiatsum, d, err)
+		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix(), logger); err != nil {
+			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", store.FixerStore, fiatSymbol, d, err)
 		}
 	}
 	return nil
