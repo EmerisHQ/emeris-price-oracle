@@ -429,7 +429,8 @@ func (s *Store) scan(prefix string) ([]string, error) {
 }
 
 func (s *Store) getValues(keys []string) ([]string, error) {
-	var values []string
+	values := make([]string, 0, len(keys))
+
 	for _, k := range keys {
 		value, err := s.Client.Get(context.Background(), k).Result()
 		if err != nil {

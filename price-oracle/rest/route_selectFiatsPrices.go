@@ -15,10 +15,10 @@ import (
 const getselectFiatsPricesRoute = "/fiats"
 
 func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	var symbols []types.FiatPriceResponse
-	var symbol types.FiatPriceResponse
-	var symbolList []interface{}
+	symbolList := make([]interface{}, len(selectFiat.Fiats))
+	symbols := make([]types.FiatPriceResponse, len(symbolList))
 
+	var symbol types.FiatPriceResponse
 	symbolNum := len(selectFiat.Fiats)
 
 	query := "SELECT * FROM oracle.fiats WHERE symbol=$1"
@@ -84,12 +84,12 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		return
 	}
 
-	var basefiats []string
+	basefiats := make([]string, len(r.s.c.Whitelistfiats))
 	for _, fiat := range r.s.c.Whitelistfiats {
 		fiats := types.USDBasecurrency + fiat
 		basefiats = append(basefiats, fiats)
 	}
-	if Diffpair(selectFiat.Fiats, basefiats) == false {
+	if !Diffpair(selectFiat.Fiats, basefiats) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
@@ -126,6 +126,11 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "SelectFiatQuery", err.Error(), "Duration", time.Second)
 	}
 	bz, err := json.Marshal(symbols)
+	if err != nil {
+		r.s.l.Error("Error", "Marshal", err.Error())
+		return
+	}
+
 	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), 10*time.Second)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)

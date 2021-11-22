@@ -62,7 +62,7 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 	symbolkv := make(map[string][]float64)
 	var query []string
 	binanceQuery := "SELECT * FROM oracle.binance"
-	//coinmarketcapQuery := "SELECT * FROM oracle.coinmarketcap"
+	// coinmarketcapQuery := "SELECT * FROM oracle.coinmarketcap"
 	coinmarketgeckoQuery := "SELECT * FROM oracle.coingecko"
 	query = append(query, binanceQuery)
 	query = append(query, coinmarketgeckoQuery)
@@ -110,8 +110,8 @@ func PricetokenAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredL
 		if err != nil {
 			return fmt.Errorf("DB update: %w", err)
 		}
-		//If you perform an update without a token column, it does not respond as an error; it responds with zero.
-		//So you have to insert a new one in the column.
+		// If you perform an update without a token column, it does not respond as an error; it responds with zero.
+		// So you have to insert a new one in the column.
 		if updateresult == 0 {
 			tx.MustExec("INSERT INTO oracle.tokens VALUES (($1),($2));", token, median)
 		}
@@ -181,10 +181,10 @@ func PricefiatAggregator(ctx context.Context, db *sqlx.DB, logger *zap.SugaredLo
 	return nil
 }
 
-func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, Query string) []types.Prices {
-	var symbols []types.Prices
+func PriceQuery(db *sqlx.DB, logger *zap.SugaredLogger, query string) []types.Prices {
+	symbols := make([]types.Prices, 0)
 	var symbol types.Prices
-	rows, err := db.Queryx(Query)
+	rows, err := db.Queryx(query)
 	if err != nil {
 		logger.Fatalw("Fatal", "DB", err.Error(), "Duration", time.Second)
 	}

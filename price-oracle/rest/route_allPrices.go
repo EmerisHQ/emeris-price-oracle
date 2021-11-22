@@ -40,9 +40,9 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 			return nil, nil, err
 		}
 		for _, Whitelisttoken := range Whitelists {
-			Whitelisttoken = Whitelisttoken + types.USDTBasecurrency
+			Whitelisttoken += types.USDTBasecurrency
 			if symbol == Whitelisttoken {
-				//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
+				//crowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
 				rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", Whitelisttoken)
 				if err != nil {
 					r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
@@ -119,6 +119,11 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		return
 	}
 	bz, err := json.Marshal(AllPriceResponse)
+	if err != nil {
+		r.s.l.Error("Error", "Marshal", err.Error())
+		return
+	}
+
 	err = r.s.ri.SetWithExpiryTime("prices", string(bz), 10*time.Second)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)

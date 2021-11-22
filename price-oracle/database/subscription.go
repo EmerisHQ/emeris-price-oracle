@@ -47,10 +47,9 @@ func StartSubscription(ctx context.Context, logger *zap.SugaredLogger, cfg *conf
 	var wg sync.WaitGroup
 	for _, subscriber := range []func(context.Context, *zap.SugaredLogger, *config.Config) error{
 		api.SubscriptionBinance,
-		//SubscriptionCoinmarketcap,
+		// SubscriptionCoinmarketcap,
 		api.SubscriptionCoingecko,
 		api.SubscriptionFixer,
-		//...
 	} {
 		subscriber := subscriber
 		wg.Add(1)
