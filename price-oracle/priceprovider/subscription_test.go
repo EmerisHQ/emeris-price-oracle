@@ -32,7 +32,7 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -48,7 +48,7 @@ func TestSubscriptionBinance(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionBinance(logger, cfg)
+	err = api.SubscriptionBinance()
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.BinanceStore)
@@ -58,7 +58,7 @@ func TestSubscriptionBinance(t *testing.T) {
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -87,7 +87,7 @@ func TestSubscriptionCoingecko(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionCoingecko(logger, cfg)
+	err = api.SubscriptionCoingecko()
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.CoingeckoStore)
@@ -111,7 +111,7 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -127,7 +127,7 @@ func TestSubscriptionFixer(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionFixer(logger, cfg)
+	err = api.SubscriptionFixer()
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.FixerStore)
@@ -148,7 +148,7 @@ func newTestClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-func setupSubscription(t *testing.T) (context.Context, *store.Handler, func(), *zap.SugaredLogger, *config.Config, func()) {
+func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -173,11 +173,11 @@ func setupSubscription(t *testing.T) (context.Context, *store.Handler, func(), *
 	insertToken(t, connStr)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	storeHandler, err := getStoreHandler(t, testServer)
+	storeHandler, err := getStoreHandler(t, testServer, logger, cfg)
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	return ctx, storeHandler, cancel, logger, cfg, func() { testServer.Stop() }
+	return ctx, cancel, storeHandler, func() { testServer.Stop() }
 }
 
 func insertToken(t *testing.T, connStr string) {
@@ -229,13 +229,14 @@ func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
 	return sql.NewDB(connStr)
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store.Handler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
+	t.Helper()
 	db, err := getDB(t, ts)
 	if err != nil {
 		return nil, err
 	}
 
-	storeHandler, err := store.NewStoreHandler(db)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
 	if err != nil {
 		return nil, err
 	}

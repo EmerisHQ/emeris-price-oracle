@@ -88,11 +88,11 @@ func e(c *gin.Context, status int, err error) {
 		jsonErr = rve
 	}
 
-	c.Error(err)
+	_ = c.Error(err)
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-//returns true is both lists are same else false
+// SamePair returns true is both lists are same else false
 func SamePair(a []string, b []string) bool {
 	// Turn b into a map
 	m := make(map[string]bool, len(b))

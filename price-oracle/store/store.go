@@ -32,19 +32,27 @@ const (
 )
 
 type Handler struct {
-	Store Store
+	Store  Store
+	Logger *zap.SugaredLogger
+	Cfg    *config.Config
 }
 
-func NewStoreHandler(store Store) (*Handler, error) {
+func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config) (*Handler, error) {
 	if store == nil {
-		return nil, fmt.Errorf("new_store.go, NewStoreHandler : nil store passed")
+		return nil, fmt.Errorf("store.go, NewStoreHandler : nil store passed")
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("store.go, NewStoreHandler : nil configuration passed")
+	}
+	if logger == nil {
+		return nil, fmt.Errorf("store.go, NewStoreHandler : nil logger passed")
 	}
 
 	if err := store.Init(); err != nil {
 		return nil, err
 	}
 
-	return &Handler{Store: store}, nil
+	return &Handler{Store: store, Logger: logger, Cfg: cfg}, nil
 }
 
 func (handler *Handler) CnsTokenQuery() ([]string, error) {
@@ -63,7 +71,7 @@ func (handler *Handler) CnsPriceIdQuery() ([]string, error) {
 	return whitelists, nil
 }
 
-func (handler *Handler) PriceTokenAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (handler *Handler) PriceTokenAggregator() error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
@@ -107,19 +115,19 @@ func (handler *Handler) PriceTokenAggregator(logger *zap.SugaredLogger, cfg *con
 
 		mean := total / float64(len(symbolKV[token]))
 
-		if err = handler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
+		if err = handler.Store.UpsertPrice(TokensStore, mean, token, handler.Logger); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
 	}
 	return nil
 }
 
-func (handler *Handler) PriceFiatAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (handler *Handler) PriceFiatAggregator() error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
-	for _, fiat := range cfg.Whitelistfiats {
+	for _, fiat := range handler.Cfg.Whitelistfiats {
 		baseFiat := types.USDBasecurrency + fiat
 		whitelist[baseFiat] = struct{}{}
 	}
@@ -150,7 +158,7 @@ func (handler *Handler) PriceFiatAggregator(logger *zap.SugaredLogger, cfg *conf
 		}
 		mean := total / float64(len(symbolKV[fiat]))
 
-		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
+		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat, handler.Logger); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
 	}

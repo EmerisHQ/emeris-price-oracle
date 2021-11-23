@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	AggFunc    = func(*zap.SugaredLogger, *config.Config) error
+	AggFunc    = func() error
 	WorkerFunc = func(
 		chan struct{},
 		time.Duration,

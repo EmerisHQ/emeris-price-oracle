@@ -23,12 +23,12 @@ func TestStore(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	store.StoreTest(t, mDB, logger)
+	store.TestStore(t, mDB, logger)
 }
 func TestInit(t *testing.T) {
 	testServer, _ := setup(t)
@@ -40,7 +40,7 @@ func TestInit(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestGetTokens(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestGetFiats(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestGetTokenNames(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	//build mock cns.chains table
 	_, err = mDB.GetTokenNames()
@@ -180,7 +180,7 @@ func TestGetPriceIDs(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	//build mock cns.chains table
 	_, err = mDB.GetPriceIDs()
@@ -197,7 +197,7 @@ func TestGetPrices(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -248,7 +248,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 	var symbol string
 	var p float64
 	var prices []types.TokenPriceResponse
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
@@ -267,7 +267,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -286,7 +286,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 	var symbol string
 	var p float64
 	var prices []types.FiatPriceResponse
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
@@ -305,7 +305,7 @@ func TestUpsertToken(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -335,7 +335,7 @@ func TestUpsertTokenSupply(t *testing.T) {
 	mDB, err := NewDB(connStr)
 	require.NoError(t, err)
 	require.Equal(t, mDB.GetConnectionString(), connStr)
-	defer mDB.Close()
+	defer func() { _ = mDB.Close() }()
 
 	err = mDB.Init()
 	require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestUpsertTokenSupply(t *testing.T) {
 	var symbol string
 	var supply float64
 	var prices []types.TokenPriceResponse
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err = rows.Scan(&symbol, &supply)
 		require.NoError(t, err)

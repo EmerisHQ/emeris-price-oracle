@@ -11,15 +11,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(
-	ctx context.Context,
-	storeHandler *Handler,
-	logger *zap.SugaredLogger,
-	cfg *config.Config,
-	maxRecover int) {
-	fetchInterval, err := time.ParseDuration(cfg.Interval)
+func StartAggregate(ctx context.Context, storeHandler *Handler, maxRecover int) {
+	fetchInterval, err := time.ParseDuration(storeHandler.Cfg.Interval)
 	if err != nil {
-		logger.Fatal(err)
+		storeHandler.Logger.Fatal(err)
 	}
 
 	var wg sync.WaitGroup
@@ -35,7 +30,7 @@ func StartAggregate(
 	for _, properties := range workers {
 		wg.Add(1)
 		// TODO: Hack!! Move pulse (3 * time.Second) on abstraction later.
-		heartbeatCh, errCh := runAsDaemon(properties.doneCh, 3*time.Second, logger, cfg, properties.worker)
+		heartbeatCh, errCh := runAsDaemon(properties.doneCh, 3*time.Second, storeHandler.Logger, storeHandler.Cfg, properties.worker)
 		go func(ctx context.Context, done chan struct{}, workerName string) {
 			defer close(done)
 			defer wg.Done()
@@ -44,13 +39,13 @@ func StartAggregate(
 				case <-ctx.Done():
 					return
 				case heartbeat := <-heartbeatCh:
-					logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
+					storeHandler.Logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
 				case err, ok := <-errCh:
 					// errCh is closed. Daemon process returned.
 					if !ok {
 						return
 					}
-					logger.Errorf("Error: %T : %v", workerName, err)
+					storeHandler.Logger.Errorf("Error: %T : %v", workerName, err)
 				}
 			}
 		}(ctx, properties.doneCh, daemon.GetFunctionName(properties.worker))
@@ -84,7 +79,7 @@ func AggregateManager(
 			case <-done:
 				return
 			case <-ticker:
-				if err := fn(logger, cfg); err != nil {
+				if err := fn(); err != nil {
 					errCh <- err
 				}
 			case <-pulse:

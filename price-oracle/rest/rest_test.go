@@ -180,20 +180,6 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	connStr := tServer.PGURL().String()
 	require.NotNil(t, connStr)
 
-	storeHandler, err := getStoreHandler(t, tServer)
-	require.NoError(t, err)
-
-	// migrations
-	err = storeHandler.Store.Init()
-	require.NoError(t, err)
-
-	// Put dummy data in cns DB
-	insertToken(t, connStr)
-
-	// Setup redis
-	minRedis, err := miniredis.Run()
-	require.NoError(t, err)
-
 	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
 		LogPath:               "",
 		Debug:                 true,
@@ -208,6 +194,20 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		LogPath: cfg.LogPath,
 		Debug:   cfg.Debug,
 	})
+
+	storeHandler, err := getStoreHandler(t, tServer, logger, cfg)
+	require.NoError(t, err)
+
+	// migrations
+	err = storeHandler.Store.Init()
+	require.NoError(t, err)
+
+	// Put dummy data in cns DB
+	insertToken(t, connStr)
+
+	// Setup redis
+	minRedis, err := miniredis.Run()
+	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(w)
@@ -226,18 +226,19 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	return router{s: server}, ctx, w, func() { tServer.Stop(); minRedis.Close() }
 }
 
-func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
+func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
+	t.Helper()
 	connStr := ts.PGURL().String()
 	return sql.NewDB(connStr)
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store2.Handler, error) {
-	db, err := getdb(t, ts)
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store2.Handler, error) {
+	db, err := getDB(t, ts)
 	if err != nil {
 		return nil, err
 	}
 
-	storeHandler, err := store2.NewStoreHandler(db)
+	storeHandler, err := store2.NewStoreHandler(db, logger, cfg)
 	if err != nil {
 		return nil, err
 	}

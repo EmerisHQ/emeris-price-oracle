@@ -34,12 +34,12 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		return nil, nil, err
 	}
 
-	var fiats_whitelist []string
+	var fiatsWhitelist []string
 	for _, fiat := range r.s.c.Whitelistfiats {
-		fiats_whitelist = append(fiats_whitelist, types.USDBasecurrency+fiat)
+		fiatsWhitelist = append(fiatsWhitelist, types.USDBasecurrency+fiat)
 	}
 	selectFiats := types.SelectFiat{
-		Fiats: fiats_whitelist,
+		Fiats: fiatsWhitelist,
 	}
 	fiats, err := r.s.sh.Store.GetFiats(selectFiats)
 	if err != nil {

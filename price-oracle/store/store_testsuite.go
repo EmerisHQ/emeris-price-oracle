@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func StoreTest(t *testing.T, store Store, logger *zap.SugaredLogger) {
+func TestStore(t *testing.T, store Store, logger *zap.SugaredLogger) {
 	t.Run("Upsert and Get Tokens", func(t *testing.T) {
 		list := types.SelectToken{
 			Tokens: []string{"ATOM"},

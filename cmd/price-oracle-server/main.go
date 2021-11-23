@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	store2 "github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,7 +13,7 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
+	storeUtil "github.com/allinbits/emeris-price-oracle/utils/store"
 )
 
 var Version = "not specified"
@@ -36,11 +36,11 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	storeHandler, err := store2.NewStoreHandler(db)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	ri, err := store.NewClient(cfg.RedisUrl)
+	ri, err := storeUtil.NewClient(cfg.RedisUrl)
 	if err != nil {
 		logger.Panicw("unable to start redis client", "error", err)
 	}
@@ -53,7 +53,7 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		store2.StartAggregate(ctx, storeHandler, logger, cfg, 5)
+		store.StartAggregate(ctx, storeHandler, 5)
 	}()
 	go func() {
 		defer wg.Done()

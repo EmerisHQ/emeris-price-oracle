@@ -18,13 +18,13 @@ import (
 )
 
 func TestNewStoreHandler(t *testing.T) {
-	_, _, storeHandler, _, _, tDown := setup(t)
+	_, _, storeHandler, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
 }
 
 func TestCnsTokenQuery(t *testing.T) {
-	_, cancel, storeHandler, _, _, tDown := setup(t)
+	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -36,7 +36,7 @@ func TestCnsTokenQuery(t *testing.T) {
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
-	_, cancel, storeHandler, _, _, tDown := setup(t)
+	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -48,7 +48,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
-	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
+	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -59,12 +59,12 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 	for _, tk := range tokens.Tokens {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), storeHandler.Logger)
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceTokenAggregator(logger, cfg)
+	err := storeHandler.PriceTokenAggregator()
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetTokens(tokens)
@@ -77,7 +77,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 }
 
 func TestPriceFiatAggregator(t *testing.T) {
-	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
+	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -88,12 +88,12 @@ func TestPriceFiatAggregator(t *testing.T) {
 
 	for _, tk := range fiats.Fiats {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), storeHandler.Logger)
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceFiatAggregator(logger, cfg)
+	err := storeHandler.PriceFiatAggregator()
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetFiats(fiats)
@@ -106,14 +106,14 @@ func TestPriceFiatAggregator(t *testing.T) {
 	}
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store.Handler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
 	t.Helper()
 	db, err := sql.NewDB(ts.PGURL().String())
 	if err != nil {
 		return nil, err
 	}
 
-	storeHandler, err := store.NewStoreHandler(db)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -121,17 +121,13 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store.Handler, er
 	return storeHandler, nil
 }
 
-func setup(t *testing.T) (context.Context, func(), *store.Handler, *zap.SugaredLogger, *config.Config, func()) {
+func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 	t.Helper()
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
 	require.NoError(t, ts.WaitForInit())
 	connStr := ts.PGURL().String()
 	insertToken(t, connStr)
-
-	handler, err := getStoreHandler(t, ts)
-	require.NoError(t, err)
-	require.NotNil(t, handler)
 
 	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
 		LogPath:               "",
@@ -145,8 +141,13 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, *zap.SugaredL
 		LogPath: cfg.LogPath,
 		Debug:   cfg.Debug,
 	})
+
+	handler, err := getStoreHandler(t, ts, logger, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, handler)
+
 	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, cancel, handler, logger, cfg, func() { ts.Stop() }
+	return ctx, cancel, handler, func() { ts.Stop() }
 }
 
 func insertToken(t *testing.T, connStr string) {

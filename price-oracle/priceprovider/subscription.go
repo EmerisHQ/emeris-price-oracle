@@ -64,7 +64,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		default:
 		}
 
-		if err := fn(logger, cfg); err != nil {
+		if err := fn(); err != nil {
 			logger.Errorw("Database", "SubscriptionWorker", err)
 		}
 
@@ -77,7 +77,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 	}
 }
 
-func (api *Api) SubscriptionBinance(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionBinance() error {
 	whitelistTokens, err := api.StoreHandler.CnsTokenQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
@@ -108,7 +108,7 @@ func (api *Api) SubscriptionBinance(logger *zap.SugaredLogger, cfg *config.Confi
 		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == http.StatusBadRequest {
-				logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
 				continue
 			}
 			return fmt.Errorf("SubscriptionBinance: %s, Status: %s", body, resp.Status)
@@ -132,7 +132,7 @@ func (api *Api) SubscriptionBinance(logger *zap.SugaredLogger, cfg *config.Confi
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix(), logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix(), api.StoreHandler.Logger); err != nil {
 			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, bp.Symbol, strToFloat, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -140,7 +140,7 @@ func (api *Api) SubscriptionBinance(logger *zap.SugaredLogger, cfg *config.Confi
 	return nil
 }
 
-func (api *Api) SubscriptionCoingecko(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionCoingecko() error {
 	whitelistTokens, err := api.StoreHandler.CnsPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
@@ -166,11 +166,18 @@ func (api *Api) SubscriptionCoingecko(logger *zap.SugaredLogger, cfg *config.Con
 
 		now := time.Now()
 
-		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix(), logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(
+			store.CoingeckoStore, tokenSymbol,
+			token.CurrentPrice, now.Unix(),
+			api.StoreHandler.Logger); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", store.CoingeckoStore, tokenSymbol, token.CurrentPrice, err)
 		}
 
-		if err = api.StoreHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertTokenSupply(
+			store.CoingeckoSupplyStore,
+			tokenSymbol,
+			token.CirculatingSupply,
+			api.StoreHandler.Logger); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -178,15 +185,15 @@ func (api *Api) SubscriptionCoingecko(logger *zap.SugaredLogger, cfg *config.Con
 	return nil
 }
 
-func (api *Api) SubscriptionFixer(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionFixer() error {
 	req, err := http.NewRequest("GET", FixerURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)
 	}
 	q := url.Values{}
-	q.Add("access_key", cfg.Fixerapikey)
+	q.Add("access_key", api.StoreHandler.Cfg.Fixerapikey)
 	q.Add("base", types.USDBasecurrency)
-	q.Add("symbols", strings.Join(cfg.Whitelistfiats, ","))
+	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.Whitelistfiats, ","))
 
 	req.URL.RawQuery = q.Encode()
 
@@ -213,7 +220,7 @@ func (api *Api) SubscriptionFixer(logger *zap.SugaredLogger, cfg *config.Config)
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 	if !bp.Success {
-		logger.Infow("SubscriptionFixer", "The status message of the query is fail(Maybe the apikey problem)", bp.Success)
+		api.StoreHandler.Logger.Infow("SubscriptionFixer", "The status message of the query is fail(Maybe the apikey problem)", bp.Success)
 		return nil
 	}
 	var data map[string]float64
@@ -221,16 +228,16 @@ func (api *Api) SubscriptionFixer(logger *zap.SugaredLogger, cfg *config.Config)
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 
-	for _, fiat := range cfg.Whitelistfiats {
+	for _, fiat := range api.StoreHandler.Cfg.Whitelistfiats {
 		fiatSymbol := types.USDBasecurrency + fiat
 		d, ok := data[fiat]
 		if !ok {
-			logger.Infow("SubscriptionFixer", "From the provider list of deliveries price for symbol not found", fiatSymbol)
+			api.StoreHandler.Logger.Infow("SubscriptionFixer", "From the provider list of deliveries price for symbol not found", fiatSymbol)
 			return nil
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix(), logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix(), api.StoreHandler.Logger); err != nil {
 			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", store.FixerStore, fiatSymbol, d, err)
 		}
 	}
