@@ -195,12 +195,12 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	if err := resp.Body.Close(); err != nil {
-		return err
-	}
 
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer read body: %w", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
