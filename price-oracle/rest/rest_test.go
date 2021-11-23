@@ -53,9 +53,9 @@ func TestRest(t *testing.T) {
 
 	resp, err := http.Get(fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getAllPriceRoute))
 	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
 
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	require.NoError(t, err)
 
 	var got struct {
