@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"context"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -17,14 +18,15 @@ import (
 )
 
 func TestNewStoreHandler(t *testing.T) {
-	storeHandler, _, _, tDown := setup(t)
+	_, _, storeHandler, _, _, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
 }
 
 func TestCnsTokenQuery(t *testing.T) {
-	storeHandler, _, _, tDown := setup(t)
+	_, cancel, storeHandler, _, _, tDown := setup(t)
 	defer tDown()
+	defer cancel()
 
 	whiteList, err := storeHandler.CnsTokenQuery()
 	require.NoError(t, err)
@@ -34,8 +36,9 @@ func TestCnsTokenQuery(t *testing.T) {
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
-	storeHandler, _, _, tDown := setup(t)
+	_, cancel, storeHandler, _, _, tDown := setup(t)
 	defer tDown()
+	defer cancel()
 
 	whiteList, err := storeHandler.CnsPriceIdQuery()
 	require.NoError(t, err)
@@ -45,8 +48,9 @@ func TestCnsPriceIdQuery(t *testing.T) {
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
-	storeHandler, logger, cfg, tDown := setup(t)
+	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
 	defer tDown()
+	defer cancel()
 
 	tokens := types.SelectToken{
 		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
@@ -73,8 +77,9 @@ func TestPriceTokenAggregator(t *testing.T) {
 }
 
 func TestPriceFiatAggregator(t *testing.T) {
-	storeHandler, logger, cfg, tDown := setup(t)
+	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
 	defer tDown()
+	defer cancel()
 
 	fiats := types.SelectFiat{
 		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
@@ -116,7 +121,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer) (*store.Handler, er
 	return storeHandler, nil
 }
 
-func setup(t *testing.T) (*store.Handler, *zap.SugaredLogger, *config.Config, func()) {
+func setup(t *testing.T) (context.Context, func(), *store.Handler, *zap.SugaredLogger, *config.Config, func()) {
 	t.Helper()
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -140,8 +145,8 @@ func setup(t *testing.T) (*store.Handler, *zap.SugaredLogger, *config.Config, fu
 		LogPath: cfg.LogPath,
 		Debug:   cfg.Debug,
 	})
-
-	return handler, logger, cfg, func() { ts.Stop() }
+	ctx, cancel := context.WithCancel(context.Background())
+	return ctx, cancel, handler, logger, cfg, func() { ts.Stop() }
 }
 
 func insertToken(t *testing.T, connStr string) {

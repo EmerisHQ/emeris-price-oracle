@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
@@ -19,19 +19,19 @@ import (
 var Version = "not specified"
 
 func main() {
-	config, err := config.Read()
+	cfg, err := config.Read()
 	if err != nil {
 		panic(err)
 	}
 
 	logger := logging.New(logging.LoggingConfig{
-		LogPath: config.LogPath,
-		Debug:   config.Debug,
+		LogPath: cfg.LogPath,
+		Debug:   cfg.Debug,
 	})
 
 	logger.Infow("price-oracle-server", "version", Version)
 
-	db, err := sql.NewDB(config.DatabaseConnectionURL)
+	db, err := sql.NewDB(cfg.DatabaseConnectionURL)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	ri, err := store.NewClient(config.RedisUrl)
+	ri, err := store.NewClient(cfg.RedisUrl)
 	if err != nil {
 		logger.Panicw("unable to start redis client", "error", err)
 	}
@@ -53,21 +53,21 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		aggregator.StartAggregate(ctx, storeHandler, logger, config, 5)
+		store2.StartAggregate(ctx, storeHandler, logger, cfg, 5)
 	}()
 	go func() {
 		defer wg.Done()
-		aggregator.StartSubscription(ctx, storeHandler, logger, config)
+		priceprovider.StartSubscription(ctx, storeHandler, logger, cfg)
 	}()
 
 	restServer := rest.NewServer(
 		storeHandler,
 		ri,
 		logger,
-		config,
+		cfg,
 	)
 	go func() {
-		if err := restServer.Serve(config.ListenAddr); err != nil {
+		if err := restServer.Serve(cfg.ListenAddr); err != nil {
 			logger.Panicw("rest http server error", "error", err)
 		}
 	}()

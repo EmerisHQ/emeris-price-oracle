@@ -1,4 +1,4 @@
-package aggregator_test
+package store_test
 
 import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStartAggregate(t *testing.T) {
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, cancel, storeHandler, logger, cfg, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -56,7 +55,7 @@ func TestStartAggregate(t *testing.T) {
 		require.Equal(t, tokens[i].Price, price.Price)
 	}
 
-	go aggregator.StartAggregate(ctx, storeHandler, logger, cfg, 3)
+	go store.StartAggregate(ctx, storeHandler, logger, cfg, 3)
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {
@@ -71,11 +70,11 @@ func TestStartAggregate(t *testing.T) {
 }
 
 func TestAggregateManager_closes(t *testing.T) {
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
-	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, aggregator.AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, store.AggregateManager)
 	done := make(chan struct{})
 	hbCh, errCh := runAsDaemon(done, 100*time.Millisecond, logger, cfg, storeHandler.PriceFiatAggregator)
 
@@ -91,12 +90,12 @@ func TestAggregateManager_closes(t *testing.T) {
 }
 
 func TestAggregateManager_worker_restarts(t *testing.T) {
-	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, logger, cfg, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
 	numRecover := 2
-	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, aggregator.AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, store.AggregateManager)
 	done := make(chan struct{})
 	hbCh, errCh := runAsDaemon(done, 6*time.Second, logger, cfg, storeHandler.PriceFiatAggregator)
 
@@ -107,7 +106,7 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	require.NoError(t, err)
 	// Collect 2 error logs
 	for i := 0; i < numRecover; i++ {
-		require.Contains(t, (<-errCh).Error(), "sql: aggregator is closed")
+		require.Contains(t, (<-errCh).Error(), "sql: database is closed")
 	}
 	// Ensure everything is closed
 	_, ok := <-errCh

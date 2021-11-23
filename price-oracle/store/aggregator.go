@@ -1,9 +1,8 @@
-package aggregator
+package store
 
 import (
 	"context"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"sync"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 
 func StartAggregate(
 	ctx context.Context,
-	storeHandler *store.Handler,
+	storeHandler *Handler,
 	logger *zap.SugaredLogger,
 	cfg *config.Config,
 	maxRecover int) {

@@ -1,4 +1,4 @@
-package aggregator_test
+package priceprovider_test
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
@@ -43,7 +43,7 @@ func TestSubscriptionBinance(t *testing.T) {
 		}
 	})
 
-	api := aggregator.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
@@ -82,7 +82,7 @@ func TestSubscriptionCoingecko(t *testing.T) {
 		}
 	})
 
-	api := aggregator.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
@@ -122,7 +122,7 @@ func TestSubscriptionFixer(t *testing.T) {
 		}
 	})
 
-	api := aggregator.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
