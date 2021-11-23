@@ -95,7 +95,7 @@ func AggregateManager(
 }
 
 func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
@@ -123,20 +123,18 @@ func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger
 			if token.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			symbolkv[token.Symbol] = append(symbolkv[token.Symbol], token.Price)
+			if _, ok := symbolkv[token.Symbol]; !ok {
+				symbolkv[token.Symbol] = make(map[string]float64)
+			}
+			symbolkv[token.Symbol][s] = token.Price
 		}
 	}
 
 	for token := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[token] {
-			total += value
+		mean, err := Averaging(symbolkv[token])
+		if err != nil {
+			return fmt.Errorf("Averaging in PricetokenAggregator: %w", err)
 		}
-		if len(symbolkv[token]) == 0 {
-			return nil
-		}
-
-		mean := total / float64(len(symbolkv[token]))
 
 		if err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
@@ -146,7 +144,7 @@ func (storeHandler *StoreHandler) PricetokenAggregator(logger *zap.SugaredLogger
 }
 
 func (storeHandler *StoreHandler) PricefiatAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
@@ -165,26 +163,40 @@ func (storeHandler *StoreHandler) PricefiatAggregator(logger *zap.SugaredLogger,
 				continue
 			}
 			now := time.Now()
+			//do not update if it was already updated in the last minute
 			if fiat.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			symbolkv[fiat.Symbol] = append(symbolkv[fiat.Symbol], fiat.Price)
+			if _, ok := symbolkv[fiat.Symbol]; !ok {
+				symbolkv[fiat.Symbol] = make(map[string]float64)
+			}
+			symbolkv[fiat.Symbol][s] = fiat.Price
 		}
 	}
 	for fiat := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[fiat] {
-			total += value
-		}
-		if len(symbolkv[fiat]) == 0 {
-			return nil
-		}
-		mean := total / float64(len(symbolkv[fiat]))
 
+		mean, err := Averaging(symbolkv[fiat])
+		if err != nil {
+			return fmt.Errorf("Averaging in PricefiatAggregator: %w", err)
+		}
 		if err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
 
 	}
 	return nil
+}
+
+func Averaging(prices map[string]float64) (float64, error) {
+	if prices == nil {
+		return 0, fmt.Errorf("Aggregator.Averaging(): nil price list recieved")
+	}
+	if len(prices) == 0 {
+		return 0, fmt.Errorf("Aggregator.Averaging(): empty price list recieved")
+	}
+	var total float64
+	for _, p := range prices {
+		total += p
+	}
+	return total / float64(len(prices)), nil
 }

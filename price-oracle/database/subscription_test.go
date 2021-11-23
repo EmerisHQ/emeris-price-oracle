@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
@@ -171,6 +172,37 @@ func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, f
 	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
+
+	tokens := []types.TokenPriceResponse{
+		{
+			Symbol: "ATOMUSDT",
+			Price:  10,
+		},
+		{
+			Symbol: "LUNAUSDT",
+			Price:  10,
+		},
+	}
+	stores := []string{database.BinanceStore, database.CoingeckoStore}
+	for _, token := range tokens {
+		err := storeHandler.Store.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
+		require.NoError(t, err)
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
+	}
+
+	fiats := types.SelectFiat{
+		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
+	}
+	stores = []string{database.FixerStore}
+	for _, tk := range fiats.Fiats {
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
+	}
 
 	return ctx, storeHandler, cancel, logger, cfg, func() { testServer.Stop() }
 }

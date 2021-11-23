@@ -1,14 +1,16 @@
 package database_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
+	"github.com/stretchr/testify/require"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +28,7 @@ func TestStartAggregate(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	// alphabetic order
+	// alphabetic order; Check setupSubscription()
 	tokens := []types.TokenPriceResponse{
 		{
 			Symbol: "ATOMUSDT",
@@ -37,16 +39,6 @@ func TestStartAggregate(t *testing.T) {
 			Price:  10,
 		},
 	}
-	stores := []string{database.BinanceStore, database.CoingeckoStore}
-	for _, token := range tokens {
-		err := storeHandler.Store.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
-		require.NoError(t, err)
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
-	}
-
 	prices, err := storeHandler.Store.GetTokens(types.SelectToken{Tokens: []string{"ATOMUSDT", "LUNAUSDT"}})
 	require.NoError(t, err)
 
@@ -120,16 +112,9 @@ func TestPriceTokenAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
+	//Check setupSubscription
 	tokens := types.SelectToken{
 		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
-	}
-	stores := []string{database.BinanceStore, database.CoingeckoStore}
-
-	for _, tk := range tokens.Tokens {
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
 	}
 
 	err := storeHandler.PricetokenAggregator(logger, cfg)
@@ -140,7 +125,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 	for i, p := range prices {
 		require.Equal(t, tokens.Tokens[i], p.Symbol)
-		require.Equal(t, 10.5, p.Price)
+		require.Equal(t, 11.5, p.Price)
 	}
 }
 
@@ -149,16 +134,9 @@ func TestPriceFiatAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
+	//Check setupSubscription
 	fiats := types.SelectFiat{
 		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
-	}
-	stores := []string{database.FixerStore}
-
-	for _, tk := range fiats.Fiats {
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
 	}
 
 	err := storeHandler.PricefiatAggregator(logger, cfg)
@@ -172,4 +150,25 @@ func TestPriceFiatAggregator(t *testing.T) {
 		require.Equal(t, fiats.Fiats[i], p.Symbol)
 		require.Equal(t, float64(10), p.Price)
 	}
+}
+
+func TestAveraging(t *testing.T) {
+	nums := map[string]float64{
+		"a": 1.1,
+		"b": 2.2,
+		"c": 3.3,
+		"d": 4.4,
+		"e": 5.5,
+	}
+	avg, err := database.Averaging(nums)
+	require.NoError(t, err)
+	require.Equal(t, 3.3, avg)
+
+	_, err = database.Averaging(nil)
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("Aggregator.Averaging(): nil price list recieved"), err)
+
+	_, err = database.Averaging(map[string]float64{})
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("Aggregator.Averaging(): empty price list recieved"), err)
 }
