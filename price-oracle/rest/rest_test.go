@@ -55,7 +55,9 @@ func TestRest(t *testing.T) {
 	require.NoError(t, err)
 
 	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	require.NoError(t, err)
+
+	err = resp.Body.Close()
 	require.NoError(t, err)
 
 	var got struct {

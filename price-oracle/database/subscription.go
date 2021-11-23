@@ -102,7 +102,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		}
 
 		body, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			return err
+		}
 
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance read body: %w", err)
@@ -194,7 +196,9 @@ func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer read body: %w", err)
