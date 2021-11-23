@@ -84,17 +84,16 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
-		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
-		rowCmcSupply, err := m.Query("SELECT * FROM "+database.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		rowGeckoSupply, err := m.Query("SELECT * FROM "+database.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
 		if err != nil {
 			return nil, err
 		}
-		for rowCmcSupply.Next() {
-			if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
+		for rowGeckoSupply.Next() {
+			if err := rowGeckoSupply.Scan(&symbol, &supply); err != nil {
 				return nil, err
 			}
 		}
-		if err = rowCmcSupply.Close(); err != nil {
+		if err = rowGeckoSupply.Close(); err != nil {
 			return nil, err
 		}
 		token.Symbol = symbol
