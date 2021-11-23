@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -104,7 +105,7 @@ func AggregateManager(
 }
 
 func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	var query []string
 	binanceQuery := "SELECT * FROM oracle.binance"
 	//coinmarketcapQuery := "SELECT * FROM oracle.coinmarketcap"
@@ -123,11 +124,22 @@ func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Co
 	}
 
 	for _, q := range query {
-		Prices, err := PriceQuery(db, q)
+		var store string
+		switch {
+		case strings.Contains(q, "binance"):
+			store = "binance"
+		case strings.Contains(q, "coingecko"):
+			store = "coingecko"
+		default:
+			store = "unknown"
+		}
+
+		prices, err := PriceQuery(db, q)
 		if err != nil {
 			return err
 		}
-		for _, apitokenList := range Prices {
+
+		for _, apitokenList := range prices {
 			if _, ok := whitelist[apitokenList.Symbol]; !ok {
 				continue
 			}
@@ -135,9 +147,12 @@ func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Co
 			if apitokenList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apitokenList.Symbol]
-			Pricelist = append(Pricelist, apitokenList.Price)
-			symbolkv[apitokenList.Symbol] = Pricelist
+			pricelist, ok := symbolkv[apitokenList.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
+			pricelist[store] = apitokenList.Price
+			symbolkv[apitokenList.Symbol] = pricelist
 		}
 	}
 
@@ -174,7 +189,7 @@ func PricetokenAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Co
 }
 
 func PricefiatAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Config) error {
-	symbolkv := make(map[string][]float64)
+	symbolkv := make(map[string]map[string]float64)
 	var query []string
 	fixerQuery := "SELECT * FROM oracle.fixer"
 
@@ -186,11 +201,20 @@ func PricefiatAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Con
 	}
 
 	for _, q := range query {
-		Prices, err := PriceQuery(db, q)
+		var store string
+		switch {
+		case strings.Contains(q, "fixer"):
+			store = "fixer"
+		default:
+			store = "unknown"
+		}
+
+		prices, err := PriceQuery(db, q)
 		if err != nil {
 			return err
 		}
-		for _, apifiatList := range Prices {
+
+		for _, apifiatList := range prices {
 			if _, ok := whitelist[apifiatList.Symbol]; !ok {
 				continue
 			}
@@ -198,36 +222,36 @@ func PricefiatAggregator(db *sqlx.DB, logger *zap.SugaredLogger, cfg *config.Con
 			if apifiatList.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			Pricelist := symbolkv[apifiatList.Symbol]
-			Pricelist = append(Pricelist, apifiatList.Price)
-			symbolkv[apifiatList.Symbol] = Pricelist
+			pricelist, ok := symbolkv[apifiatList.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
+			pricelist[store] = apifiatList.Price
+			symbolkv[apifiatList.Symbol] = pricelist
 		}
 	}
 	for fiat := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolkv[fiat] {
-			total += value
+
+		mean, err := Averaging(symbolkv[fiat])
+		if err != nil {
+			return err
 		}
-		if len(symbolkv[fiat]) == 0 {
-			return nil
-		}
-		median := total / float64(len(symbolkv[fiat]))
 
 		tx := db.MustBegin()
 
-		result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", median, fiat)
+		result := tx.MustExec("UPDATE oracle.fiats SET price = ($1) WHERE symbol = ($2)", mean, fiat)
 		updateresult, err := result.RowsAffected()
 		if err != nil {
 			return fmt.Errorf("DB update: %w", err)
 		}
 		if updateresult == 0 {
-			tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, median)
+			tx.MustExec("INSERT INTO oracle.fiats VALUES (($1),($2));", fiat, mean)
 		}
 		err = tx.Commit()
 		if err != nil {
 			return fmt.Errorf("DB commit: %w", err)
 		}
-		logger.Infow("Insert to median Fiat Price", fiat, median)
+		logger.Infow("Insert to median Fiat Price", fiat, mean)
 	}
 	return nil
 }
@@ -248,4 +272,18 @@ func PriceQuery(db *sqlx.DB, Query string) ([]types.Prices, error) {
 		symbols = append(symbols, symbol)
 	}
 	return symbols, nil
+}
+
+func Averaging(prices map[string]float64) (float64, error) {
+	if prices == nil {
+		return 0, fmt.Errorf("nil price list recieved")
+	}
+	if len(prices) == 0 {
+		return 0, fmt.Errorf("empty price list recieved")
+	}
+	var total float64
+	for _, p := range prices {
+		total += p
+	}
+	return total / float64(len(prices)), nil
 }

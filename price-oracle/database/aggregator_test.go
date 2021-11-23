@@ -3,10 +3,12 @@ package database_test
 import (
 	"bufio"
 	"context"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
@@ -207,4 +209,25 @@ func readLinesFromFile(t *testing.T, s string) []string {
 		commands = append(commands, cmd)
 	}
 	return commands
+}
+
+func TestAveraging(t *testing.T) {
+	nums := map[string]float64{
+		"a": 1.1,
+		"b": 2.2,
+		"c": 3.3,
+		"d": 4.4,
+		"e": 5.5,
+	}
+	avg, err := database.Averaging(nums)
+	require.NoError(t, err)
+	require.Equal(t, 3.3, avg)
+
+	_, err = database.Averaging(nil)
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("nil price list recieved"), err)
+
+	_, err = database.Averaging(map[string]float64{})
+	require.Error(t, err)
+	require.Equal(t, fmt.Errorf("empty price list recieved"), err)
 }
