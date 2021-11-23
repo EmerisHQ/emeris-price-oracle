@@ -70,11 +70,13 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), string(selectFiatkey)).Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}
 
 		if err = json.Unmarshal(bz, &symbols); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
@@ -85,7 +87,15 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 
 		return
 	}
-	symbols, err = r.s.sh.Store.GetFiats(selectFiat)
+	fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
+}
+
+func (r *router) getselectFiatsPrices() (string, gin.HandlerFunc) {
+	return getselectFiatsPricesRoute, r.FiatsPrices
+}
+
+func fetchFiatPricesFromStore(r *router, ctx *gin.Context, selectFiat types.SelectFiat, selectFiatkey []byte) {
+	symbols, err := r.s.sh.Store.GetFiats(selectFiat)
 	if err != nil {
 		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
 	}
@@ -104,8 +114,4 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		"data":    &symbols,
 		"message": nil,
 	})
-}
-
-func (r *router) getselectFiatsPrices() (string, gin.HandlerFunc) {
-	return getselectFiatsPricesRoute, r.FiatsPrices
 }
