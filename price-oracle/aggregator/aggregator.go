@@ -1,4 +1,4 @@
-package database
+package aggregator
 
 import (
 	"context"
@@ -12,7 +12,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(ctx context.Context, storeHandler *store.Handler, logger *zap.SugaredLogger, cfg *config.Config, maxRecover int) {
+func StartAggregate(
+	ctx context.Context,
+	storeHandler *store.Handler,
+	logger *zap.SugaredLogger,
+	cfg *config.Config,
+	maxRecover int) {
 	fetchInterval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		logger.Fatal(err)
@@ -25,8 +30,8 @@ func StartAggregate(ctx context.Context, storeHandler *store.Handler, logger *za
 		worker daemon.AggFunc
 		doneCh chan struct{}
 	}{
-		"token": {worker: storeHandler.PricetokenAggregator, doneCh: make(chan struct{})},
-		"fiat":  {worker: storeHandler.PricefiatAggregator, doneCh: make(chan struct{})},
+		"token": {worker: storeHandler.PriceTokenAggregator, doneCh: make(chan struct{})},
+		"fiat":  {worker: storeHandler.PriceFiatAggregator, doneCh: make(chan struct{})},
 	}
 	for _, properties := range workers {
 		wg.Add(1)

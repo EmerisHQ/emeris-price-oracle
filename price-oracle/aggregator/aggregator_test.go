@@ -1,4 +1,4 @@
-package database_test
+package aggregator_test
 
 import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -56,7 +56,7 @@ func TestStartAggregate(t *testing.T) {
 		require.Equal(t, tokens[i].Price, price.Price)
 	}
 
-	go database.StartAggregate(ctx, storeHandler, logger, cfg, 3)
+	go aggregator.StartAggregate(ctx, storeHandler, logger, cfg, 3)
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {
@@ -75,9 +75,9 @@ func TestAggregateManager_closes(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, database.AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, aggregator.AggregateManager)
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 100*time.Millisecond, logger, cfg, storeHandler.PricefiatAggregator)
+	hbCh, errCh := runAsDaemon(done, 100*time.Millisecond, logger, cfg, storeHandler.PriceFiatAggregator)
 
 	// Collect 5 heartbeats and then close
 	for i := 0; i < 5; i++ {
@@ -96,9 +96,9 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	defer cancel()
 
 	numRecover := 2
-	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, database.AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, aggregator.AggregateManager)
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 6*time.Second, logger, cfg, storeHandler.PricefiatAggregator)
+	hbCh, errCh := runAsDaemon(done, 6*time.Second, logger, cfg, storeHandler.PriceFiatAggregator)
 
 	// Wait for the process to start
 	<-hbCh
@@ -107,7 +107,7 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	require.NoError(t, err)
 	// Collect 2 error logs
 	for i := 0; i < numRecover; i++ {
-		require.Contains(t, (<-errCh).Error(), "sql: database is closed")
+		require.Contains(t, (<-errCh).Error(), "sql: aggregator is closed")
 	}
 	// Ensure everything is closed
 	_, ok := <-errCh

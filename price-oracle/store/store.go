@@ -47,28 +47,28 @@ func NewStoreHandler(store Store) (*Handler, error) {
 	return &Handler{Store: store}, nil
 }
 
-func (storeHandler *Handler) CnsTokenQuery() ([]string, error) {
-	whitelists, err := storeHandler.Store.GetTokenNames()
+func (handler *Handler) CnsTokenQuery() ([]string, error) {
+	whitelists, err := handler.Store.GetTokenNames()
 	if err != nil {
 		return nil, err
 	}
 	return whitelists, nil
 }
 
-func (storeHandler *Handler) CnsPriceIdQuery() ([]string, error) {
-	whitelists, err := storeHandler.Store.GetPriceIDs()
+func (handler *Handler) CnsPriceIdQuery() ([]string, error) {
+	whitelists, err := handler.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
 	}
 	return whitelists, nil
 }
 
-func (storeHandler *Handler) PricetokenAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (handler *Handler) PriceTokenAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
-	cnsWhitelist, err := storeHandler.CnsTokenQuery()
+	cnsWhitelist, err := handler.CnsTokenQuery()
 	if err != nil {
 		return fmt.Errorf("CnsTokenQuery: %w", err)
 	}
@@ -78,7 +78,7 @@ func (storeHandler *Handler) PricetokenAggregator(logger *zap.SugaredLogger, cfg
 	}
 
 	for _, s := range stores {
-		prices, err := storeHandler.Store.GetPrices(s)
+		prices, err := handler.Store.GetPrices(s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -107,14 +107,14 @@ func (storeHandler *Handler) PricetokenAggregator(logger *zap.SugaredLogger, cfg
 
 		mean := total / float64(len(symbolKV[token]))
 
-		if err = storeHandler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
+		if err = handler.Store.UpsertPrice(TokensStore, mean, token, logger); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
 	}
 	return nil
 }
 
-func (storeHandler *Handler) PricefiatAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
+func (handler *Handler) PriceFiatAggregator(logger *zap.SugaredLogger, cfg *config.Config) error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{FixerStore}
 
@@ -125,7 +125,7 @@ func (storeHandler *Handler) PricefiatAggregator(logger *zap.SugaredLogger, cfg 
 	}
 
 	for _, s := range stores {
-		prices, err := storeHandler.Store.GetPrices(s)
+		prices, err := handler.Store.GetPrices(s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -150,10 +150,9 @@ func (storeHandler *Handler) PricefiatAggregator(logger *zap.SugaredLogger, cfg 
 		}
 		mean := total / float64(len(symbolKV[fiat]))
 
-		if err := storeHandler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
+		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat, logger); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
-
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package database_test
+package aggregator_test
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
@@ -32,7 +32,7 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -43,12 +43,12 @@ func TestSubscriptionBinance(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := aggregator.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionBinance(ctx, logger, cfg)
+	err = api.SubscriptionBinance(logger, cfg)
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.BinanceStore)
@@ -58,7 +58,7 @@ func TestSubscriptionBinance(t *testing.T) {
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -82,12 +82,12 @@ func TestSubscriptionCoingecko(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := aggregator.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionCoingecko(ctx, logger, cfg)
+	err = api.SubscriptionCoingecko(logger, cfg)
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.CoingeckoStore)
@@ -111,7 +111,7 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -122,12 +122,12 @@ func TestSubscriptionFixer(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := aggregator.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionFixer(ctx, logger, cfg)
+	err = api.SubscriptionFixer(logger, cfg)
 	require.NoError(t, err)
 
 	prices, err := storeHandler.Store.GetPrices(store.FixerStore)

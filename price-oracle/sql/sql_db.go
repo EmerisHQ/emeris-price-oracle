@@ -264,7 +264,7 @@ func (m *SqlDB) Query(query string, args ...interface{}) (*sqlx.Rows, error) {
 	return q, nil
 }
 
-// New returns an Instance connected to the database pointed by connString.
+// NewDB returns an Instance connected to the database pointed by connString.
 func NewDB(connString string) (*SqlDB, error) {
 	return NewWithDriver(connString, DriverPGX)
 }

@@ -1,9 +1,10 @@
-package database
+package aggregator
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
@@ -39,23 +40,22 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger 
 	}
 
 	var wg sync.WaitGroup
-	for _, s := range []func(context.Context, *zap.SugaredLogger, *config.Config) error{
+	for _, s := range []daemon.AggFunc{
 		api.SubscriptionBinance,
 		api.SubscriptionCoingecko,
 		api.SubscriptionFixer,
 	} {
-		subscriber := s
 		wg.Add(1)
-		go func() {
+		go func(subscriber daemon.AggFunc) {
 			defer wg.Done()
 			SubscriptionWorker(ctx, logger, cfg, subscriber)
-		}()
+		}(s)
 	}
 
 	wg.Wait()
 }
 
-func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, fn func(context.Context, *zap.SugaredLogger, *config.Config) error) {
+func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, fn daemon.AggFunc) {
 	logger.Infow("INFO", "Database", "SubscriptionWorker Start")
 	for {
 		select {
@@ -64,7 +64,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		default:
 		}
 
-		if err := fn(ctx, logger, cfg); err != nil {
+		if err := fn(logger, cfg); err != nil {
 			logger.Errorw("Database", "SubscriptionWorker", err)
 		}
 
@@ -77,7 +77,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 	}
 }
 
-func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionBinance(logger *zap.SugaredLogger, cfg *config.Config) error {
 	whitelistTokens, err := api.StoreHandler.CnsTokenQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
@@ -140,7 +140,7 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 	return nil
 }
 
-func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionCoingecko(logger *zap.SugaredLogger, cfg *config.Config) error {
 	whitelistTokens, err := api.StoreHandler.CnsPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
@@ -178,7 +178,7 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context, logger *zap.SugaredLo
 	return nil
 }
 
-func (api *Api) SubscriptionFixer(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config) error {
+func (api *Api) SubscriptionFixer(logger *zap.SugaredLogger, cfg *config.Config) error {
 	req, err := http.NewRequest("GET", FixerURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)

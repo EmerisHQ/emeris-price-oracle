@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/allinbits/emeris-price-oracle/price-oracle/aggregator"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
@@ -53,11 +53,11 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		database.StartAggregate(ctx, storeHandler, logger, config, 5)
+		aggregator.StartAggregate(ctx, storeHandler, logger, config, 5)
 	}()
 	go func() {
 		defer wg.Done()
-		database.StartSubscription(ctx, storeHandler, logger, config)
+		aggregator.StartSubscription(ctx, storeHandler, logger, config)
 	}()
 
 	restServer := rest.NewServer(
