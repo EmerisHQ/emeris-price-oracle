@@ -102,12 +102,11 @@ func (api *Api) SubscriptionBinance(ctx context.Context, logger *zap.SugaredLogg
 		}
 
 		body, err := ioutil.ReadAll(resp.Body)
-		if err := resp.Body.Close(); err != nil {
-			return err
-		}
-
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance read body: %w", err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			return err
 		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == 400 {
