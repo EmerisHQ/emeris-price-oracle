@@ -13,7 +13,6 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 )
 
 const (
@@ -37,7 +36,7 @@ func (m *SqlDB) Init() error {
 		}
 	}
 	if q != nil {
-		defer q.Close()
+		defer func() { _ = q.Close() }()
 	}
 
 	//interim measures
@@ -48,7 +47,7 @@ func (m *SqlDB) Init() error {
 		}
 	}
 	if q != nil {
-		defer q.Close()
+		defer func() { _ = q.Close() }()
 	}
 	return nil
 }
@@ -64,15 +63,15 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	for _, usersymbol := range selectToken.Tokens {
-		symbolList = append(symbolList, usersymbol)
+	for _, symbol := range selectToken.Tokens {
+		symbolList = append(symbolList, symbol)
 	}
 
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var symbol string
 		var price float64
@@ -86,11 +85,13 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		if err != nil {
 			return nil, err
 		}
-		defer rowCmcSupply.Close()
 		for rowCmcSupply.Next() {
 			if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
 				return nil, err
 			}
+		}
+		if err := rowCmcSupply.Close(); err != nil {
+			return nil, err
 		}
 		token.Symbol = symbol
 		token.Price = price
@@ -113,15 +114,15 @@ func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	for _, usersymbol := range selectFiat.Fiats {
-		symbolList = append(symbolList, usersymbol)
+	for _, fiat := range selectFiat.Fiats {
+		symbolList = append(symbolList, fiat)
 	}
 
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 
 		if err := rows.StructScan(&symbol); err != nil {
@@ -141,12 +142,12 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 	}
 	for q.Next() {
 		var ticker string
-		var fetch_price bool
+		var fetchPrice bool
 
-		if err := q.Scan(&ticker, &fetch_price); err != nil {
+		if err := q.Scan(&ticker, &fetchPrice); err != nil {
 			return nil, err
 		}
-		if fetch_price {
+		if fetchPrice {
 			ticker = strings.TrimRight(ticker, "\"")
 			ticker = strings.TrimLeft(ticker, "\"")
 			whitelists = append(whitelists, ticker)
@@ -162,17 +163,17 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 		return nil, err
 	}
 	for q.Next() {
-		var price_id sql.NullString
-		var fetch_price bool
+		var priceId sql.NullString
+		var fetchPrice bool
 
-		if err := q.Scan(&price_id, &fetch_price); err != nil {
+		if err := q.Scan(&priceId, &fetchPrice); err != nil {
 			return nil, err
 		}
-		if price_id.Valid {
-			if fetch_price {
-				price_id.String = strings.TrimRight(price_id.String, "\"")
-				price_id.String = strings.TrimLeft(price_id.String, "\"")
-				whitelists = append(whitelists, price_id.String)
+		if priceId.Valid {
+			if fetchPrice {
+				priceId.String = strings.TrimRight(priceId.String, "\"")
+				priceId.String = strings.TrimLeft(priceId.String, "\"")
+				whitelists = append(whitelists, priceId.String)
 			}
 		} else {
 			continue
@@ -188,7 +189,7 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 
 		if err := rows.StructScan(&price); err != nil {
@@ -199,28 +200,27 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	return prices, nil
 }
 
-func (m *SqlDB) UpsertPrice(to string, price float64, token string, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
 	tx := m.db.MustBegin()
 
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
-	updateresult, err := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("DB update: %w", err)
 	}
 	//If you perform an update without a token column, it does not respond as an error; it responds with zero.
 	//So you have to insert a new one in the column.
-	if updateresult == 0 {
+	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
 	}
 
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("DB commit: %w", err)
 	}
-	logger.Infow("Insert to ", token, price)
 	return nil
 }
 
-func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64) error {
 	tx := m.db.MustBegin()
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 
@@ -238,15 +238,15 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64,
 	return nil
 }
 
-func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64) error {
 	tx := m.db.MustBegin()
-	resultsupply := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+	result := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
 
-	updateresultsupply, err := resultsupply.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
 	}
-	if updateresultsupply == 0 {
+	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
 	}
 
@@ -292,7 +292,7 @@ func NewWithDriver(connString string, driver string) (*SqlDB, error) {
 	return m, nil
 }
 
-// Close closes the connection held by i.
+// Close closes the connection held by m.
 func (m *SqlDB) Close() error {
 	return m.db.Close()
 }

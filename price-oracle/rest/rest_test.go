@@ -48,7 +48,7 @@ func TestRest(t *testing.T) {
 			{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 		},
 	}
-	err := insertWantData(router, wantData, router.s.l)
+	err := insertWantData(router, wantData)
 	require.NoError(t, err)
 
 	resp, err := http.Get(fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getAllPriceRoute))
@@ -289,21 +289,21 @@ func insertToken(t *testing.T, connStr string) {
 	require.Equal(t, 1, len(cc))
 }
 
-func insertWantData(r router, wantData types.AllPriceResponse, l *zap.SugaredLogger) error {
+func insertWantData(r router, wantData types.AllPriceResponse) error {
 	for _, f := range wantData.Fiats {
 
-		if err := r.s.sh.Store.UpsertPrice(store2.FiatsStore, f.Price, f.Symbol, l); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store2.FiatsStore, f.Price, f.Symbol); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
 
-		if err := r.s.sh.Store.UpsertPrice(store2.TokensStore, t.Price, t.Symbol, l); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store2.TokensStore, t.Price, t.Symbol); err != nil {
 			return err
 		}
 
-		if err := r.s.sh.Store.UpsertTokenSupply(store2.CoingeckoSupplyStore, t.Symbol, t.Supply, l); err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(store2.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
 			return err
 		}
 	}

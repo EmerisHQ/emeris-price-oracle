@@ -59,7 +59,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 	for _, tk := range tokens.Tokens {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), storeHandler.Logger)
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
@@ -88,7 +88,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 
 	for _, tk := range fiats.Fiats {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), storeHandler.Logger)
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}

@@ -19,7 +19,7 @@ func TestSelectTokensPrices(t *testing.T) {
 		{Price: 10, Symbol: "ATOMUSDT", Supply: 113563929433.0},
 		{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 	}
-	err := insertWantData(router, types.AllPriceResponse{Tokens: want}, router.s.l)
+	err := insertWantData(router, types.AllPriceResponse{Tokens: want})
 	require.NoError(t, err)
 
 	ctx.Request = &http.Request{

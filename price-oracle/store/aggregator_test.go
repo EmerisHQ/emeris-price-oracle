@@ -39,10 +39,10 @@ func TestStartAggregate(t *testing.T) {
 	}
 	stores := []string{store.BinanceStore, store.CoingeckoStore}
 	for _, token := range tokens {
-		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol, storeHandler.Logger)
+		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol)
 		require.NoError(t, err)
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), storeHandler.Logger)
+			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}

@@ -132,7 +132,7 @@ func (api *Api) SubscriptionBinance() error {
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix(), api.StoreHandler.Logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, bp.Symbol, strToFloat, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -166,18 +166,11 @@ func (api *Api) SubscriptionCoingecko() error {
 
 		now := time.Now()
 
-		if err = api.StoreHandler.Store.UpsertToken(
-			store.CoingeckoStore, tokenSymbol,
-			token.CurrentPrice, now.Unix(),
-			api.StoreHandler.Logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", store.CoingeckoStore, tokenSymbol, token.CurrentPrice, err)
 		}
 
-		if err = api.StoreHandler.Store.UpsertTokenSupply(
-			store.CoingeckoSupplyStore,
-			tokenSymbol,
-			token.CirculatingSupply,
-			api.StoreHandler.Logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -237,7 +230,7 @@ func (api *Api) SubscriptionFixer() error {
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix(), api.StoreHandler.Logger); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", store.FixerStore, fiatSymbol, d, err)
 		}
 	}

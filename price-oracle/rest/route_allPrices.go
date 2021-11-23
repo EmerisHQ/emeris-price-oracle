@@ -14,19 +14,18 @@ import (
 const getAllPriceRoute = "/prices"
 
 func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
-
 	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
 		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	var tokensWhilelist []string
+	var tokensWhitelist []string
 	for _, token := range whitelists {
-		tokensWhilelist = append(tokensWhilelist, token+types.USDTBasecurrency)
+		tokensWhitelist = append(tokensWhitelist, token+types.USDTBasecurrency)
 	}
 
 	selectTokens := types.SelectToken{
-		Tokens: tokensWhilelist,
+		Tokens: tokensWhitelist,
 	}
 	tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
@@ -97,6 +96,6 @@ STORE:
 	})
 }
 
-func (r *router) getallPrices() (string, gin.HandlerFunc) {
+func (r *router) getAllPrices() (string, gin.HandlerFunc) {
 	return getAllPriceRoute, r.allPricesHandler
 }

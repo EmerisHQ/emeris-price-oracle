@@ -20,7 +20,7 @@ func TestSelectFiatsPrice(t *testing.T) {
 		{Symbol: "USDKRW", Price: 5},
 	}
 
-	err := insertWantData(router, types.AllPriceResponse{Fiats: want}, router.s.l)
+	err := insertWantData(router, types.AllPriceResponse{Fiats: want})
 	require.NoError(t, err)
 
 	ctx.Request = &http.Request{

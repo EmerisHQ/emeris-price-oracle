@@ -47,7 +47,7 @@ func NewServer(sh *store.Handler, ri *redis.Store, l *zap.SugaredLogger, c *conf
 	g.Use(logging.LogRequest(l.Desugar()))
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
 
-	g.GET(r.getallPrices())
+	g.GET(r.getAllPrices())
 	g.POST(r.getselectTokensPrices())
 	g.POST(r.getselectFiatsPrices())
 

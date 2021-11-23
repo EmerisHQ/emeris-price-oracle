@@ -11,15 +11,15 @@ import (
 
 type Store interface {
 	Init() error
-	Close() error                                                                                     //runs migrations
-	GetTokens(types.SelectToken) ([]types.TokenPriceResponse, error)                                  //fetches all tokens from db tokens
-	GetFiats(types.SelectFiat) ([]types.FiatPriceResponse, error)                                     //fetches all fiat tokens from db fiats
-	GetTokenNames() ([]string, error)                                                                 //fetches whilelist with token names
-	GetPriceIDs() ([]string, error)                                                                   //fetches whilelist with price ids
-	GetPrices(from string) ([]types.Prices, error)                                                    //fetches prices from db table ex: binance,coingecko,fixer,tokens
-	UpsertPrice(to string, price float64, token string, logger *zap.SugaredLogger) error              //upsert token or fiat price in db ex: tokens, fiats
-	UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
-	UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error      //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
+	Close() error                                                          //runs migrations
+	GetTokens(types.SelectToken) ([]types.TokenPriceResponse, error)       //fetches all tokens from db tokens
+	GetFiats(types.SelectFiat) ([]types.FiatPriceResponse, error)          //fetches all fiat tokens from db fiats
+	GetTokenNames() ([]string, error)                                      //fetches whilelist with token names
+	GetPriceIDs() ([]string, error)                                        //fetches whilelist with price ids
+	GetPrices(from string) ([]types.Prices, error)                         //fetches prices from db table ex: binance,coingecko,fixer,tokens
+	UpsertPrice(to string, price float64, token string) error              //upsert token or fiat price in db ex: tokens, fiats
+	UpsertToken(to string, symbol string, price float64, time int64) error //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
+	UpsertTokenSupply(to string, symbol string, supply float64) error      //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
 }
 
 const (
@@ -115,7 +115,7 @@ func (handler *Handler) PriceTokenAggregator() error {
 
 		mean := total / float64(len(symbolKV[token]))
 
-		if err = handler.Store.UpsertPrice(TokensStore, mean, token, handler.Logger); err != nil {
+		if err = handler.Store.UpsertPrice(TokensStore, mean, token); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
 	}
@@ -158,7 +158,7 @@ func (handler *Handler) PriceFiatAggregator() error {
 		}
 		mean := total / float64(len(symbolKV[fiat]))
 
-		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat, handler.Logger); err != nil {
+		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
 	}

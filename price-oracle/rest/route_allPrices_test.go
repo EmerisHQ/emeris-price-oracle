@@ -23,7 +23,7 @@ func TestAllPricesHandler(t *testing.T) {
 			{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 		},
 	}
-	err := insertWantData(router, wantData, router.s.l)
+	err := insertWantData(router, wantData)
 	require.NoError(t, err)
 
 	router.allPricesHandler(ctx)
