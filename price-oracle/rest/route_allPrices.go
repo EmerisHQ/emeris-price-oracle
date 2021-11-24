@@ -55,12 +55,14 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), "prices").Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
-			goto STORE
+			fetchAllPricesFromStore(r, ctx)
+			return
 		}
 
 		if err = json.Unmarshal(bz, &AllPriceResponse); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
-			goto STORE
+			fetchAllPricesFromStore(r, ctx)
+			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status":  http.StatusOK,
@@ -70,7 +72,15 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 		return
 	}
-STORE:
+	fetchAllPricesFromStore(r, ctx)
+}
+
+func (r *router) getAllPrices() (string, gin.HandlerFunc) {
+	return getAllPriceRoute, r.allPricesHandler
+}
+
+func fetchAllPricesFromStore(r *router, ctx *gin.Context) {
+	var AllPriceResponse types.AllPriceResponse
 	tokens, fiats, err := allPrices(r)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
@@ -84,8 +94,7 @@ STORE:
 		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
 		return
 	}
-
-	if err = r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry); err != nil {
+	if err := r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
@@ -94,8 +103,4 @@ STORE:
 		"data":    &AllPriceResponse,
 		"message": nil,
 	})
-}
-
-func (r *router) getAllPrices() (string, gin.HandlerFunc) {
-	return getAllPriceRoute, r.allPricesHandler
 }

@@ -57,7 +57,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		tokens := token + types.USDTBasecurrency
 		basetokens = append(basetokens, tokens)
 	}
-	if !SamePair(selectToken.Tokens, basetokens) {
+	if !IsSubset(selectToken.Tokens, basetokens) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
@@ -74,11 +74,13 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), string(selectTokenkey)).Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
 			return
 		}
 
 		if err = json.Unmarshal(bz, &symbols); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
@@ -89,7 +91,15 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 
 		return
 	}
-	symbols, err = r.s.sh.Store.GetTokens(selectToken)
+	fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
+}
+
+func (r *router) getselectTokensPrices() (string, gin.HandlerFunc) {
+	return getselectTokensPricesRoute, r.TokensPrices
+}
+
+func fetchTokenPricesFromStore(r *router, ctx *gin.Context, selectToken types.SelectToken, selectTokenkey []byte) {
+	symbols, err := r.s.sh.Store.GetTokens(selectToken)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
 		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
@@ -110,8 +120,4 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		"data":    &symbols,
 		"message": nil,
 	})
-}
-
-func (r *router) getselectTokensPrices() (string, gin.HandlerFunc) {
-	return getselectTokensPricesRoute, r.TokensPrices
 }

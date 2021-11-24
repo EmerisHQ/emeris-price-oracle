@@ -36,7 +36,9 @@ func (m *SqlDB) Init() error {
 		}
 	}
 	if q != nil {
-		defer func() { _ = q.Close() }()
+		if err = q.Close(); err != nil {
+			return err
+		}
 	}
 
 	//interim measures
@@ -47,7 +49,9 @@ func (m *SqlDB) Init() error {
 		}
 	}
 	if q != nil {
-		defer func() { _ = q.Close() }()
+		if err = q.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -71,7 +75,6 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var symbol string
 		var price float64
@@ -80,17 +83,16 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
-		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
-		rowCmcSupply, err := m.Query("SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		rowGeckoSupply, err := m.Query("SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
 		if err != nil {
 			return nil, err
 		}
-		for rowCmcSupply.Next() {
-			if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
+		for rowGeckoSupply.Next() {
+			if err := rowGeckoSupply.Scan(&symbol, &supply); err != nil {
 				return nil, err
 			}
 		}
-		if err := rowCmcSupply.Close(); err != nil {
+		if err = rowGeckoSupply.Close(); err != nil {
 			return nil, err
 		}
 		token.Symbol = symbol
@@ -98,6 +100,9 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		token.Supply = supply
 
 		tokens = append(tokens, token)
+	}
+	if err = rows.Close(); err != nil {
+		return nil, err
 	}
 
 	return tokens, nil
@@ -122,13 +127,15 @@ func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 
 		if err := rows.StructScan(&symbol); err != nil {
 			return nil, err
 		}
 		symbols = append(symbols, symbol)
+	}
+	if err = rows.Close(); err != nil {
+		return nil, err
 	}
 
 	return symbols, nil
@@ -189,13 +196,15 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
 	}
-	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 
 		if err := rows.StructScan(&price); err != nil {
 			return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
 		}
 		prices = append(prices, price)
+	}
+	if err = rows.Close(); err != nil {
+		return nil, err
 	}
 	return prices, nil
 }

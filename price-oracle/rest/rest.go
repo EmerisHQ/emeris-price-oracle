@@ -92,19 +92,18 @@ func e(c *gin.Context, status int, err error) {
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-// SamePair returns true is both lists are same else false
-func SamePair(a []string, b []string) bool {
-	// Turn b into a map
-	m := make(map[string]bool, len(b))
-	for _, s := range b {
-		m[s] = false
+// IsSubset returns true if all element of subList in found in globalList
+func IsSubset(subList []string, globalList []string) bool {
+	// Turn globalList into a map
+	globalSet := make(map[string]bool, len(globalList))
+	for _, s := range globalList {
+		globalSet[s] = true
 	}
-	// Append values from the longest slice that don't exist in the map
-	for _, s := range a {
-		if _, ok := m[s]; !ok {
+
+	for _, s := range subList {
+		if _, ok := globalSet[s]; !ok {
 			return false
 		}
-		m[s] = true
 	}
 	return true
 }

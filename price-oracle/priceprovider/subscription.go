@@ -106,6 +106,9 @@ func (api *Api) SubscriptionBinance() error {
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance read body: %w", err)
 		}
+		if err := resp.Body.Close(); err != nil {
+			return err
+		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == http.StatusBadRequest {
 				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
@@ -198,6 +201,9 @@ func (api *Api) SubscriptionFixer() error {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer read body: %w", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {

@@ -92,3 +92,17 @@ func AggregateManager(
 	}()
 	return heartbeatCh, errCh
 }
+
+func Averaging(prices map[string]float64) (float64, error) {
+	if prices == nil {
+		return 0, fmt.Errorf("Aggregator.Averaging(): nil price list recieved")
+	}
+	if len(prices) == 0 {
+		return 0, fmt.Errorf("Aggregator.Averaging(): empty price list recieved")
+	}
+	var total float64
+	for _, p := range prices {
+		total += p
+	}
+	return total / float64(len(prices)), nil
+}

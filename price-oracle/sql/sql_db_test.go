@@ -246,12 +246,14 @@ func TestUpsertTokenPrice(t *testing.T) {
 	var symbol string
 	var p float64
 	var prices []types.TokenPriceResponse
-	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
 		prices = append(prices, types.TokenPriceResponse{Symbol: symbol, Price: p})
 	}
+	err = rows.Close()
+	require.NoError(t, err)
+
 	require.Equal(t, price, prices[0])
 }
 
@@ -284,12 +286,14 @@ func TestUpsertFiatPrice(t *testing.T) {
 	var symbol string
 	var p float64
 	var prices []types.FiatPriceResponse
-	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
 		prices = append(prices, types.FiatPriceResponse{Symbol: symbol, Price: p})
 	}
+	err = rows.Close()
+	require.NoError(t, err)
+
 	require.Equal(t, price, prices[0])
 }
 
@@ -352,12 +356,15 @@ func TestUpsertTokenSupply(t *testing.T) {
 	var symbol string
 	var supply float64
 	var prices []types.TokenPriceResponse
-	defer func() { _ = rows.Close() }()
+
 	for rows.Next() {
 		err = rows.Scan(&symbol, &supply)
 		require.NoError(t, err)
 		prices = append(prices, types.TokenPriceResponse{Symbol: symbol, Supply: supply})
 	}
+	err = rows.Close()
+	require.NoError(t, err)
+
 	require.Equal(t, price, prices[0])
 }
 
