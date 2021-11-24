@@ -42,7 +42,7 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 		for _, Whitelisttoken := range Whitelists {
 			Whitelisttoken += types.USDTBasecurrency
 			if symbol == Whitelisttoken {
-				//crowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
+				// crowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
 				rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", Whitelisttoken)
 				if err != nil {
 					r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
