@@ -70,6 +70,13 @@ type restValidationError struct {
 	ValidationErrors []string `json:"validation_errors"`
 }
 
+var (
+	errAssetLimitExceed    = errors.New("not allow More than 10 asset")
+	errZeroAsset           = errors.New("not allow 0 asset")
+	errNilAsset            = errors.New("not allow nil asset")
+	errNotWhitelistedAsset = errors.New("not whitelisted asset")
+)
+
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
 	var jsonErr interface{}

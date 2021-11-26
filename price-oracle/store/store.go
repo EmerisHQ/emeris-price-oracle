@@ -5,21 +5,23 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
+	"math/rand"
+	"sync"
 
 	"time"
 )
 
 type Store interface {
 	Init() error
-	Close() error                                                          //runs migrations
-	GetTokens(types.Tokens) ([]types.TokenPriceAndSupply, error)           //fetches all tokens from db tokens
-	GetFiats(types.Fiats) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
-	GetTokenNames() ([]string, error)                                      //fetches whitelist with token names
-	GetPriceIDs() ([]string, error)                                        //fetches whitelist with price ids
-	GetPrices(from string) ([]types.Prices, error)                         //fetches prices from db table ex: binance,coingecko,fixer,tokens
-	UpsertPrice(to string, price float64, token string) error              //upsert token or fiat price in db ex: tokens, fiats
-	UpsertToken(to string, symbol string, price float64, time int64) error //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
-	UpsertTokenSupply(to string, symbol string, supply float64) error      //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
+	Close() error                                                               //runs migrations
+	GetTokenPriceAndSupplies(types.Tokens) ([]types.TokenPriceAndSupply, error) //fetches all tokens from db tokens
+	GetFiatPrices(types.Fiats) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
+	GetTokenNames() ([]string, error)                                           //fetches whitelist with token names
+	GetPriceIDs() ([]string, error)                                             //fetches whitelist with price ids
+	GetPrices(from string) ([]types.Prices, error)                              //fetches prices from db table ex: binance,coingecko,fixer,tokens
+	UpsertPrice(to string, price float64, token string) error                   //upsert token or fiat price in db ex: tokens, fiats
+	UpsertToken(to string, symbol string, price float64, time int64) error      //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
+	UpsertTokenSupply(to string, symbol string, supply float64) error           //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
 }
 
 const (
@@ -35,9 +37,19 @@ type Handler struct {
 	Store  Store
 	Logger *zap.SugaredLogger
 	Cfg    *config.Config
+	Cache  *Cache
 }
 
-func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config) (*Handler, error) {
+type Cache struct {
+	Whitelist             []string
+	TokenPriceAndSupplies []types.TokenPriceAndSupply
+	FiatPrices            []types.FiatPrice
+
+	RefreshInterval time.Duration
+	Mu              sync.Mutex
+}
+
+func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config, cache *Cache) (*Handler, error) {
 	if store == nil {
 		return nil, fmt.Errorf("store.go, NewStoreHandler : nil store passed")
 	}
@@ -47,38 +59,97 @@ func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config)
 	if logger == nil {
 		return nil, fmt.Errorf("store.go, NewStoreHandler : nil logger passed")
 	}
+	if cache == nil {
+		cache = &Cache{
+			Whitelist:             nil,
+			TokenPriceAndSupplies: nil,
+			FiatPrices:            nil,
+			RefreshInterval:       time.Second * 5,
+			Mu:                    sync.Mutex{},
+		}
+	}
 
 	if err := store.Init(); err != nil {
 		return nil, err
 	}
-
-	return &Handler{Store: store, Logger: logger, Cfg: cfg}, nil
+	// Invalidate in-memory cache after RefreshInterval
+	go func(cache *Cache) {
+		randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5
+		d := cache.RefreshInterval + time.Duration(randomInt)
+		for {
+			select {
+			case <-time.Tick(d):
+				fmt.Println("Invalidate in-memory cache") // Feeling cute, might delete later! UwU
+				cache.Mu.Lock()
+				cache.Whitelist = nil
+				cache.FiatPrices = nil
+				cache.TokenPriceAndSupplies = nil
+				cache.Mu.Unlock()
+			}
+		}
+	}(cache)
+	return &Handler{Store: store, Logger: logger, Cfg: cfg, Cache: cache}, nil
 }
 
-func (handler *Handler) CnsTokenQuery() ([]string, error) {
-	whitelists, err := handler.Store.GetTokenNames()
+// GetCNSWhitelistedTokens returns the whitelisted tokens. It first checks the in-memory cache.
+// If cache is nil, or cache is stale, it fetches and updates the cache.
+func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
+	if h.Cache.Whitelist == nil {
+		whitelists, err := h.Store.GetTokenNames()
+		if err != nil {
+			return nil, err
+		}
+		h.Cache.Mu.Lock()
+		h.Cache.Whitelist = whitelists
+		h.Cache.Mu.Unlock()
+	}
+	return h.Cache.Whitelist, nil
+}
+
+func (h *Handler) CnsPriceIdQuery() ([]string, error) {
+	whitelists, err := h.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
 	}
 	return whitelists, nil
 }
 
-func (handler *Handler) CnsPriceIdQuery() ([]string, error) {
-	whitelists, err := handler.Store.GetPriceIDs()
-	if err != nil {
-		return nil, err
+func (h *Handler) GetTokenPriceAndSupplies(tokens types.Tokens) ([]types.TokenPriceAndSupply, error) {
+	if h.Cache.TokenPriceAndSupplies == nil {
+		tokensDetail, err := h.Store.GetTokenPriceAndSupplies(tokens)
+		if err != nil {
+			return nil, err
+		}
+
+		h.Cache.Mu.Lock()
+		h.Cache.TokenPriceAndSupplies = tokensDetail
+		h.Cache.Mu.Unlock()
 	}
-	return whitelists, nil
+	return h.Cache.TokenPriceAndSupplies, nil
 }
 
-func (handler *Handler) PriceTokenAggregator() error {
+func (h *Handler) GetFiatPrices(fiats types.Fiats) ([]types.FiatPrice, error) {
+	if h.Cache.FiatPrices == nil {
+		fiatPrices, err := h.Store.GetFiatPrices(fiats)
+		if err != nil {
+			return nil, err
+		}
+
+		h.Cache.Mu.Lock()
+		h.Cache.FiatPrices = fiatPrices
+		h.Cache.Mu.Unlock()
+	}
+	return h.Cache.FiatPrices, nil
+}
+
+func (h *Handler) PriceTokenAggregator() error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
-	cnsWhitelist, err := handler.CnsTokenQuery()
+	cnsWhitelist, err := h.GetCNSWhitelistedTokens()
 	if err != nil {
-		return fmt.Errorf("CnsTokenQuery: %w", err)
+		return fmt.Errorf("GetCNSWhitelistedTokens: %w", err)
 	}
 	for _, token := range cnsWhitelist {
 		baseToken := token + types.USDT
@@ -86,7 +157,7 @@ func (handler *Handler) PriceTokenAggregator() error {
 	}
 
 	for _, s := range stores {
-		prices, err := handler.Store.GetPrices(s)
+		prices, err := h.Store.GetPrices(s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -115,25 +186,25 @@ func (handler *Handler) PriceTokenAggregator() error {
 
 		mean := total / float64(len(symbolKV[token]))
 
-		if err = handler.Store.UpsertPrice(TokensStore, mean, token); err != nil {
+		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
 		}
 	}
 	return nil
 }
 
-func (handler *Handler) PriceFiatAggregator() error {
+func (h *Handler) PriceFiatAggregator() error {
 	symbolKV := make(map[string][]float64)
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
-	for _, fiat := range handler.Cfg.Whitelistfiats {
+	for _, fiat := range h.Cfg.Whitelistfiats {
 		baseFiat := types.USD + fiat
 		whitelist[baseFiat] = struct{}{}
 	}
 
 	for _, s := range stores {
-		prices, err := handler.Store.GetPrices(s)
+		prices, err := h.Store.GetPrices(s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -158,7 +229,7 @@ func (handler *Handler) PriceFiatAggregator() error {
 		}
 		mean := total / float64(len(symbolKV[fiat]))
 
-		if err := handler.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
+		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
 		}
 	}

@@ -78,12 +78,12 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 }
 
 func (api *Api) SubscriptionBinance() error {
-	whitelistTokens, err := api.StoreHandler.CnsTokenQuery()
+	whitelistTokens, err := api.StoreHandler.GetCNSWhitelistedTokens()
 	if err != nil {
-		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: %w", err)
+		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: %w", err)
 	}
 	if len(whitelistTokens) == 0 {
-		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist")
+		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: The token does not exist")
 	}
 	for _, token := range whitelistTokens {
 		tokenSymbol := token + types.USDT

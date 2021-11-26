@@ -28,7 +28,7 @@ func TestCnsTokenQuery(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	whiteList, err := storeHandler.CnsTokenQuery()
+	whiteList, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
@@ -67,7 +67,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 	err := storeHandler.PriceTokenAggregator()
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetTokens(tokens)
+	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
 	for i, p := range prices {
@@ -96,7 +96,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 	err := storeHandler.PriceFiatAggregator()
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetFiats(fiats)
+	prices, err := storeHandler.Store.GetFiatPrices(fiats)
 	require.NoError(t, err)
 	require.NotNil(t, prices)
 
@@ -113,7 +113,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		return nil, err
 	}
 
-	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg, nil)
 	if err != nil {
 		return nil, err
 	}

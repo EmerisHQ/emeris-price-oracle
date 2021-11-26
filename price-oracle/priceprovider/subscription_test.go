@@ -236,7 +236,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		return nil, err
 	}
 
-	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg, nil)
 	if err != nil {
 		return nil, err
 	}

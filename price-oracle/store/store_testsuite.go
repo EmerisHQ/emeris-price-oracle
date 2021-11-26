@@ -17,7 +17,7 @@ func TestStore(t *testing.T, store Store) {
 		err := store.UpsertPrice(TokensStore, -100, "ATOM")
 		require.NoError(t, err)
 
-		tokens, err := store.GetTokens(list)
+		tokens, err := store.GetTokenPriceAndSupplies(list)
 		require.NoError(t, err)
 		require.Equal(t, list.Tokens[0], tokens[0].Symbol)
 	})
@@ -30,7 +30,7 @@ func TestStore(t *testing.T, store Store) {
 		err := store.UpsertPrice(FiatsStore, -100, "EUR")
 		require.NoError(t, err)
 
-		tokens, err := store.GetFiats(list)
+		tokens, err := store.GetFiatPrices(list)
 		require.NoError(t, err)
 		require.Equal(t, list.Fiats[0], tokens[0].Symbol)
 	})
@@ -67,7 +67,7 @@ func TestStore(t *testing.T, store Store) {
 		list := types.Tokens{
 			Tokens: []string{"ATOM"},
 		}
-		prices, err := store.GetTokens(list)
+		prices, err := store.GetTokenPriceAndSupplies(list)
 		require.NoError(t, err)
 		require.Equal(t, "ATOM", prices[0].Symbol)
 		require.Equal(t, float64(-23425), prices[0].Supply)

@@ -56,30 +56,27 @@ func (m *SqlDB) Init() error {
 	return nil
 }
 
-func (m *SqlDB) GetTokens(selectToken types.Tokens) ([]types.TokenPriceAndSupply, error) {
-	var tokens []types.TokenPriceAndSupply
-	var token types.TokenPriceAndSupply
-	var symbolList []interface{}
-
+func (m *SqlDB) GetTokenPriceAndSupplies(selectToken types.Tokens) ([]types.TokenPriceAndSupply, error) {
 	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
-
 	for i := 2; i <= len(selectToken.Tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
+	var symbolList []interface{}
 	for _, symbol := range selectToken.Tokens {
 		symbolList = append(symbolList, symbol)
 	}
+
+	var priceAndSupplies []types.TokenPriceAndSupply
+	var symbol string
+	var price float64
+	var supply float64
 
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		var symbol string
-		var price float64
-		var supply float64
-
 		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
@@ -95,51 +92,48 @@ func (m *SqlDB) GetTokens(selectToken types.Tokens) ([]types.TokenPriceAndSupply
 		if err = rowGeckoSupply.Close(); err != nil {
 			return nil, err
 		}
-		token.Symbol = symbol
-		token.Price = price
-		token.Supply = supply
-
-		tokens = append(tokens, token)
+		detail := types.TokenPriceAndSupply{
+			Symbol: symbol,
+			Price:  price,
+			Supply: supply,
+		}
+		priceAndSupplies = append(priceAndSupplies, detail)
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
 
-	return tokens, nil
+	return priceAndSupplies, nil
 }
 
-func (m *SqlDB) GetFiats(selectFiat types.Fiats) ([]types.FiatPrice, error) {
-	// If not subset or not recent data, update.
-	var symbols []types.FiatPrice
-	var symbol types.FiatPrice
-	var symbolList []interface{}
-
+func (m *SqlDB) GetFiatPrices(selectFiat types.Fiats) ([]types.FiatPrice, error) {
 	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
-
 	for i := 2; i <= len(selectFiat.Fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
+	var symbolList []interface{}
 	for _, fiat := range selectFiat.Fiats {
 		symbolList = append(symbolList, fiat)
 	}
 
+	var fiatPrices []types.FiatPrice
+	var price types.FiatPrice
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-
-		if err := rows.StructScan(&symbol); err != nil {
+		if err := rows.StructScan(&price); err != nil {
 			return nil, err
 		}
-		symbols = append(symbols, symbol)
+		fiatPrices = append(fiatPrices, price)
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
 
-	return symbols, nil
+	return fiatPrices, nil
 }
 
 func (m *SqlDB) GetTokenNames() ([]string, error) {

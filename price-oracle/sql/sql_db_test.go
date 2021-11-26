@@ -115,7 +115,7 @@ func TestGetTokens(t *testing.T) {
 	selectToken := types.Tokens{
 		Tokens: []string{"ATOM"},
 	}
-	resp, err := mDB.GetTokens(selectToken)
+	resp, err := mDB.GetTokenPriceAndSupplies(selectToken)
 	require.NoError(t, err)
 	require.Equal(t, token, resp[0])
 }
@@ -146,7 +146,7 @@ func TestGetFiats(t *testing.T) {
 	selectFiats := types.Fiats{
 		Fiats: []string{"USD"},
 	}
-	resp, err := mDB.GetFiats(selectFiats)
+	resp, err := mDB.GetFiatPrices(selectFiats)
 	require.NoError(t, err)
 	require.Equal(t, fiat, resp[0])
 }

@@ -69,34 +69,35 @@ func TestRest(t *testing.T) {
 	require.Equal(t, wantData, got.Data)
 
 	var testSetToken = map[string]struct {
-		Tokens  types.Tokens
-		Status  int
-		Message string
+		Tokens types.Tokens
+		Status int
+		Error  error
 	}{
 		"Token: Not whitelisted": {
 			types.Tokens{Tokens: []string{"DOTUSDT"}},
 			http.StatusForbidden,
-			"Not whitelisting asset",
+			errNotWhitelistedAsset,
 		},
 		"Token: No value": {
 			types.Tokens{Tokens: []string{}},
 			http.StatusForbidden,
-			"Not allow 0 asset",
+			errZeroAsset,
 		},
 		"Token: Nil value": {
 			types.Tokens{Tokens: nil},
 			http.StatusForbidden,
-			"Not allow nil asset",
+			errNilAsset,
 		},
 		"Token: Exceeds limit": {
 			types.Tokens{Tokens: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			errAssetLimitExceed,
 		},
 	}
 
 	for tName, expected := range testSetToken {
 		t.Run(tName, func(t *testing.T) {
+			t.Parallel()
 			jsonBytes, err := json.Marshal(expected.Tokens)
 			require.NoError(t, err)
 
@@ -107,48 +108,45 @@ func TestRest(t *testing.T) {
 			body, err = ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
-			var gotPost struct {
-				Data    []types.TokenPriceAndSupply `json:"data"`
-				Status  int                         `json:"status"`
-				Message string                      `json:"message"`
-			}
-
-			err = json.Unmarshal(body, &gotPost)
+			var restError restError
+			err = json.Unmarshal(body, &restError)
 			require.NoError(t, err)
-			require.Equal(t, expected.Status, gotPost.Status)
-			require.Equal(t, expected.Message, gotPost.Message)
+
+			require.Equal(t, expected.Status, resp.StatusCode)
+			require.Equal(t, restError.Error, expected.Error.Error())
 		})
 	}
 
 	var testSetFiat = map[string]struct {
-		Fiat    types.Fiats
-		Status  int
-		Message string
+		Fiat   types.Fiats
+		Status int
+		Error  error
 	}{
 		"Fiat: Not whitelisted": {
 			types.Fiats{Fiats: []string{"USDBDT"}},
 			http.StatusForbidden,
-			"Not whitelisting asset",
+			errNotWhitelistedAsset,
 		},
 		"Fiat: No value": {
 			types.Fiats{Fiats: []string{}},
 			http.StatusForbidden,
-			"Not allow 0 asset",
+			errZeroAsset,
 		},
 		"Fiat: Nil value": {
 			types.Fiats{Fiats: nil},
 			http.StatusForbidden,
-			"Not allow nil asset",
+			errNilAsset,
 		},
 		"Fiat: Exceeds limit": {
 			types.Fiats{Fiats: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			errAssetLimitExceed,
 		},
 	}
 
 	for tName, expected := range testSetFiat {
 		t.Run(tName, func(t *testing.T) {
+			t.Parallel()
 			jsonBytes, err := json.Marshal(expected.Fiat)
 			require.NoError(t, err)
 
@@ -159,16 +157,12 @@ func TestRest(t *testing.T) {
 			body, err = ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
-			var gotPost struct {
-				Data    []types.FiatPrice `json:"data"`
-				Status  int               `json:"status"`
-				Message string            `json:"message"`
-			}
-
-			err = json.Unmarshal(body, &gotPost)
+			var restError restError
+			err = json.Unmarshal(body, &restError)
 			require.NoError(t, err)
-			require.Equal(t, expected.Status, gotPost.Status)
-			require.Equal(t, expected.Message, gotPost.Message)
+
+			require.Equal(t, expected.Status, resp.StatusCode)
+			require.Equal(t, restError.Error, expected.Error.Error())
 		})
 	}
 }
@@ -240,7 +234,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		return nil, err
 	}
 
-	storeHandler, err := store2.NewStoreHandler(db, logger, cfg)
+	storeHandler, err := store2.NewStoreHandler(db, logger, cfg, nil)
 	if err != nil {
 		return nil, err
 	}

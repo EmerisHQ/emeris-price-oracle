@@ -1,117 +1,71 @@
 package rest
 
 import (
-	"context"
-	"encoding/json"
-	"net/http"
-	"time"
-
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"go.uber.org/zap"
+	"net/http"
 )
 
 const getFiatsPricesRoute = "/fiats"
 
-func (r *router) FiatsPrices(ctx *gin.Context) {
-	var selectFiat types.Fiats
-	var symbols []types.FiatPrice
+func getFiatPrices(
+	fiats types.Fiats,
+	whitelisted []string,
+	store *store.Handler,
+	logger *zap.SugaredLogger) ([]types.FiatPrice, int, error) {
 
-	if err := ctx.BindJSON(&selectFiat); err != nil {
-		r.s.l.Error("Error", "FiatsPrices", err.Error(), "Duration", time.Second)
-	}
-
-	if len(selectFiat.Fiats) > 10 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow More than 10 asset",
-		})
-		return
+	var fiatSymbols []string
+	for _, fiat := range whitelisted {
+		fiatSymbols = append(fiatSymbols, types.USD+fiat)
 	}
 
-	if selectFiat.Fiats == nil {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow nil asset",
-		})
-		return
+	if !IsSubset(fiats.Fiats, fiatSymbols) {
+		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
 
-	if len(selectFiat.Fiats) == 0 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow 0 asset",
-		})
-		return
-	}
-
-	var basefiats []string
-	for _, fiat := range r.s.c.Whitelistfiats {
-		fiats := types.USD + fiat
-		basefiats = append(basefiats, fiats)
-	}
-	if !IsSubset(selectFiat.Fiats, basefiats) {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not whitelisting asset",
-		})
-		return
-	}
-	selectFiatkey, err := json.Marshal(selectFiat.Fiats)
+	fiatPrices, err := store.GetFiatPrices(fiats)
 	if err != nil {
-		r.s.l.Error("Error", "Redis-selectFiatkey", err.Error(), "Duration", time.Second)
+		logger.Error("Error", "Store.GetFiatPrices()", err.Error())
+		return nil, http.StatusInternalServerError, err
+	}
+	return fiatPrices, http.StatusOK, nil
+}
+
+func (r *router) fiatPriceHandler(ctx *gin.Context) {
+	var selectFiat types.Fiats
+	if err := ctx.BindJSON(&selectFiat); err != nil {
+		r.s.l.Error("Error", "FiatPrices", err.Error())
+		e(ctx, http.StatusBadRequest, err)
 		return
 	}
-	if r.s.ri.Exists(string(selectFiatkey)) {
-		bz, err := r.s.ri.Client.Get(context.Background(), string(selectFiatkey)).Bytes()
-		if err != nil {
-			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
-			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
-			return
-		}
 
-		if err = json.Unmarshal(bz, &symbols); err != nil {
-			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
-			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
-			return
+	if selectFiat.Fiats == nil || len(selectFiat.Fiats) == 0 || len(selectFiat.Fiats) > 10 {
+		err := errZeroAsset
+		if len(selectFiat.Fiats) > 10 {
+			err = errAssetLimitExceed
+		} else if selectFiat.Fiats == nil {
+			err = errNilAsset
 		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"data":    &symbols,
-			"message": nil,
-		})
-
+		e(ctx, http.StatusForbidden, err)
 		return
 	}
-	fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
+
+	fiatPrices, httpStatus, err := getFiatPrices(selectFiat, r.s.c.Whitelistfiats, r.s.sh, r.s.l)
+	if err != nil {
+		e(ctx, httpStatus, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"data":    &fiatPrices,
+		"message": nil,
+	})
 }
 
 func (r *router) getFiatsPrices() (string, gin.HandlerFunc) {
-	return getFiatsPricesRoute, r.FiatsPrices
-}
-
-func fetchFiatPricesFromStore(r *router, ctx *gin.Context, selectFiat types.Fiats, selectFiatkey []byte) {
-	symbols, err := r.s.sh.Store.GetFiats(selectFiat)
-	if err != nil {
-		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
-	}
-	bz, err := json.Marshal(symbols)
-	if err != nil {
-		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
-		return
-	}
-
-	if err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), r.s.c.RedisExpiry); err != nil {
-		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"data":    &symbols,
-		"message": nil,
-	})
+	return getFiatsPricesRoute, r.fiatPriceHandler
 }

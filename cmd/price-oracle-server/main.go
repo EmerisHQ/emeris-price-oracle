@@ -36,7 +36,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	storeHandler, err := store.NewStoreHandler(db, logger, cfg)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg, nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
