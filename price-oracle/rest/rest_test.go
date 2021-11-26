@@ -38,12 +38,12 @@ func TestRest(t *testing.T) {
 	}()
 	<-ch // Wait for the goroutine to start. Still hack!!
 	wantData := types.AllPriceResponse{
-		Fiats: []types.FiatPriceResponse{
+		Fiats: []types.FiatPrice{
 			{Symbol: "USDCHF", Price: 10},
 			{Symbol: "USDEUR", Price: 20},
 			{Symbol: "USDKRW", Price: 5},
 		},
-		Tokens: []types.TokenPriceResponse{
+		Tokens: []types.TokenPriceAndSupply{
 			{Price: 10, Symbol: "ATOMUSDT", Supply: 113563929433.0},
 			{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 		},
@@ -69,27 +69,27 @@ func TestRest(t *testing.T) {
 	require.Equal(t, wantData, got.Data)
 
 	var testSetToken = map[string]struct {
-		Tokens  types.SelectToken
+		Tokens  types.Tokens
 		Status  int
 		Message string
 	}{
 		"Token: Not whitelisted": {
-			types.SelectToken{Tokens: []string{"DOTUSDT"}},
+			types.Tokens{Tokens: []string{"DOTUSDT"}},
 			http.StatusForbidden,
 			"Not whitelisting asset",
 		},
 		"Token: No value": {
-			types.SelectToken{Tokens: []string{}},
+			types.Tokens{Tokens: []string{}},
 			http.StatusForbidden,
 			"Not allow 0 asset",
 		},
 		"Token: Nil value": {
-			types.SelectToken{Tokens: nil},
+			types.Tokens{Tokens: nil},
 			http.StatusForbidden,
 			"Not allow nil asset",
 		},
 		"Token: Exceeds limit": {
-			types.SelectToken{Tokens: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
+			types.Tokens{Tokens: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
 			"Not allow More than 10 asset",
 		},
@@ -100,7 +100,7 @@ func TestRest(t *testing.T) {
 			jsonBytes, err := json.Marshal(expected.Tokens)
 			require.NoError(t, err)
 
-			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getselectTokensPricesRoute)
+			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getTokensPricesRoute)
 			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
@@ -108,9 +108,9 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPost struct {
-				Data    []types.TokenPriceResponse `json:"data"`
-				Status  int                        `json:"status"`
-				Message string                     `json:"message"`
+				Data    []types.TokenPriceAndSupply `json:"data"`
+				Status  int                         `json:"status"`
+				Message string                      `json:"message"`
 			}
 
 			err = json.Unmarshal(body, &gotPost)
@@ -121,27 +121,27 @@ func TestRest(t *testing.T) {
 	}
 
 	var testSetFiat = map[string]struct {
-		Fiat    types.SelectFiat
+		Fiat    types.Fiats
 		Status  int
 		Message string
 	}{
 		"Fiat: Not whitelisted": {
-			types.SelectFiat{Fiats: []string{"USDBDT"}},
+			types.Fiats{Fiats: []string{"USDBDT"}},
 			http.StatusForbidden,
 			"Not whitelisting asset",
 		},
 		"Fiat: No value": {
-			types.SelectFiat{Fiats: []string{}},
+			types.Fiats{Fiats: []string{}},
 			http.StatusForbidden,
 			"Not allow 0 asset",
 		},
 		"Fiat: Nil value": {
-			types.SelectFiat{Fiats: nil},
+			types.Fiats{Fiats: nil},
 			http.StatusForbidden,
 			"Not allow nil asset",
 		},
 		"Fiat: Exceeds limit": {
-			types.SelectFiat{Fiats: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
+			types.Fiats{Fiats: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
 			"Not allow More than 10 asset",
 		},
@@ -152,7 +152,7 @@ func TestRest(t *testing.T) {
 			jsonBytes, err := json.Marshal(expected.Fiat)
 			require.NoError(t, err)
 
-			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getselectFiatsPricesRoute)
+			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getFiatsPricesRoute)
 			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
@@ -160,9 +160,9 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPost struct {
-				Data    []types.FiatPriceResponse `json:"data"`
-				Status  int                       `json:"status"`
-				Message string                    `json:"message"`
+				Data    []types.FiatPrice `json:"data"`
+				Status  int               `json:"status"`
+				Message string            `json:"message"`
 			}
 
 			err = json.Unmarshal(body, &gotPost)

@@ -56,9 +56,9 @@ func (m *SqlDB) Init() error {
 	return nil
 }
 
-func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
-	var tokens []types.TokenPriceResponse
-	var token types.TokenPriceResponse
+func (m *SqlDB) GetTokens(selectToken types.Tokens) ([]types.TokenPriceAndSupply, error) {
+	var tokens []types.TokenPriceAndSupply
+	var token types.TokenPriceAndSupply
 	var symbolList []interface{}
 
 	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
@@ -108,9 +108,10 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 	return tokens, nil
 }
 
-func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	var symbols []types.FiatPriceResponse
-	var symbol types.FiatPriceResponse
+func (m *SqlDB) GetFiats(selectFiat types.Fiats) ([]types.FiatPrice, error) {
+	// If not subset or not recent data, update.
+	var symbols []types.FiatPrice
+	var symbol types.FiatPrice
 	var symbolList []interface{}
 
 	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"

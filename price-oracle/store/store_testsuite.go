@@ -10,7 +10,7 @@ import (
 
 func TestStore(t *testing.T, store Store) {
 	t.Run("Upsert and Get Tokens", func(t *testing.T) {
-		list := types.SelectToken{
+		list := types.Tokens{
 			Tokens: []string{"ATOM"},
 		}
 
@@ -23,7 +23,7 @@ func TestStore(t *testing.T, store Store) {
 	})
 
 	t.Run("Upsert and Get Fiats", func(t *testing.T) {
-		list := types.SelectFiat{
+		list := types.Fiats{
 			Fiats: []string{"EUR"},
 		}
 
@@ -64,7 +64,7 @@ func TestStore(t *testing.T, store Store) {
 		err = store.UpsertTokenSupply(CoingeckoSupplyStore, "ATOM", -23425)
 		require.NoError(t, err)
 
-		list := types.SelectToken{
+		list := types.Tokens{
 			Tokens: []string{"ATOM"},
 		}
 		prices, err := store.GetTokens(list)

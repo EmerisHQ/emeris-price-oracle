@@ -28,7 +28,7 @@ func TestStartAggregate(t *testing.T) {
 	defer cancel()
 
 	// alphabetic order
-	tokens := []types.TokenPriceResponse{
+	tokens := []types.TokenPriceAndSupply{
 		{
 			Symbol: "ATOMUSDT",
 			Price:  10,
@@ -48,7 +48,7 @@ func TestStartAggregate(t *testing.T) {
 		}
 	}
 
-	prices, err := storeHandler.Store.GetTokens(types.SelectToken{Tokens: []string{"ATOMUSDT", "LUNAUSDT"}})
+	prices, err := storeHandler.Store.GetTokens(types.Tokens{Tokens: []string{"ATOMUSDT", "LUNAUSDT"}})
 	require.NoError(t, err)
 
 	for i, price := range prices {
@@ -60,7 +60,7 @@ func TestStartAggregate(t *testing.T) {
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {
-		prices, err := storeHandler.Store.GetTokens(types.SelectToken{Tokens: []string{"ATOMUSDT", "LUNAUSDT"}})
+		prices, err := storeHandler.Store.GetTokens(types.Tokens{Tokens: []string{"ATOMUSDT", "LUNAUSDT"}})
 		require.NoError(t, err)
 
 		atomPrice := prices[0].Price

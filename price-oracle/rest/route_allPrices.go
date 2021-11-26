@@ -13,7 +13,7 @@ import (
 
 const getAllPriceRoute = "/prices"
 
-func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
+func allPrices(r *router) ([]types.TokenPriceAndSupply, []types.FiatPrice, error) {
 	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
 		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
@@ -21,10 +21,10 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 	}
 	var tokensWhitelist []string
 	for _, token := range whitelists {
-		tokensWhitelist = append(tokensWhitelist, token+types.USDTBasecurrency)
+		tokensWhitelist = append(tokensWhitelist, token+types.USDT)
 	}
 
-	selectTokens := types.SelectToken{
+	selectTokens := types.Tokens{
 		Tokens: tokensWhitelist,
 	}
 	tokens, err := r.s.sh.Store.GetTokens(selectTokens)
@@ -35,9 +35,9 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 
 	var fiatsWhitelist []string
 	for _, fiat := range r.s.c.Whitelistfiats {
-		fiatsWhitelist = append(fiatsWhitelist, types.USDBasecurrency+fiat)
+		fiatsWhitelist = append(fiatsWhitelist, types.USD+fiat)
 	}
-	selectFiats := types.SelectFiat{
+	selectFiats := types.Fiats{
 		Fiats: fiatsWhitelist,
 	}
 	fiats, err := r.s.sh.Store.GetFiats(selectFiats)

@@ -52,7 +52,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	tokens := types.SelectToken{
+	tokens := types.Tokens{
 		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
 	}
 	stores := []string{store.BinanceStore, store.CoingeckoStore}
@@ -81,7 +81,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	fiats := types.SelectFiat{
+	fiats := types.Fiats{
 		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
 	}
 	stores := []string{store.FixerStore}

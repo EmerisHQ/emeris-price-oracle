@@ -48,8 +48,8 @@ func NewServer(sh *store.Handler, ri *redis.Store, l *zap.SugaredLogger, c *conf
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
 
 	g.GET(r.getAllPrices())
-	g.POST(r.getselectTokensPrices())
-	g.POST(r.getselectFiatsPrices())
+	g.POST(r.getTokensPrices())
+	g.POST(r.getFiatsPrices())
 
 	g.NoRoute(func(context *gin.Context) {
 		e(context, http.StatusNotFound, errors.New("not found"))

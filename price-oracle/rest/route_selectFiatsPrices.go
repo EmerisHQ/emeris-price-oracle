@@ -11,11 +11,11 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
-const getselectFiatsPricesRoute = "/fiats"
+const getFiatsPricesRoute = "/fiats"
 
 func (r *router) FiatsPrices(ctx *gin.Context) {
-	var selectFiat types.SelectFiat
-	var symbols []types.FiatPriceResponse
+	var selectFiat types.Fiats
+	var symbols []types.FiatPrice
 
 	if err := ctx.BindJSON(&selectFiat); err != nil {
 		r.s.l.Error("Error", "FiatsPrices", err.Error(), "Duration", time.Second)
@@ -50,7 +50,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 
 	var basefiats []string
 	for _, fiat := range r.s.c.Whitelistfiats {
-		fiats := types.USDBasecurrency + fiat
+		fiats := types.USD + fiat
 		basefiats = append(basefiats, fiats)
 	}
 	if !IsSubset(selectFiat.Fiats, basefiats) {
@@ -90,11 +90,11 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 	fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 }
 
-func (r *router) getselectFiatsPrices() (string, gin.HandlerFunc) {
-	return getselectFiatsPricesRoute, r.FiatsPrices
+func (r *router) getFiatsPrices() (string, gin.HandlerFunc) {
+	return getFiatsPricesRoute, r.FiatsPrices
 }
 
-func fetchFiatPricesFromStore(r *router, ctx *gin.Context, selectFiat types.SelectFiat, selectFiatkey []byte) {
+func fetchFiatPricesFromStore(r *router, ctx *gin.Context, selectFiat types.Fiats, selectFiatkey []byte) {
 	symbols, err := r.s.sh.Store.GetFiats(selectFiat)
 	if err != nil {
 		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)

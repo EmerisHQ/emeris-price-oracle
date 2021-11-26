@@ -11,11 +11,11 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
-const getselectTokensPricesRoute = "/tokens"
+const getTokensPricesRoute = "/tokens"
 
 func (r *router) TokensPrices(ctx *gin.Context) {
-	var selectToken types.SelectToken
-	var symbols []types.TokenPriceResponse
+	var selectToken types.Tokens
+	var symbols []types.TokenPriceAndSupply
 
 	if err := ctx.BindJSON(&selectToken); err != nil {
 		r.s.l.Error("Error", "TokensPrices", err.Error(), "Duration", time.Second)
@@ -54,7 +54,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 	}
 	var basetokens []string
 	for _, token := range whitelists {
-		tokens := token + types.USDTBasecurrency
+		tokens := token + types.USDT
 		basetokens = append(basetokens, tokens)
 	}
 	if !IsSubset(selectToken.Tokens, basetokens) {
@@ -94,11 +94,11 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 	fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
 }
 
-func (r *router) getselectTokensPrices() (string, gin.HandlerFunc) {
-	return getselectTokensPricesRoute, r.TokensPrices
+func (r *router) getTokensPrices() (string, gin.HandlerFunc) {
+	return getTokensPricesRoute, r.TokensPrices
 }
 
-func fetchTokenPricesFromStore(r *router, ctx *gin.Context, selectToken types.SelectToken, selectTokenkey []byte) {
+func fetchTokenPricesFromStore(r *router, ctx *gin.Context, selectToken types.Tokens, selectTokenkey []byte) {
 	symbols, err := r.s.sh.Store.GetTokens(selectToken)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)

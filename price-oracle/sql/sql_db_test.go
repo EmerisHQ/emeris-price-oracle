@@ -100,7 +100,7 @@ func TestGetTokens(t *testing.T) {
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	token := types.TokenPriceResponse{
+	token := types.TokenPriceAndSupply{
 		Symbol: "ATOM",
 		Price:  -50,
 		Supply: -100000,
@@ -112,7 +112,7 @@ func TestGetTokens(t *testing.T) {
 	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply)
 	require.NoError(t, err)
 
-	selectToken := types.SelectToken{
+	selectToken := types.Tokens{
 		Tokens: []string{"ATOM"},
 	}
 	resp, err := mDB.GetTokens(selectToken)
@@ -135,7 +135,7 @@ func TestGetFiats(t *testing.T) {
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	fiat := types.FiatPriceResponse{
+	fiat := types.FiatPrice{
 		Symbol: "USD",
 		Price:  -1,
 	}
@@ -143,7 +143,7 @@ func TestGetFiats(t *testing.T) {
 	err = mDB.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol)
 	require.NoError(t, err)
 
-	selectFiats := types.SelectFiat{
+	selectFiats := types.Fiats{
 		Fiats: []string{"USD"},
 	}
 	resp, err := mDB.GetFiats(selectFiats)
@@ -232,7 +232,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	price := types.TokenPriceResponse{
+	price := types.TokenPriceAndSupply{
 		Symbol: "ATOM",
 		Price:  -100,
 	}
@@ -245,11 +245,11 @@ func TestUpsertTokenPrice(t *testing.T) {
 
 	var symbol string
 	var p float64
-	var prices []types.TokenPriceResponse
+	var prices []types.TokenPriceAndSupply
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
-		prices = append(prices, types.TokenPriceResponse{Symbol: symbol, Price: p})
+		prices = append(prices, types.TokenPriceAndSupply{Symbol: symbol, Price: p})
 	}
 	err = rows.Close()
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	price := types.FiatPriceResponse{
+	price := types.FiatPrice{
 		Symbol: "USD",
 		Price:  -1,
 	}
@@ -285,11 +285,11 @@ func TestUpsertFiatPrice(t *testing.T) {
 
 	var symbol string
 	var p float64
-	var prices []types.FiatPriceResponse
+	var prices []types.FiatPrice
 	for rows.Next() {
 		err = rows.Scan(&symbol, &p)
 		require.NoError(t, err)
-		prices = append(prices, types.FiatPriceResponse{Symbol: symbol, Price: p})
+		prices = append(prices, types.FiatPrice{Symbol: symbol, Price: p})
 	}
 	err = rows.Close()
 	require.NoError(t, err)
@@ -342,7 +342,7 @@ func TestUpsertTokenSupply(t *testing.T) {
 	err = mDB.Init()
 	require.NoError(t, err)
 
-	price := types.TokenPriceResponse{
+	price := types.TokenPriceAndSupply{
 		Symbol: "ATOM",
 		Supply: -200,
 	}
@@ -355,12 +355,12 @@ func TestUpsertTokenSupply(t *testing.T) {
 
 	var symbol string
 	var supply float64
-	var prices []types.TokenPriceResponse
+	var prices []types.TokenPriceAndSupply
 
 	for rows.Next() {
 		err = rows.Scan(&symbol, &supply)
 		require.NoError(t, err)
-		prices = append(prices, types.TokenPriceResponse{Symbol: symbol, Supply: supply})
+		prices = append(prices, types.TokenPriceAndSupply{Symbol: symbol, Supply: supply})
 	}
 	err = rows.Close()
 	require.NoError(t, err)

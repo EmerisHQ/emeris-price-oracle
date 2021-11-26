@@ -12,10 +12,10 @@ import (
 type Store interface {
 	Init() error
 	Close() error                                                          //runs migrations
-	GetTokens(types.SelectToken) ([]types.TokenPriceResponse, error)       //fetches all tokens from db tokens
-	GetFiats(types.SelectFiat) ([]types.FiatPriceResponse, error)          //fetches all fiat tokens from db fiats
-	GetTokenNames() ([]string, error)                                      //fetches whilelist with token names
-	GetPriceIDs() ([]string, error)                                        //fetches whilelist with price ids
+	GetTokens(types.Tokens) ([]types.TokenPriceAndSupply, error)           //fetches all tokens from db tokens
+	GetFiats(types.Fiats) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
+	GetTokenNames() ([]string, error)                                      //fetches whitelist with token names
+	GetPriceIDs() ([]string, error)                                        //fetches whitelist with price ids
 	GetPrices(from string) ([]types.Prices, error)                         //fetches prices from db table ex: binance,coingecko,fixer,tokens
 	UpsertPrice(to string, price float64, token string) error              //upsert token or fiat price in db ex: tokens, fiats
 	UpsertToken(to string, symbol string, price float64, time int64) error //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
@@ -81,7 +81,7 @@ func (handler *Handler) PriceTokenAggregator() error {
 		return fmt.Errorf("CnsTokenQuery: %w", err)
 	}
 	for _, token := range cnsWhitelist {
-		baseToken := token + types.USDTBasecurrency
+		baseToken := token + types.USDT
 		whitelist[baseToken] = struct{}{}
 	}
 
@@ -128,7 +128,7 @@ func (handler *Handler) PriceFiatAggregator() error {
 
 	whitelist := make(map[string]struct{})
 	for _, fiat := range handler.Cfg.Whitelistfiats {
-		baseFiat := types.USDBasecurrency + fiat
+		baseFiat := types.USD + fiat
 		whitelist[baseFiat] = struct{}{}
 	}
 

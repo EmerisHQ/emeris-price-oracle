@@ -86,7 +86,7 @@ func (api *Api) SubscriptionBinance() error {
 		return fmt.Errorf("SubscriptionBinance CnsTokenQuery: The token does not exist")
 	}
 	for _, token := range whitelistTokens {
-		tokenSymbol := token + types.USDTBasecurrency
+		tokenSymbol := token + types.USDT
 		req, err := http.NewRequest("GET", BinanceURL, nil)
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance fetch binance: %w", err)
@@ -153,7 +153,7 @@ func (api *Api) SubscriptionCoingecko() error {
 	}
 
 	cg := gecko.NewClient(api.Client)
-	vsCurrency := types.USDBasecurrency
+	vsCurrency := types.USD
 	perPage := 1
 	page := 1
 	pcp := geckoTypes.PriceChangePercentageObject
@@ -165,7 +165,7 @@ func (api *Api) SubscriptionCoingecko() error {
 	}
 
 	for _, token := range *market {
-		tokenSymbol := strings.ToUpper(token.Symbol) + types.USDTBasecurrency
+		tokenSymbol := strings.ToUpper(token.Symbol) + types.USDT
 
 		now := time.Now()
 
@@ -188,7 +188,7 @@ func (api *Api) SubscriptionFixer() error {
 	}
 	q := url.Values{}
 	q.Add("access_key", api.StoreHandler.Cfg.Fixerapikey)
-	q.Add("base", types.USDBasecurrency)
+	q.Add("base", types.USD)
 	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.Whitelistfiats, ","))
 
 	req.URL.RawQuery = q.Encode()
@@ -228,7 +228,7 @@ func (api *Api) SubscriptionFixer() error {
 	}
 
 	for _, fiat := range api.StoreHandler.Cfg.Whitelistfiats {
-		fiatSymbol := types.USDBasecurrency + fiat
+		fiatSymbol := types.USD + fiat
 		d, ok := data[fiat]
 		if !ok {
 			api.StoreHandler.Logger.Infow("SubscriptionFixer", "From the provider list of deliveries price for symbol not found", fiatSymbol)
