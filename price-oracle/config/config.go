@@ -17,9 +17,7 @@ type Config struct {
 	Whitelistfiats        []string `validate:"required"`
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`
-	RedisUrl    string        `validate:"required"`
-	Fixerapikey string        `validate:"required"`
-	RedisExpiry time.Duration `validate:"required"`
+	Fixerapikey string `validate:"required"`
 }
 
 func (c Config) Validate() error {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	redis "github.com/allinbits/emeris-price-oracle/utils/store"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -20,14 +19,13 @@ type Server struct {
 	sh *store.Handler
 	g  *gin.Engine
 	c  *config.Config
-	ri *redis.Store
 }
 
 type router struct {
 	s *Server
 }
 
-func NewServer(sh *store.Handler, ri *redis.Store, l *zap.SugaredLogger, c *config.Config) *Server {
+func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Server {
 	if !c.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -39,7 +37,6 @@ func NewServer(sh *store.Handler, ri *redis.Store, l *zap.SugaredLogger, c *conf
 		g:  g,
 		sh: sh,
 		c:  c,
-		ri: ri,
 	}
 
 	r := &router{s: s}

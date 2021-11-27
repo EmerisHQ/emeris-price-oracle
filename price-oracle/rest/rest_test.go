@@ -18,7 +18,6 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -29,7 +28,7 @@ func TestRest(t *testing.T) {
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
-	s := NewServer(router.s.sh, router.s.ri, router.s.l, router.s.c)
+	s := NewServer(router.s.sh, router.s.l, router.s.c)
 	ch := make(chan struct{})
 	go func() {
 		close(ch)
@@ -183,7 +182,6 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Interval:              "10s",
 		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
 		ListenAddr:            "127.0.0.1:9898",
-		RedisExpiry:           10 * time.Second,
 	}
 
 	logger := logging.New(logging.LoggingConfig{
@@ -208,15 +206,11 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	w := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(w)
 
-	str, err := store.NewClient(minRedis.Addr())
-	require.NoError(t, err)
-
 	server := &Server{
 		l:  logger,
 		sh: storeHandler,
 		c:  cfg,
 		g:  engine,
-		ri: str,
 	}
 
 	return router{s: server}, ctx, w, func() { tServer.Stop(); minRedis.Close() }

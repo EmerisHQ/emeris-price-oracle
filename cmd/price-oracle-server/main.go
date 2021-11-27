@@ -13,7 +13,6 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	storeUtil "github.com/allinbits/emeris-price-oracle/utils/store"
 )
 
 var Version = "not specified"
@@ -40,10 +39,6 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	ri, err := storeUtil.NewClient(cfg.RedisUrl)
-	if err != nil {
-		logger.Panicw("unable to start redis client", "error", err)
-	}
 
 	var wg sync.WaitGroup
 
@@ -60,12 +55,7 @@ func main() {
 		priceprovider.StartSubscription(ctx, storeHandler, logger, cfg)
 	}()
 
-	restServer := rest.NewServer(
-		storeHandler,
-		ri,
-		logger,
-		cfg,
-	)
+	restServer := rest.NewServer(storeHandler, logger, cfg)
 	go func() {
 		if err := restServer.Serve(cfg.ListenAddr); err != nil {
 			logger.Panicw("rest http server error", "error", err)

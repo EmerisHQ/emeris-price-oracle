@@ -112,10 +112,7 @@ func TestGetTokens(t *testing.T) {
 	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply)
 	require.NoError(t, err)
 
-	selectToken := types.Tokens{
-		Tokens: []string{"ATOM"},
-	}
-	resp, err := mDB.GetTokenPriceAndSupplies(selectToken)
+	resp, err := mDB.GetTokenPriceAndSupplies([]string{"ATOM"})
 	require.NoError(t, err)
 	require.Equal(t, token, resp[0])
 }
@@ -143,10 +140,7 @@ func TestGetFiats(t *testing.T) {
 	err = mDB.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol)
 	require.NoError(t, err)
 
-	selectFiats := types.Fiats{
-		Fiats: []string{"USD"},
-	}
-	resp, err := mDB.GetFiatPrices(selectFiats)
+	resp, err := mDB.GetFiatPrices([]string{"USD"})
 	require.NoError(t, err)
 	require.Equal(t, fiat, resp[0])
 }
