@@ -13,15 +13,15 @@ import (
 
 type Store interface {
 	Init() error
-	Close() error                                                               //runs migrations
-	GetTokenPriceAndSupplies(types.Tokens) ([]types.TokenPriceAndSupply, error) //fetches all tokens from db tokens
-	GetFiatPrices(types.Fiats) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
-	GetTokenNames() ([]string, error)                                           //fetches whitelist with token names
-	GetPriceIDs() ([]string, error)                                             //fetches whitelist with price ids
-	GetPrices(from string) ([]types.Prices, error)                              //fetches prices from db table ex: binance,coingecko,fixer,tokens
-	UpsertPrice(to string, price float64, token string) error                   //upsert token or fiat price in db ex: tokens, fiats
-	UpsertToken(to string, symbol string, price float64, time int64) error      //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
-	UpsertTokenSupply(to string, symbol string, supply float64) error           //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
+	Close() error                                                                  //runs migrations
+	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) //fetches all tokens from db tokens
+	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
+	GetTokenNames() ([]string, error)                                              //fetches whitelist with token names
+	GetPriceIDs() ([]string, error)                                                //fetches whitelist with price ids
+	GetPrices(from string) ([]types.Prices, error)                                 //fetches prices from db table ex: binance,coingecko,fixer,tokens
+	UpsertPrice(to string, price float64, token string) error                      //upsert token or fiat price in db ex: tokens, fiats
+	UpsertToken(to string, symbol string, price float64, time int64) error         //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
+	UpsertTokenSupply(to string, symbol string, supply float64) error              //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
 }
 
 const (
@@ -118,13 +118,13 @@ func (h *Handler) CnsPriceIdQuery() ([]string, error) {
 // GetTokenPriceAndSupplies returns a list of TokenPriceAndSupply. It first
 // checks if in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
-func (h *Handler) GetTokenPriceAndSupplies(tokens types.Tokens) ([]types.TokenPriceAndSupply, error) {
+func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
 	cachedTokens := make([]string, 0, len(h.Cache.TokenPriceAndSupplies))
 	for t := range h.Cache.TokenPriceAndSupplies {
 		cachedTokens = append(cachedTokens, t)
 	}
 
-	if h.Cache.TokenPriceAndSupplies == nil || !isSubset(tokens.Tokens, cachedTokens) {
+	if h.Cache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
 		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
 		if err != nil {
 			return nil, err
@@ -142,7 +142,7 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens types.Tokens) ([]types.TokenPr
 	}
 
 	var tokenDetails []types.TokenPriceAndSupply
-	for _, t := range tokens.Tokens {
+	for _, t := range tokens {
 		tokenDetails = append(tokenDetails, h.Cache.TokenPriceAndSupplies[t])
 	}
 	return tokenDetails, nil
@@ -151,13 +151,13 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens types.Tokens) ([]types.TokenPr
 // GetFiatPrices returns a list of FiatPrice. It first checks if
 // in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
-func (h *Handler) GetFiatPrices(fiats types.Fiats) ([]types.FiatPrice, error) {
+func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	cachedFiats := make([]string, 0, len(h.Cache.FiatPrices))
 	for f := range h.Cache.FiatPrices {
 		cachedFiats = append(cachedFiats, f)
 	}
 
-	if h.Cache.FiatPrices == nil || !isSubset(fiats.Fiats, cachedFiats) {
+	if h.Cache.FiatPrices == nil || !isSubset(fiats, cachedFiats) {
 		fiatPrices, err := h.Store.GetFiatPrices(fiats)
 		if err != nil {
 			return nil, err
@@ -174,7 +174,7 @@ func (h *Handler) GetFiatPrices(fiats types.Fiats) ([]types.FiatPrice, error) {
 		return fiatPrices, nil
 	}
 	var fiatPrices []types.FiatPrice
-	for _, f := range fiats.Fiats {
+	for _, f := range fiats {
 		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
 	}
 	return fiatPrices, nil

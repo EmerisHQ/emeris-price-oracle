@@ -56,14 +56,14 @@ func (m *SqlDB) Init() error {
 	return nil
 }
 
-func (m *SqlDB) GetTokenPriceAndSupplies(selectToken types.Tokens) ([]types.TokenPriceAndSupply, error) {
+func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
 	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
-	for i := 2; i <= len(selectToken.Tokens); i++ {
+	for i := 2; i <= len(tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
 	var symbolList []interface{}
-	for _, symbol := range selectToken.Tokens {
+	for _, symbol := range tokens {
 		symbolList = append(symbolList, symbol)
 	}
 
@@ -106,14 +106,14 @@ func (m *SqlDB) GetTokenPriceAndSupplies(selectToken types.Tokens) ([]types.Toke
 	return priceAndSupplies, nil
 }
 
-func (m *SqlDB) GetFiatPrices(selectFiat types.Fiats) ([]types.FiatPrice, error) {
+func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
-	for i := 2; i <= len(selectFiat.Fiats); i++ {
+	for i := 2; i <= len(fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
 	var symbolList []interface{}
-	for _, fiat := range selectFiat.Fiats {
+	for _, fiat := range fiats {
 		symbolList = append(symbolList, fiat)
 	}
 

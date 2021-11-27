@@ -4,35 +4,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStore(t *testing.T, store Store) {
 	t.Run("Upsert and Get Tokens", func(t *testing.T) {
-		list := types.Tokens{
-			Tokens: []string{"ATOM"},
-		}
+		tokenList := []string{"ATOM"}
 
 		err := store.UpsertPrice(TokensStore, -100, "ATOM")
 		require.NoError(t, err)
 
-		tokens, err := store.GetTokenPriceAndSupplies(list)
+		tokens, err := store.GetTokenPriceAndSupplies(tokenList)
 		require.NoError(t, err)
-		require.Equal(t, list.Tokens[0], tokens[0].Symbol)
+		require.Equal(t, tokenList[0], tokens[0].Symbol)
 	})
 
 	t.Run("Upsert and Get Fiats", func(t *testing.T) {
-		list := types.Fiats{
-			Fiats: []string{"EUR"},
-		}
+		priceList := []string{"EUR"}
 
 		err := store.UpsertPrice(FiatsStore, -100, "EUR")
 		require.NoError(t, err)
 
-		tokens, err := store.GetFiatPrices(list)
+		prices, err := store.GetFiatPrices(priceList)
 		require.NoError(t, err)
-		require.Equal(t, list.Fiats[0], tokens[0].Symbol)
+		require.Equal(t, priceList[0], prices[0].Symbol)
 	})
 
 	// t.Run("Get whilelist tokens and price IDs", func(t *testing.T) {
@@ -64,10 +59,8 @@ func TestStore(t *testing.T, store Store) {
 		err = store.UpsertTokenSupply(CoingeckoSupplyStore, "ATOM", -23425)
 		require.NoError(t, err)
 
-		list := types.Tokens{
-			Tokens: []string{"ATOM"},
-		}
-		prices, err := store.GetTokenPriceAndSupplies(list)
+		tokenList := []string{"ATOM"}
+		prices, err := store.GetTokenPriceAndSupplies(tokenList)
 		require.NoError(t, err)
 		require.Equal(t, "ATOM", prices[0].Symbol)
 		require.Equal(t, float64(-23425), prices[0].Supply)

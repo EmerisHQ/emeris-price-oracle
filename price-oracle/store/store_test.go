@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"go.uber.org/zap"
 	"testing"
@@ -52,12 +51,10 @@ func TestPriceTokenAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	tokens := types.Tokens{
-		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
-	}
+	tokens := []string{"ATOMUSDT", "LUNAUSDT"}
 	stores := []string{store.BinanceStore, store.CoingeckoStore}
 
-	for _, tk := range tokens.Tokens {
+	for _, tk := range tokens {
 		for i, s := range stores {
 			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
@@ -71,7 +68,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 	require.NoError(t, err)
 
 	for i, p := range prices {
-		require.Equal(t, tokens.Tokens[i], p.Symbol)
+		require.Equal(t, tokens[i], p.Symbol)
 		require.Equal(t, 10.5, p.Price)
 	}
 }
@@ -81,12 +78,10 @@ func TestPriceFiatAggregator(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	fiats := types.Fiats{
-		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
-	}
+	fiats := []string{"USDCHF", "USDEUR", "USDKRW"}
 	stores := []string{store.FixerStore}
 
-	for _, tk := range fiats.Fiats {
+	for _, tk := range fiats {
 		for i, s := range stores {
 			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
@@ -101,7 +96,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 	require.NotNil(t, prices)
 
 	for i, p := range prices {
-		require.Equal(t, fiats.Fiats[i], p.Symbol)
+		require.Equal(t, fiats[i], p.Symbol)
 		require.Equal(t, float64(10), p.Price)
 	}
 }

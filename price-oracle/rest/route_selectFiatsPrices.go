@@ -12,7 +12,7 @@ import (
 const getFiatsPricesRoute = "/fiats"
 
 func getFiatPrices(
-	fiats types.Fiats,
+	fiats []string,
 	whitelisted []string,
 	store *store.Handler,
 	logger *zap.SugaredLogger) ([]types.FiatPrice, int, error) {
@@ -22,7 +22,7 @@ func getFiatPrices(
 		fiatSymbols = append(fiatSymbols, types.USD+fiat)
 	}
 
-	if !isSubset(fiats.Fiats, fiatSymbols) {
+	if !isSubset(fiats, fiatSymbols) {
 		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
 
@@ -35,25 +35,25 @@ func getFiatPrices(
 }
 
 func (r *router) fiatPriceHandler(ctx *gin.Context) {
-	var selectFiat types.Fiats
-	if err := ctx.BindJSON(&selectFiat); err != nil {
+	var fiats types.Fiats
+	if err := ctx.BindJSON(&fiats); err != nil {
 		r.s.l.Error("Error", "FiatPrices", err.Error())
 		e(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	if selectFiat.Fiats == nil || len(selectFiat.Fiats) == 0 || len(selectFiat.Fiats) > 10 {
+	if fiats.Fiats == nil || len(fiats.Fiats) == 0 || len(fiats.Fiats) > 10 {
 		err := errZeroAsset
-		if len(selectFiat.Fiats) > 10 {
+		if len(fiats.Fiats) > 10 {
 			err = errAssetLimitExceed
-		} else if selectFiat.Fiats == nil {
+		} else if fiats.Fiats == nil {
 			err = errNilAsset
 		}
 		e(ctx, http.StatusForbidden, err)
 		return
 	}
 
-	fiatPrices, httpStatus, err := getFiatPrices(selectFiat, r.s.c.Whitelistfiats, r.s.sh, r.s.l)
+	fiatPrices, httpStatus, err := getFiatPrices(fiats.Fiats, r.s.c.Whitelistfiats, r.s.sh, r.s.l)
 	if err != nil {
 		e(ctx, httpStatus, err)
 		return
