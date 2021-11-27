@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	dbutils "github.com/allinbits/emeris-price-oracle/utils/database"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
@@ -28,12 +28,9 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
-
-	instance, err := database.New(cfg.DatabaseConnectionURL)
-	require.NoError(t, err)
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		return &http.Response{
@@ -41,33 +38,25 @@ func TestSubscriptionBinance(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewReader(b)),
 		}
 	})
+
 	api := database.Api{
-		Client:   client,
-		Instance: instance,
+		Client:       client,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionBinance(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	price := getTokenPrices(t, cfg.DatabaseConnectionURL, "oracle.binance", []string{"ATOMUSDT"})
-	require.Equal(t, price["ATOMUSDT"], -50.0)
+	prices, err := storeHandler.Store.GetPrices(database.BinanceStore)
+	require.NoError(t, err)
+	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
+	require.Equal(t, prices[0].Price, -50.0)
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-
-	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
-
-	instance, err := database.New(cfg.DatabaseConnectionURL)
-	require.NoError(t, err)
-
-	// coingecko := geckoTypes.CoinsMarket{
-	// 	geckoTypes.CoinsMarketItem{
-	// 		CirculatingSupply: -18884562.3966529,
-	// 		CurrentPrice:      -39.41,
-	// 	},
-	// }
 
 	atom := geckoTypes.CoinsMarketItem{
 		CirculatingSupply: -18884562.3966529,
@@ -90,22 +79,20 @@ func TestSubscriptionCoingecko(t *testing.T) {
 	})
 
 	api := database.Api{
-		Client:   client,
-		Instance: instance,
+		Client:       client,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionCoingecko(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	price := getTokenPrices(t, cfg.DatabaseConnectionURL, "oracle.coingecko", []string{"ATOMUSDT"})
-	require.Equal(t, price["ATOMUSDT"], -39.41)
-
-	supply := getTokenSupplies(t, cfg.DatabaseConnectionURL, "oracle.coingeckosupply", []string{"ATOMUSDT"})
-	require.Equal(t, supply["ATOMUSDT"], -18884562.3966529)
+	prices, err := storeHandler.Store.GetPrices(database.CoingeckoStore)
+	require.NoError(t, err)
+	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
+	require.Equal(t, prices[0].Price, -39.41)
 }
 
 func TestSubscriptionFixer(t *testing.T) {
-
 	fixer := types.Fixer{
 		Success: true,
 		Rates: []byte(`
@@ -120,12 +107,9 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	ctx, cancel, logger, cfg, tDown := setupSubscription(t)
+	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
-
-	instance, err := database.New(cfg.DatabaseConnectionURL)
-	require.NoError(t, err)
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		return &http.Response{
@@ -135,16 +119,17 @@ func TestSubscriptionFixer(t *testing.T) {
 	})
 
 	api := database.Api{
-		Client:   client,
-		Instance: instance,
+		Client:       client,
+		StoreHandler: storeHandler,
 	}
 
 	err = api.SubscriptionFixer(ctx, logger, cfg)
 	require.NoError(t, err)
 
-	price := getTokenPrices(t, cfg.DatabaseConnectionURL, "oracle.fixer", []string{"USDEUR"})
-	require.Equal(t, price["USDEUR"], 0.806942)
-
+	prices, err := storeHandler.Store.GetPrices(database.FixerStore)
+	require.NoError(t, err)
+	require.Equal(t, prices[1].Symbol, "USDEUR")
+	require.Equal(t, prices[1].Price, 0.806942)
 }
 
 type roundTripFunc func(req *http.Request) *http.Response
@@ -153,14 +138,13 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req), nil
 }
 
-// newTestClient is with our transport.
 func newTestClient(fn roundTripFunc) *http.Client {
 	return &http.Client{
 		Transport: fn,
 	}
 }
 
-func setupSubscription(t *testing.T) (context.Context, func(), *zap.SugaredLogger, *config.Config, func()) {
+func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, func(), *zap.SugaredLogger, *config.Config, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -168,11 +152,6 @@ func setupSubscription(t *testing.T) (context.Context, func(), *zap.SugaredLogge
 
 	connStr := testServer.PGURL().String()
 	require.NotNil(t, connStr)
-
-	// Seed DB with data in schema file
-	oracleMigration := readLinesFromFile(t, "schema-unittest")
-	err = dbutils.RunMigrations(connStr, oracleMigration)
-	require.NoError(t, err)
 
 	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
 		LogPath:               "",
@@ -189,52 +168,41 @@ func setupSubscription(t *testing.T) (context.Context, func(), *zap.SugaredLogge
 
 	insertToken(t, connStr)
 	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, cancel, logger, cfg, func() { testServer.Stop() }
-}
 
-func getTokenSupplies(t *testing.T, connStr, tableName string, symbols []string) map[string]float64 {
-	instance, err := database.New(connStr)
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
+	require.NotNil(t, storeHandler.Store)
 
-	tokenSupply := make(map[string]float64)
-	rows, err := instance.Query("SELECT * FROM " + tableName)
-	require.NoError(t, err)
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var tokenName string
-		var supply float64
-		err := rows.Scan(&tokenName, &supply)
+	tokens := []types.TokenPriceResponse{
+		{
+			Symbol: "ATOMUSDT",
+			Price:  10,
+		},
+		{
+			Symbol: "LUNAUSDT",
+			Price:  10,
+		},
+	}
+	stores := []string{database.BinanceStore, database.CoingeckoStore}
+	for _, token := range tokens {
+		err := storeHandler.Store.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
 		require.NoError(t, err)
-		tokenSupply[tokenName] = supply
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
 	}
-	ret := make(map[string]float64)
-	for _, symbol := range symbols {
-		ret[symbol] = tokenSupply[symbol]
-	}
-	return ret
-}
 
-func getTokenPrices(t *testing.T, connStr, tableName string, symbols []string) map[string]float64 {
-	instance, err := database.New(connStr)
-	require.NoError(t, err)
-
-	tokenPrice := make(map[string]float64)
-	rows, err := instance.Query("SELECT * FROM " + tableName)
-	require.NoError(t, err)
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var tokenName string
-		var price float64
-		var updatedAt float64
-		err := rows.Scan(&tokenName, &price, &updatedAt)
-		require.NoError(t, err)
-		tokenPrice[tokenName] = price
+	fiats := types.SelectFiat{
+		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
 	}
-	ret := make(map[string]float64)
-	for _, symbol := range symbols {
-		ret[symbol] = tokenPrice[symbol]
+	stores = []string{database.FixerStore}
+	for _, tk := range fiats.Fiats {
+		for i, s := range stores {
+			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
+			require.NoError(t, err)
+		}
 	}
-	return ret
+
+	return ctx, storeHandler, cancel, logger, cfg, func() { testServer.Stop() }
 }

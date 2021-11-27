@@ -3,23 +3,22 @@ package daemon
 import (
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 	"math/rand"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 )
 
 type (
-	AggFunc    = func(*sqlx.DB, *zap.SugaredLogger, *config.Config) error
+	AggFunc    = func(*zap.SugaredLogger, *config.Config) error
 	WorkerFunc = func(
 		chan struct{},
 		time.Duration,
-		*sqlx.DB,
 		*zap.SugaredLogger,
 		*config.Config,
 		AggFunc) (chan interface{}, chan error)
@@ -81,7 +80,6 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 	return func(
 		done chan struct{},
 		pulseInterval time.Duration,
-		db *sqlx.DB,
 		logger *zap.SugaredLogger,
 		cfg *config.Config,
 		fn AggFunc,
@@ -99,7 +97,7 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			startWorker := func() {
 				logger.Infof("Daemon: starts function %v", GetFunctionName(fn))
 				workerDone = make(chan struct{})
-				workerHeartbeat, workerFatalErr = worker(or(workerDone, done), pulseInterval, db, logger, cfg, fn)
+				workerHeartbeat, workerFatalErr = worker(or(workerDone, done), pulseInterval, logger, cfg, fn)
 			}
 			startWorker()
 

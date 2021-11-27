@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -14,46 +13,11 @@ import (
 
 const getselectFiatsPricesRoute = "/fiats"
 
-func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	var symbols []types.FiatPriceResponse
-	var symbol types.FiatPriceResponse
-	var symbolList []interface{}
-
-	symbolNum := len(selectFiat.Fiats)
-
-	query := "SELECT * FROM oracle.fiats WHERE symbol=$1"
-
-	for i := 2; i <= symbolNum; i++ {
-		query += " OR" + " symbol=$" + strconv.Itoa(i)
-	}
-
-	for _, usersymbol := range selectFiat.Fiats {
-		symbolList = append(symbolList, usersymbol)
-	}
-
-	rows, err := r.s.d.Query(query, symbolList...)
-	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		err := rows.StructScan(&symbol)
-		if err != nil {
-			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, err
-		}
-		symbols = append(symbols, symbol)
-	}
-
-	return symbols, nil
-}
-
 func (r *router) FiatsPrices(ctx *gin.Context) {
 	var selectFiat types.SelectFiat
 	var symbols []types.FiatPriceResponse
 
-	err := ctx.BindJSON(&selectFiat)
-	if err != nil {
+	if err := ctx.BindJSON(&selectFiat); err != nil {
 		r.s.l.Error("Error", "FiatsPrices", err.Error(), "Duration", time.Second)
 	}
 
@@ -89,7 +53,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		fiats := types.USDBasecurrency + fiat
 		basefiats = append(basefiats, fiats)
 	}
-	if Diffpair(selectFiat.Fiats, basefiats) == false {
+	if !IsSubset(selectFiat.Fiats, basefiats) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
@@ -106,11 +70,13 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), string(selectFiatkey)).Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}
-		err = json.Unmarshal(bz, &symbols)
-		if err != nil {
+
+		if err = json.Unmarshal(bz, &symbols); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
@@ -121,13 +87,25 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 
 		return
 	}
-	symbols, err = selectFiatsPrices(r, selectFiat)
+	fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
+}
+
+func (r *router) getselectFiatsPrices() (string, gin.HandlerFunc) {
+	return getselectFiatsPricesRoute, r.FiatsPrices
+}
+
+func fetchFiatPricesFromStore(r *router, ctx *gin.Context, selectFiat types.SelectFiat, selectFiatkey []byte) {
+	symbols, err := r.s.sh.Store.GetFiats(selectFiat)
 	if err != nil {
-		r.s.l.Error("Error", "SelectFiatQuery", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
 	}
 	bz, err := json.Marshal(symbols)
-	err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), 10*time.Second)
 	if err != nil {
+		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
+		return
+	}
+
+	if err = r.s.ri.SetWithExpiryTime(string(selectFiatkey), string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
@@ -136,8 +114,4 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		"data":    &symbols,
 		"message": nil,
 	})
-}
-
-func (r *router) getselectFiatsPrices() (string, gin.HandlerFunc) {
-	return getselectFiatsPricesRoute, r.FiatsPrices
 }

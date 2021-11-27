@@ -9,7 +9,7 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
+	redis "github.com/allinbits/emeris-price-oracle/utils/store"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -17,17 +17,17 @@ import (
 
 type Server struct {
 	l  *zap.SugaredLogger
-	d  *database.Instance
+	sh *database.StoreHandler
 	g  *gin.Engine
 	c  *config.Config
-	ri *store.Store
+	ri *redis.Store
 }
 
 type router struct {
 	s *Server
 }
 
-func NewServer(ri *store.Store, l *zap.SugaredLogger, d *database.Instance, c *config.Config) *Server {
+func NewServer(sh *database.StoreHandler, ri *redis.Store, l *zap.SugaredLogger, c *config.Config) *Server {
 	if !c.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -36,8 +36,8 @@ func NewServer(ri *store.Store, l *zap.SugaredLogger, d *database.Instance, c *c
 
 	s := &Server{
 		l:  l,
-		d:  d,
 		g:  g,
+		sh: sh,
 		c:  c,
 		ri: ri,
 	}
@@ -92,25 +92,18 @@ func e(c *gin.Context, status int, err error) {
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-func Diffpair(a []string, b []string) bool {
-	// Turn b into a map
-	var m map[string]bool
-	m = make(map[string]bool, len(b))
-	for _, s := range b {
-		m[s] = false
-	}
-	// Append values from the longest slice that don't exist in the map
-	var diff []string
-	for _, s := range a {
-		if _, ok := m[s]; !ok {
-			diff = append(diff, s)
-			continue
-		}
-		m[s] = true
+// IsSubset returns true if all element of subList in found in globalList
+func IsSubset(subList []string, globalList []string) bool {
+	// Turn globalList into a map
+	globalSet := make(map[string]bool, len(globalList))
+	for _, s := range globalList {
+		globalSet[s] = true
 	}
 
-	if diff == nil {
-		return true
+	for _, s := range subList {
+		if _, ok := globalSet[s]; !ok {
+			return false
+		}
 	}
-	return false
+	return true
 }

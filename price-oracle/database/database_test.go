@@ -1,86 +1,73 @@
 package database_test
 
 import (
-	"strings"
 	"testing"
+	"time"
 
+	models "github.com/allinbits/demeris-backend-models/cns"
+	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNew(t *testing.T) {
+func TestNewstoreHandler(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	connStr := testServer.PGURL().String()
-	require.NotNil(t, connStr)
-
-	instance, err := database.New(connStr)
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
-	require.Equal(t, instance.GetConnectionString(), connStr)
-
-	rows, _ := instance.Query("SHOW TABLES FROM oracle")
-	require.NotNil(t, rows)
-
-	var tableCountDB int
-	for rows.Next() {
-		tableCountDB++
-	}
-	err = rows.Err()
-	require.NoError(t, err)
-
-	err = rows.Close()
-	require.NoError(t, err)
-
-	var tableCountMigration int
-	for _, migrationQuery := range database.MigrationList {
-		if strings.HasPrefix(strings.TrimPrefix(migrationQuery, "\n"), "CREATE TABLE") {
-			tableCountMigration++
-		}
-	}
-
-	rows, _ = instance.Query("SELECT * FROM oracle.coingecko")
-	require.NotNil(t, rows)
-
-	for rows.Next() {
-		tableCountDB++
-	}
-	err = rows.Err()
-	require.NoError(t, err)
-
-	err = rows.Close()
-	require.NoError(t, err)
-
-	for _, migrationQueryCoingecko := range database.MigrationListCoingecko {
-		if strings.HasPrefix(strings.TrimPrefix(migrationQueryCoingecko, "\n"), "CREATE TABLE") {
-			tableCountMigration++
-		}
-	}
-
-	require.Equal(t, tableCountMigration, tableCountDB)
+	require.NotNil(t, storeHandler)
 }
 
-func TestCnstokenQueryHandler(t *testing.T) {
+func TestCnsTokenQuery(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	instance, err := database.New(testServer.PGURL().String())
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
+	require.NotNil(t, storeHandler.Store)
 
-	_, err = instance.CnstokenQueryHandler()
-	require.Error(t, err)
+	whiteList, err := storeHandler.CnsTokenQuery()
+	require.NoError(t, err)
+	require.NotNil(t, whiteList)
+
+	require.Equal(t, []string{"ATOM", "LUNA"}, whiteList)
 }
 
-func TestCnsPriceIdQueryHandler(t *testing.T) {
+func TestCnsPriceIdQuery(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
 
-	instance, err := database.New(testServer.PGURL().String())
+	storeHandler, err := getStoreHandler(t, testServer)
 	require.NoError(t, err)
+	require.NotNil(t, storeHandler)
 
-	_, err = instance.CnsPriceIdQueryHandler()
-	require.Error(t, err)
+	whiteList, err := storeHandler.CnsPriceIdQuery()
+	require.NoError(t, err)
+	require.NotNil(t, whiteList)
+
+	require.Equal(t, []string{"cosmos", "terra-luna"}, whiteList)
+}
+
+func getdb(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
+	connStr := ts.PGURL().String()
+	return sql.NewDB(connStr)
+}
+
+func getStoreHandler(t *testing.T, ts testserver.TestServer) (*database.StoreHandler, error) {
+	db, err := getdb(t, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	storeHandler, err := database.NewStoreHandler(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return storeHandler, nil
 }
 
 func setup(t *testing.T) testserver.TestServer {
@@ -88,9 +75,54 @@ func setup(t *testing.T) testserver.TestServer {
 	require.NoError(t, err)
 	require.NoError(t, ts.WaitForInit())
 
+	insertToken(t, ts.PGURL().String())
+
 	return ts
 }
 
 func tearDown(ts testserver.TestServer) {
 	ts.Stop()
+}
+
+func insertToken(t *testing.T, connStr string) {
+	chain := models.Chain{
+		ChainName:        "cosmos-hub",
+		DemerisAddresses: []string{"addr1"},
+		DisplayName:      "ATOM display name",
+		GenesisHash:      "hash",
+		NodeInfo:         models.NodeInfo{},
+		ValidBlockThresh: models.Threshold(1 * time.Second),
+		DerivationPath:   "derivation_path",
+		SupportedWallets: []string{"metamask"},
+		Logo:             "logo 1",
+		Denoms: []models.Denom{
+			{
+				Name:        "ATOM",
+				PriceID:     "cosmos",
+				DisplayName: "ATOM",
+				FetchPrice:  true,
+				Ticker:      "ATOM",
+			},
+			{
+				Name:        "LUNA",
+				PriceID:     "terra-luna",
+				DisplayName: "LUNA",
+				FetchPrice:  true,
+				Ticker:      "LUNA",
+			},
+		},
+		PrimaryChannel: models.DbStringMap{
+			"cosmos-hub":  "ch0",
+			"persistence": "ch2",
+		},
+	}
+	cnsInstanceDB, err := cnsDB.New(connStr)
+	require.NoError(t, err)
+
+	err = cnsInstanceDB.AddChain(chain)
+	require.NoError(t, err)
+
+	cc, err := cnsInstanceDB.Chains()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(cc))
 }

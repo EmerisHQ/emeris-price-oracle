@@ -14,80 +14,40 @@ import (
 const getAllPriceRoute = "/prices"
 
 func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
-	var Fiats []types.FiatPriceResponse
-	var Fiat types.FiatPriceResponse
-	var Tokens []types.TokenPriceResponse
-	var Token types.TokenPriceResponse
 
-	rowsToken, err := r.s.d.Query("SELECT * FROM oracle.tokens")
+	whitelists, err := r.s.sh.CnsTokenQuery()
 	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "CnsTokenQuery()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	defer rowsToken.Close()
-	Whitelists, err := r.s.d.CnstokenQueryHandler()
+	var tokensWhilelist []string
+	for _, token := range whitelists {
+		tokensWhilelist = append(tokensWhilelist, token+types.USDTBasecurrency)
+	}
+
+	selectTokens := types.SelectToken{
+		Tokens: tokensWhilelist,
+	}
+	tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
 		return nil, nil, err
 	}
-	for rowsToken.Next() {
-		var symbol string
-		var price float64
-		var supply float64
-		err := rowsToken.Scan(&symbol, &price)
-		if err != nil {
-			r.s.l.Fatalw("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, nil, err
-		}
-		for _, Whitelisttoken := range Whitelists {
-			Whitelisttoken = Whitelisttoken + types.USDTBasecurrency
-			if symbol == Whitelisttoken {
-				//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", Whitelisttoken)
-				rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", Whitelisttoken)
-				if err != nil {
-					r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-					return nil, nil, err
-				}
-				defer rowCmcSupply.Close()
-				for rowCmcSupply.Next() {
-					if err := rowCmcSupply.Scan(&symbol, &supply); err != nil {
-						r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-					}
-				}
-				Token.Symbol = symbol
-				Token.Price = price
-				Token.Supply = supply
-				Tokens = append(Tokens, Token)
-			}
-		}
-	}
 
-	rowsFiat, err := r.s.d.Query("SELECT * FROM oracle.fiats")
+	var fiats_whitelist []string
+	for _, fiat := range r.s.c.Whitelistfiats {
+		fiats_whitelist = append(fiats_whitelist, types.USDBasecurrency+fiat)
+	}
+	selectFiats := types.SelectFiat{
+		Fiats: fiats_whitelist,
+	}
+	fiats, err := r.s.sh.Store.GetFiats(selectFiats)
 	if err != nil {
-		r.s.l.Fatalw("Error", "DB", err.Error(), "Duration", time.Second)
-		return nil, nil, err
-	}
-	defer rowsFiat.Close()
-	for rowsFiat.Next() {
-		var symbol string
-		var price float64
-		err := rowsFiat.Scan(&symbol, &price)
-		if err != nil {
-			r.s.l.Errorw("Error", "DB", err.Error(), "Duration", time.Second)
-			return nil, nil, err
-		}
-		for _, fiat := range r.s.c.Whitelistfiats {
-			fiat = types.USDBasecurrency + fiat
-
-			Fiat.Symbol = symbol
-			Fiat.Price = price
-			if symbol == fiat {
-				Fiats = append(Fiats, Fiat)
-			}
-		}
+		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
+		return tokens, nil, err
 	}
 
-	return Tokens, Fiats, nil
+	return tokens, fiats, nil
 }
 
 func (r *router) allPricesHandler(ctx *gin.Context) {
@@ -96,11 +56,13 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		bz, err := r.s.ri.Client.Get(context.Background(), "prices").Bytes()
 		if err != nil {
 			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			fetchAllPricesFromStore(r, ctx)
 			return
 		}
-		err = json.Unmarshal(bz, &AllPriceResponse)
-		if err != nil {
+
+		if err = json.Unmarshal(bz, &AllPriceResponse); err != nil {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			fetchAllPricesFromStore(r, ctx)
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
@@ -111,16 +73,29 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 		return
 	}
-	Tokens, Fiats, err := allPrices(r)
-	AllPriceResponse.Tokens = Tokens
-	AllPriceResponse.Fiats = Fiats
+	fetchAllPricesFromStore(r, ctx)
+}
+
+func (r *router) getallPrices() (string, gin.HandlerFunc) {
+	return getAllPriceRoute, r.allPricesHandler
+}
+
+func fetchAllPricesFromStore(r *router, ctx *gin.Context) {
+	var AllPriceResponse types.AllPriceResponse
+	tokens, fiats, err := allPrices(r)
 	if err != nil {
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
+	AllPriceResponse.Tokens = tokens
+	AllPriceResponse.Fiats = fiats
+
 	bz, err := json.Marshal(AllPriceResponse)
-	err = r.s.ri.SetWithExpiryTime("prices", string(bz), 10*time.Second)
 	if err != nil {
+		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
+		return
+	}
+	if err := r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry); err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
@@ -129,8 +104,4 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		"data":    &AllPriceResponse,
 		"message": nil,
 	})
-}
-
-func (r *router) getallPrices() (string, gin.HandlerFunc) {
-	return getAllPriceRoute, r.allPricesHandler
 }
