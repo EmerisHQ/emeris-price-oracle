@@ -22,7 +22,7 @@ func getFiatPrices(
 		fiatSymbols = append(fiatSymbols, types.USD+fiat)
 	}
 
-	if !IsSubset(fiats.Fiats, fiatSymbols) {
+	if !isSubset(fiats.Fiats, fiatSymbols) {
 		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
 

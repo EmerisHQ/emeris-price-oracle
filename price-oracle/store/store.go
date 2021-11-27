@@ -42,8 +42,8 @@ type Handler struct {
 
 type Cache struct {
 	Whitelist             []string
-	TokenPriceAndSupplies []types.TokenPriceAndSupply
-	FiatPrices            []types.FiatPrice
+	TokenPriceAndSupplies map[string]types.TokenPriceAndSupply
+	FiatPrices            map[string]types.FiatPrice
 
 	RefreshInterval time.Duration
 	Mu              sync.Mutex
@@ -75,11 +75,11 @@ func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config,
 	// Invalidate in-memory cache after RefreshInterval
 	go func(cache *Cache) {
 		randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5
-		d := cache.RefreshInterval + time.Duration(randomInt)
+		d := cache.RefreshInterval + (cache.RefreshInterval / time.Duration(randomInt))
 		for {
 			select {
 			case <-time.Tick(d):
-				fmt.Println("Invalidate in-memory cache") // Feeling cute, might delete later! UwU
+				fmt.Println("Invalidate in-memory cache", time.Now().Second()) // Feeling cute, might delete later! UwU
 				cache.Mu.Lock()
 				cache.Whitelist = nil
 				cache.FiatPrices = nil
@@ -91,8 +91,9 @@ func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config,
 	return &Handler{Store: store, Logger: logger, Cfg: cfg, Cache: cache}, nil
 }
 
-// GetCNSWhitelistedTokens returns the whitelisted tokens. It first checks the in-memory cache.
-// If cache is nil, or cache is stale, it fetches and updates the cache.
+// GetCNSWhitelistedTokens returns the whitelisted tokens.
+// It first checks the in-memory cache.
+// If cache is nil, it fetches and updates the cache.
 func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	if h.Cache.Whitelist == nil {
 		whitelists, err := h.Store.GetTokenNames()
@@ -114,32 +115,69 @@ func (h *Handler) CnsPriceIdQuery() ([]string, error) {
 	return whitelists, nil
 }
 
+// GetTokenPriceAndSupplies returns a list of TokenPriceAndSupply. It first
+// checks if in-memory cache is still valid and all requested tokens are cached.
+// If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetTokenPriceAndSupplies(tokens types.Tokens) ([]types.TokenPriceAndSupply, error) {
-	if h.Cache.TokenPriceAndSupplies == nil {
-		tokensDetail, err := h.Store.GetTokenPriceAndSupplies(tokens)
+	cachedTokens := make([]string, 0, len(h.Cache.TokenPriceAndSupplies))
+	for t := range h.Cache.TokenPriceAndSupplies {
+		cachedTokens = append(cachedTokens, t)
+	}
+
+	if h.Cache.TokenPriceAndSupplies == nil || !isSubset(tokens.Tokens, cachedTokens) {
+		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
 		if err != nil {
 			return nil, err
 		}
 
+		if h.Cache.TokenPriceAndSupplies == nil {
+			h.Cache.TokenPriceAndSupplies = make(map[string]types.TokenPriceAndSupply, len(tokensDetails))
+		}
 		h.Cache.Mu.Lock()
-		h.Cache.TokenPriceAndSupplies = tokensDetail
+		for _, t := range tokensDetails {
+			h.Cache.TokenPriceAndSupplies[t.Symbol] = t
+		}
 		h.Cache.Mu.Unlock()
+		return tokensDetails, err
 	}
-	return h.Cache.TokenPriceAndSupplies, nil
+
+	var tokenDetails []types.TokenPriceAndSupply
+	for _, t := range tokens.Tokens {
+		tokenDetails = append(tokenDetails, h.Cache.TokenPriceAndSupplies[t])
+	}
+	return tokenDetails, nil
 }
 
+// GetFiatPrices returns a list of FiatPrice. It first checks if
+// in-memory cache is still valid and all requested tokens are cached.
+// If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetFiatPrices(fiats types.Fiats) ([]types.FiatPrice, error) {
-	if h.Cache.FiatPrices == nil {
+	cachedFiats := make([]string, 0, len(h.Cache.FiatPrices))
+	for f := range h.Cache.FiatPrices {
+		cachedFiats = append(cachedFiats, f)
+	}
+
+	if h.Cache.FiatPrices == nil || !isSubset(fiats.Fiats, cachedFiats) {
 		fiatPrices, err := h.Store.GetFiatPrices(fiats)
 		if err != nil {
 			return nil, err
 		}
 
+		if h.Cache.FiatPrices == nil {
+			h.Cache.FiatPrices = make(map[string]types.FiatPrice, len(fiatPrices))
+		}
 		h.Cache.Mu.Lock()
-		h.Cache.FiatPrices = fiatPrices
+		for _, f := range fiatPrices {
+			h.Cache.FiatPrices[f.Symbol] = f
+		}
 		h.Cache.Mu.Unlock()
+		return fiatPrices, nil
 	}
-	return h.Cache.FiatPrices, nil
+	var fiatPrices []types.FiatPrice
+	for _, f := range fiats.Fiats {
+		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
+	}
+	return fiatPrices, nil
 }
 
 func (h *Handler) PriceTokenAggregator() error {
@@ -234,4 +272,20 @@ func (h *Handler) PriceFiatAggregator() error {
 		}
 	}
 	return nil
+}
+
+// isSubset returns true if all element of subList in found in globalList
+func isSubset(subList []string, globalList []string) bool {
+	// Turn globalList into a map
+	globalSet := make(map[string]bool, len(globalList))
+	for _, s := range globalList {
+		globalSet[s] = true
+	}
+
+	for _, s := range subList {
+		if _, ok := globalSet[s]; !ok {
+			return false
+		}
+	}
+	return true
 }

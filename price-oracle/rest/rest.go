@@ -99,8 +99,8 @@ func e(c *gin.Context, status int, err error) {
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-// IsSubset returns true if all element of subList in found in globalList
-func IsSubset(subList []string, globalList []string) bool {
+// isSubset returns true if all element of subList in found in globalList
+func isSubset(subList []string, globalList []string) bool {
 	// Turn globalList into a map
 	globalSet := make(map[string]bool, len(globalList))
 	for _, s := range globalList {

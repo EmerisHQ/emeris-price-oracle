@@ -27,7 +27,7 @@ func getTokenPriceAndSupplies(
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, tokens)
 	}
 
-	if !IsSubset(tokens.Tokens, whitelistedTokenSymbols) {
+	if !isSubset(tokens.Tokens, whitelistedTokenSymbols) {
 		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
 
