@@ -1,0 +1,39 @@
+name: Generate Swagger
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - cmd/**
+      - price-oracle/**
+      - utils/**
+      - go.mod
+      - go.sum
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Setup token for pulling from allinbits private repos
+        run: |
+          go env -w GOPRIVATE=github.com/allinbits/*
+          git config --global url."https://git:${{ secrets.TENDERBOT_GIT_TOKEN }}@github.com".insteadOf "https://github.com"
+
+      - name: Generate swagger
+        run: make generate-swagger
+
+      - name: Upload Swagger
+        uses: actions/upload-artifact@v2
+        with:
+          name: swagger.yaml
+          path: price-oracle/docs/swagger.yaml

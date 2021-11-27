@@ -13,6 +13,12 @@ import (
 
 const getAllPriceRoute = "/prices"
 
+type allPricesResp struct {
+	Status  int                     `json:"Status"`
+	Data    *types.AllPriceResponse `json:"Data"`
+	Message string                  `json:"Message"`
+}
+
 func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse, error) {
 	var Fiats []types.FiatPriceResponse
 	var Fiat types.FiatPriceResponse
@@ -90,6 +96,12 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 	return Tokens, Fiats, nil
 }
 
+// @Summary Returns all oracle prices.
+// @Description get the latest values for all prices fetched by the oracle
+// @Router /prices [get]
+// @Produce json
+// @Success 200 {object} allPricesResp
+// @Failure 500 "on error"
 func (r *router) allPricesHandler(ctx *gin.Context) {
 	var AllPriceResponse types.AllPriceResponse
 	if r.s.ri.Exists("prices") {
@@ -103,10 +115,10 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"data":    &AllPriceResponse,
-			"message": nil,
+		ctx.JSON(http.StatusOK, allPricesResp{
+			Status:  http.StatusOK,
+			Data:    &AllPriceResponse,
+			Message: "",
 		})
 
 		return
@@ -124,10 +136,10 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"data":    &AllPriceResponse,
-		"message": nil,
+	ctx.JSON(http.StatusOK, allPricesResp{
+		Status:  http.StatusOK,
+		Data:    &AllPriceResponse,
+		Message: "",
 	})
 }
 

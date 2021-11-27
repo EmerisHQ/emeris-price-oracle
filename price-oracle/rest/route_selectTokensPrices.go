@@ -14,6 +14,12 @@ import (
 
 const getselectTokensPricesRoute = "/tokens"
 
+type selectTokensResp struct {
+	Status  int                         `json:"status"`
+	Data    *[]types.TokenPriceResponse `json:"data"`
+	Message string                      `json:"message"`
+}
+
 func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
 	var Tokens []types.TokenPriceResponse
 	var Token types.TokenPriceResponse
@@ -68,6 +74,14 @@ func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.Token
 	return Tokens, nil
 }
 
+// @Summary Return a list of token prices.
+// @Description get the requested list of token prices. The method supports up to 10 prices per call.
+// @Router /tokens [post]
+// @Param tokenList body types.SelectToken true "List of token names to return prices for"
+// @Produce json
+// @Success 200 {object} selectTokensResp
+// @Failure 403 "if requesting 0 token prices, more than 10 token prices or a token which is not whitelisted"
+// @Failure 500 "on error"
 func (r *router) TokensPrices(ctx *gin.Context) {
 	var selectToken types.SelectToken
 	var symbols []types.TokenPriceResponse
@@ -77,28 +91,28 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "TokensPrices", err.Error(), "Duration", time.Second)
 	}
 	if len(selectToken.Tokens) > 10 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow More than 10 asset",
+		ctx.JSON(http.StatusForbidden, selectTokensResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow more than 10 asset",
 		})
 		return
 	}
 
 	if selectToken.Tokens == nil {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow nil asset",
+		ctx.JSON(http.StatusForbidden, selectTokensResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow nil asset",
 		})
 		return
 	}
 
 	if len(selectToken.Tokens) == 0 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow 0 asset",
+		ctx.JSON(http.StatusForbidden, selectTokensResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow 0 asset",
 		})
 		return
 	}
@@ -114,10 +128,10 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		basetokens = append(basetokens, tokens)
 	}
 	if Diffpair(selectToken.Tokens, basetokens) == false {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not whitelisting asset",
+		ctx.JSON(http.StatusForbidden, selectTokensResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not whitelisted asset",
 		})
 		return
 	}
@@ -137,10 +151,10 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"data":    &symbols,
-			"message": nil,
+		ctx.JSON(http.StatusOK, selectTokensResp{
+			Status:  http.StatusOK,
+			Data:    &symbols,
+			Message: "",
 		})
 
 		return
@@ -156,10 +170,10 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"data":    &symbols,
-		"message": nil,
+	ctx.JSON(http.StatusOK, selectTokensResp{
+		Status:  http.StatusOK,
+		Data:    &symbols,
+		Message: "",
 	})
 }
 

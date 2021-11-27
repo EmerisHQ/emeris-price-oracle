@@ -14,6 +14,12 @@ import (
 
 const getselectFiatsPricesRoute = "/fiats"
 
+type selectFiatsResp struct {
+	Status  int                        `json:"status"`
+	Data    *[]types.FiatPriceResponse `json:"data"`
+	Message string                     `json:"message"`
+}
+
 func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
 	var symbols []types.FiatPriceResponse
 	var symbol types.FiatPriceResponse
@@ -48,6 +54,14 @@ func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPric
 	return symbols, nil
 }
 
+// @Summary Return a list of fiat prices.
+// @Description get the requested list of fiat prices. The method supports up to 10 prices per call.
+// @Router /fiats [post]
+// @Param fiatList body types.SelectFiat true "List of fiat names to return prices for"
+// @Produce json
+// @Success 200 {object} selectFiatsResp
+// @Failure 403 "if requesting 0 fiat prices, more than 10 fiat prices or a fiat which is not whitelisted"
+// @Failure 500 "on error"
 func (r *router) FiatsPrices(ctx *gin.Context) {
 	var selectFiat types.SelectFiat
 	var symbols []types.FiatPriceResponse
@@ -58,28 +72,28 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 	}
 
 	if len(selectFiat.Fiats) > 10 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow More than 10 asset",
+		ctx.JSON(http.StatusForbidden, selectFiatsResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow more than 10 asset",
 		})
 		return
 	}
 
 	if selectFiat.Fiats == nil {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow nil asset",
+		ctx.JSON(http.StatusForbidden, selectFiatsResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow nil asset",
 		})
 		return
 	}
 
 	if len(selectFiat.Fiats) == 0 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow 0 asset",
+		ctx.JSON(http.StatusForbidden, selectFiatsResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not allow 0 asset",
 		})
 		return
 	}
@@ -90,10 +104,10 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		basefiats = append(basefiats, fiats)
 	}
 	if Diffpair(selectFiat.Fiats, basefiats) == false {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not whitelisting asset",
+		ctx.JSON(http.StatusForbidden, selectFiatsResp{
+			Status:  http.StatusForbidden,
+			Data:    nil,
+			Message: "Not whitelisted asset",
 		})
 		return
 	}
@@ -113,10 +127,10 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"data":    &symbols,
-			"message": nil,
+		ctx.JSON(http.StatusOK, selectFiatsResp{
+			Status:  http.StatusOK,
+			Data:    &symbols,
+			Message: "",
 		})
 
 		return
@@ -131,10 +145,10 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"data":    &symbols,
-		"message": nil,
+	ctx.JSON(http.StatusOK, selectFiatsResp{
+		Status:  http.StatusOK,
+		Data:    &symbols,
+		Message: "",
 	})
 }
 

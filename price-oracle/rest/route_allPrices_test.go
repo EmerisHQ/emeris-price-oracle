@@ -29,7 +29,7 @@ func TestAllPricesHandler(t *testing.T) {
 	router.allPricesHandler(ctx)
 
 	var got struct {
-		Data types.AllPriceResponse `json:"data"`
+		Data types.AllPriceResponse `json:"Data"`
 	}
 	err := json.Unmarshal(w.Body.Bytes(), &got)
 	require.NoError(t, err)
@@ -59,11 +59,11 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	connStr := tServer.PGURL().String()
 	require.NotNil(t, connStr)
 
-	// Seed DB with data in schema file
+	// Seed DB with Data in schema file
 	oracleMigration := readLinesFromFile(t, "../database/schema-unittest")
 	err = dbutils.RunMigrations(connStr, oracleMigration)
 	require.NoError(t, err)
-	// Put dummy data in cns DB
+	// Put dummy Data in cns DB
 	insertToken(t, connStr)
 
 	// Setup redis

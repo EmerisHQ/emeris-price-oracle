@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRest(t *testing.T) {
@@ -32,7 +33,7 @@ func TestRest(t *testing.T) {
 	require.NoError(t, err)
 
 	var got struct {
-		Data types.AllPriceResponse `json:"data"`
+		Data types.AllPriceResponse `json:"Data"`
 	}
 	err = json.Unmarshal(body, &got)
 	require.NoError(t, err)
@@ -57,7 +58,7 @@ func TestRest(t *testing.T) {
 		"Token: Not whitelisted": {
 			types.SelectToken{Tokens: []string{"DOTUSDT"}},
 			http.StatusForbidden,
-			"Not whitelisting asset",
+			"Not whitelisted asset",
 		},
 		"Token: No value": {
 			types.SelectToken{Tokens: []string{}},
@@ -72,7 +73,7 @@ func TestRest(t *testing.T) {
 		"Token: Exceeds limit": {
 			types.SelectToken{Tokens: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			"Not allow more than 10 asset",
 		},
 	}
 
@@ -89,9 +90,9 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPost struct {
-				Data    []types.TokenPriceResponse `json:"data"`
-				Status  int                        `json:"status"`
-				Message string                     `json:"message"`
+				Data    []types.TokenPriceResponse `json:"Data"`
+				Status  int                        `json:"Status"`
+				Message string                     `json:"Message"`
 			}
 
 			err = json.Unmarshal(body, &gotPost)
@@ -109,7 +110,7 @@ func TestRest(t *testing.T) {
 		"Fiat: Not whitelisted": {
 			types.SelectFiat{Fiats: []string{"USDBDT"}},
 			http.StatusForbidden,
-			"Not whitelisting asset",
+			"Not whitelisted asset",
 		},
 		"Fiat: No value": {
 			types.SelectFiat{Fiats: []string{}},
@@ -124,7 +125,7 @@ func TestRest(t *testing.T) {
 		"Fiat: Exceeds limit": {
 			types.SelectFiat{Fiats: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			"Not allow more than 10 asset",
 		},
 	}
 
@@ -141,9 +142,9 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPost struct {
-				Data    []types.FiatPriceResponse `json:"data"`
-				Status  int                       `json:"status"`
-				Message string                    `json:"message"`
+				Data    []types.FiatPriceResponse `json:"Data"`
+				Status  int                       `json:"Status"`
+				Message string                    `json:"Message"`
 			}
 
 			err = json.Unmarshal(body, &gotPost)

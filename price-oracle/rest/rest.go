@@ -70,7 +70,7 @@ type restValidationError struct {
 	ValidationErrors []string `json:"validation_errors"`
 }
 
-// e writes err to the caller, with the given HTTP status.
+// e writes err to the caller, with the given HTTP Status.
 func e(c *gin.Context, status int, err error) {
 	var jsonErr interface{}
 

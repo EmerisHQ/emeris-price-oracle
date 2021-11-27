@@ -3,11 +3,12 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSelectFiatsPrice(t *testing.T) {
@@ -31,7 +32,7 @@ func TestSelectFiatsPrice(t *testing.T) {
 	handler(ctx)
 
 	var got struct {
-		Data []types.FiatPriceResponse `json:"data"`
+		Data []types.FiatPriceResponse `json:"Data"`
 	}
 	err = json.Unmarshal(w.Body.Bytes(), &got)
 	require.NoError(t, err)
