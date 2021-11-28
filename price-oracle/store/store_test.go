@@ -129,7 +129,7 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
-		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+		WhitelistFiats:        []string{"EUR", "KRW", "CHF"},
 	}
 
 	logger := logging.New(logging.LoggingConfig{

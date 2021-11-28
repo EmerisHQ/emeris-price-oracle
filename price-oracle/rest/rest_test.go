@@ -180,7 +180,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
-		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+		WhitelistFiats:        []string{"EUR", "KRW", "CHF"},
 		ListenAddr:            "127.0.0.1:9898",
 	}
 

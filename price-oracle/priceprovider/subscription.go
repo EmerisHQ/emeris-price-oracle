@@ -25,7 +25,7 @@ const (
 	BinanceURL = "https://api.binance.com/api/v3/ticker/price"
 	FixerURL   = "https://data.fixer.io/api/latest"
 
-	//CoinmarketcapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+	//CoinMarketCapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
 )
 
 type Api struct {
@@ -187,9 +187,9 @@ func (api *Api) SubscriptionFixer() error {
 		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)
 	}
 	q := url.Values{}
-	q.Add("access_key", api.StoreHandler.Cfg.Fixerapikey)
+	q.Add("access_key", api.StoreHandler.Cfg.FixerApiKey)
 	q.Add("base", types.USD)
-	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.Whitelistfiats, ","))
+	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.WhitelistFiats, ","))
 
 	req.URL.RawQuery = q.Encode()
 
@@ -227,7 +227,7 @@ func (api *Api) SubscriptionFixer() error {
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 
-	for _, fiat := range api.StoreHandler.Cfg.Whitelistfiats {
+	for _, fiat := range api.StoreHandler.Cfg.WhitelistFiats {
 		fiatSymbol := types.USD + fiat
 		d, ok := data[fiat]
 		if !ok {

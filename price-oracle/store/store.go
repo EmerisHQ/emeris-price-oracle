@@ -236,7 +236,7 @@ func (h *Handler) PriceFiatAggregator() error {
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
-	for _, fiat := range h.Cfg.Whitelistfiats {
+	for _, fiat := range h.Cfg.WhitelistFiats {
 		baseFiat := types.USD + fiat
 		whitelist[baseFiat] = struct{}{}
 	}

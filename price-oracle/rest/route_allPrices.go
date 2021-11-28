@@ -18,6 +18,8 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
+
+	// if token is ATOM; then corresponding token symbol is ATOMUSDT.
 	var whitelistedTokenSymbols []string
 	for _, token := range whitelistedTokens {
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
@@ -30,8 +32,9 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		return
 	}
 
+	// if fiat is EUR; then corresponding fiat symbol is USDEUR.
 	var whitelistedFiatSymbols []string
-	for _, fiat := range r.s.c.Whitelistfiats {
+	for _, fiat := range r.s.c.WhitelistFiats {
 		whitelistedFiatSymbols = append(whitelistedFiatSymbols, types.USD+fiat)
 	}
 

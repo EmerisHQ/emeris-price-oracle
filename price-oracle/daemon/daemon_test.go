@@ -186,7 +186,7 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 		LogPath:        "",
 		Debug:          true,
 		Interval:       "10s",
-		Whitelistfiats: []string{"EUR", "KRW", "CHF"},
+		WhitelistFiats: []string{"EUR", "KRW", "CHF"},
 	}
 
 	observedZapCore, logs := observer.New(zap.InfoLevel)

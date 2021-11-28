@@ -68,9 +68,9 @@ type restValidationError struct {
 }
 
 var (
-	errAssetLimitExceed    = errors.New("not allow More than 10 asset")
-	errZeroAsset           = errors.New("not allow 0 asset")
-	errNilAsset            = errors.New("not allow nil asset")
+	errAssetLimitExceed    = errors.New("more than 10 asset not allowed")
+	errZeroAsset           = errors.New("0 asset not allowed")
+	errNilAsset            = errors.New("nil asset not allowed")
 	errNotWhitelistedAsset = errors.New("not whitelisted asset")
 )
 
@@ -96,7 +96,7 @@ func e(c *gin.Context, status int, err error) {
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-// isSubset returns true if all element of subList in found in globalList
+// isSubset returns true if all element of (param:<subList>) in found in (param:<globalList>)
 func isSubset(subList []string, globalList []string) bool {
 	// Turn globalList into a map
 	globalSet := make(map[string]bool, len(globalList))
