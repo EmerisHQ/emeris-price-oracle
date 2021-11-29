@@ -18,7 +18,7 @@ type Config struct {
 	RecoverCount          int
 	WorkerPulse           time.Duration `validate:"required"`
 	Whitelistfiats        []string      `validate:"required"`
-	MaxAssetsReq          int
+	MaxAssetsReq          int           `validate:"required"`
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`
 	RedisUrl    string        `validate:"required"`

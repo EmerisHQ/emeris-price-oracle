@@ -20,6 +20,7 @@ Key Feature Settings
 - workerpulse: The pulse of heartbeat deamon worker function.
 - interval: The delay time of the function for an external price provider api request.
 - whitelistfiats : List of fiats you want to request (default currency is USD)
+- maxassetsreq : Maximum number of assets per single rest request
 - coinmarketcapapikey : This is the api-key of the provider.
 - fixerapikey : This is the api-key of the provider.
 - Provider : The endpoint address of the price provider.

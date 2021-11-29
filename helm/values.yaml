@@ -20,6 +20,8 @@ databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
 
 debug: true
 
+maxAssetsReq: 10
+
 redisUrl: redis-master:6379
 redisExpiry: 10s
 workerPulse: 3s

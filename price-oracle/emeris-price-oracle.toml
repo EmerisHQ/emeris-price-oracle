@@ -7,6 +7,7 @@ recovercount = 5
 workerpulse = "10s"
 interval = "10s"
 whitelistfiats = ["EUR","KRW","CHF"]
+maxassetsreq: 10
 coinmarketcapapikey =""
 fixerapikey = ""
 RedisExpiry = "10s"
