@@ -45,7 +45,7 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
 
 	g.GET(r.getAllPrices())
-	g.POST(r.getTokensPrices())
+	g.POST(r.getTokensPriceAndSupplies())
 	g.POST(r.getFiatsPrices())
 
 	g.NoRoute(func(context *gin.Context) {

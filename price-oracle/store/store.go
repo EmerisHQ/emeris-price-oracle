@@ -12,16 +12,16 @@ import (
 )
 
 type Store interface {
-	Init() error
-	Close() error                                                                  //runs migrations
-	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) //fetches all tokens from db tokens
-	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)                       //fetches all fiat tokens from db fiats
-	GetTokenNames() ([]string, error)                                              //fetches whitelist with token names
-	GetPriceIDs() ([]string, error)                                                //fetches whitelist with price ids
-	GetPrices(from string) ([]types.Prices, error)                                 //fetches prices from db table ex: binance,coingecko,fixer,tokens
-	UpsertPrice(to string, price float64, token string) error                      //upsert token or fiat price in db ex: tokens, fiats
-	UpsertToken(to string, symbol string, price float64, time int64) error         //upsert token or fiat to db. "to" indicates db name ex: binance,coingecko,fixer
-	UpsertTokenSupply(to string, symbol string, supply float64) error              //upsert token supply to db. "to" indicates db name ex: binance,coingecko,fixer
+	Init() error //runs migrations
+	Close() error
+	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error)
+	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)
+	GetTokenNames() ([]string, error)
+	GetPriceIDs() ([]string, error)
+	GetPrices(from string) ([]types.Prices, error)
+	UpsertPrice(to string, price float64, token string) error
+	UpsertToken(to string, symbol string, price float64, time int64) error
+	UpsertTokenSupply(to string, symbol string, supply float64) error
 }
 
 const (
@@ -107,7 +107,7 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	return h.Cache.Whitelist, nil
 }
 
-func (h *Handler) CnsPriceIdQuery() ([]string, error) {
+func (h *Handler) CNSPriceIdQuery() ([]string, error) {
 	whitelists, err := h.Store.GetPriceIDs()
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func (h *Handler) PriceFiatAggregator() error {
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
-	for _, fiat := range h.Cfg.WhitelistFiats {
+	for _, fiat := range h.Cfg.WhitelistedFiats {
 		baseFiat := types.USD + fiat
 		whitelist[baseFiat] = struct{}{}
 	}

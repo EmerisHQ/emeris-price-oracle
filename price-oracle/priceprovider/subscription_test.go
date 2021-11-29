@@ -162,7 +162,7 @@ func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, f
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
-		WhitelistFiats:        []string{"EUR", "KRW", "CHF"},
+		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
 	}
 
 	logger := logging.New(logging.LoggingConfig{

@@ -35,7 +35,7 @@ func TestSelectTokensPrices(t *testing.T) {
 	require.NoError(t, err)
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(jsonBytes))
 
-	_, handler := router.getTokensPrices()
+	_, handler := router.getTokensPriceAndSupplies()
 	handler(ctx)
 
 	var got struct {

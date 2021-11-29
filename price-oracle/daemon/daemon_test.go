@@ -183,10 +183,10 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 	t.Helper()
 
 	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
-		LogPath:        "",
-		Debug:          true,
-		Interval:       "10s",
-		WhitelistFiats: []string{"EUR", "KRW", "CHF"},
+		LogPath:          "",
+		Debug:            true,
+		Interval:         "10s",
+		WhitelistedFiats: []string{"EUR", "KRW", "CHF"},
 	}
 
 	observedZapCore, logs := observer.New(zap.InfoLevel)

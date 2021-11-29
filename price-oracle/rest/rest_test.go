@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	store2 "github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -180,7 +180,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
-		WhitelistFiats:        []string{"EUR", "KRW", "CHF"},
+		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
 		ListenAddr:            "127.0.0.1:9898",
 	}
 
@@ -222,13 +222,13 @@ func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
 	return sql.NewDB(connStr)
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store2.Handler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
 	db, err := getDB(t, ts)
 	if err != nil {
 		return nil, err
 	}
 
-	storeHandler, err := store2.NewStoreHandler(db, logger, cfg, nil)
+	storeHandler, err := store.NewStoreHandler(db, logger, cfg, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -282,18 +282,18 @@ func insertToken(t *testing.T, connStr string) {
 func insertWantData(r router, wantData types.AllPriceResponse) error {
 	for _, f := range wantData.Fiats {
 
-		if err := r.s.sh.Store.UpsertPrice(store2.FiatsStore, f.Price, f.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store.FiatsStore, f.Price, f.Symbol); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
 
-		if err := r.s.sh.Store.UpsertPrice(store2.TokensStore, t.Price, t.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(store.TokensStore, t.Price, t.Symbol); err != nil {
 			return err
 		}
 
-		if err := r.s.sh.Store.UpsertTokenSupply(store2.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
 			return err
 		}
 	}

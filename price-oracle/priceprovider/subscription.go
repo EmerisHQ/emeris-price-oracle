@@ -56,7 +56,7 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger 
 }
 
 func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, fn daemon.AggFunc) {
-	logger.Infow("INFO", "Database", "SubscriptionWorker Start")
+	logger.Infow("INFO", "PriceProvider", "SubscriptionWorker Start")
 	for {
 		select {
 		case <-ctx.Done():
@@ -65,12 +65,12 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		}
 
 		if err := fn(); err != nil {
-			logger.Errorw("Database", "SubscriptionWorker", err)
+			logger.Errorw("PriceProvider", "SubscriptionWorker", err)
 		}
 
 		interval, err := time.ParseDuration(cfg.Interval)
 		if err != nil {
-			logger.Errorw("Database", "SubscriptionWorker", err)
+			logger.Errorw("PriceProvider", "SubscriptionWorker", err)
 			return
 		}
 		time.Sleep(interval)
@@ -78,14 +78,14 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 }
 
 func (api *Api) SubscriptionBinance() error {
-	whitelistTokens, err := api.StoreHandler.GetCNSWhitelistedTokens()
+	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens()
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: %w", err)
 	}
-	if len(whitelistTokens) == 0 {
+	if len(whitelistedTokens) == 0 {
 		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: The token does not exist")
 	}
-	for _, token := range whitelistTokens {
+	for _, token := range whitelistedTokens {
 		tokenSymbol := token + types.USDT
 		req, err := http.NewRequest("GET", BinanceURL, nil)
 		if err != nil {
@@ -144,24 +144,21 @@ func (api *Api) SubscriptionBinance() error {
 }
 
 func (api *Api) SubscriptionCoingecko() error {
-	whitelistTokens, err := api.StoreHandler.CnsPriceIdQuery()
+	whitelistedTokens, err := api.StoreHandler.CNSPriceIdQuery()
 	if err != nil {
-		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: %w", err)
+		return fmt.Errorf("SubscriptionCoingecko CNSPriceIdQuery: %w", err)
 	}
-	if len(whitelistTokens) == 0 {
-		return fmt.Errorf("SubscriptionCoingecko CnsPriceIdQuery: The token does not exist")
+	if len(whitelistedTokens) == 0 {
+		return fmt.Errorf("SubscriptionCoingecko CNSPriceIdQuery: The token does not exist")
 	}
 
 	cg := gecko.NewClient(api.Client)
-	vsCurrency := types.USD
-	perPage := 1
-	page := 1
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
-	market, err := cg.CoinsMarket(vsCurrency, whitelistTokens, order, perPage, page, false, priceChangePercentage)
+	market, err := cg.CoinsMarket(types.USD, whitelistedTokens, order, 1, 1, false, priceChangePercentage)
 	if err != nil {
-		return fmt.Errorf("SubscriptionCoingecko Market Query: %w", err)
+		return fmt.Errorf("SubscriptionCoingecko cg.CoinsMarket: %w", err)
 	}
 
 	for _, token := range *market {
@@ -189,7 +186,7 @@ func (api *Api) SubscriptionFixer() error {
 	q := url.Values{}
 	q.Add("access_key", api.StoreHandler.Cfg.FixerApiKey)
 	q.Add("base", types.USD)
-	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.WhitelistFiats, ","))
+	q.Add("symbols", strings.Join(api.StoreHandler.Cfg.WhitelistedFiats, ","))
 
 	req.URL.RawQuery = q.Encode()
 
@@ -227,7 +224,7 @@ func (api *Api) SubscriptionFixer() error {
 		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
 	}
 
-	for _, fiat := range api.StoreHandler.Cfg.WhitelistFiats {
+	for _, fiat := range api.StoreHandler.Cfg.WhitelistedFiats {
 		fiatSymbol := types.USD + fiat
 		d, ok := data[fiat]
 		if !ok {

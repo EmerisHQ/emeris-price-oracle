@@ -18,13 +18,12 @@ func getTokenPriceAndSupplies(
 
 	whitelistedTokens, err := store.GetCNSWhitelistedTokens()
 	if err != nil {
-		logger.Error("Error", "DB", err.Error())
+		logger.Error("Error", "store.GetCNSWhitelistedTokens()", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 	var whitelistedTokenSymbols []string
 	for _, token := range whitelistedTokens {
-		tokens := token + types.USDT
-		whitelistedTokenSymbols = append(whitelistedTokenSymbols, tokens)
+		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}
 
 	if !isSubset(tokens, whitelistedTokenSymbols) {
@@ -39,15 +38,15 @@ func getTokenPriceAndSupplies(
 	return tokenPriceAndSupplies, http.StatusOK, nil
 }
 
-func (r *router) TokensPrices(ctx *gin.Context) {
+func (r *router) TokensPriceAndSupplies(ctx *gin.Context) {
 	var tokens types.Tokens
 	if err := ctx.BindJSON(&tokens); err != nil {
-		r.s.l.Error("Error", "TokenPrices", err.Error())
+		r.s.l.Error("Error", "TokenPriceAndSupplies", err.Error())
 		e(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	if tokens.Tokens == nil || len(tokens.Tokens) == 0 || len(tokens.Tokens) > 10 {
+	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > 10 {
 		err := errZeroAsset
 		if len(tokens.Tokens) > 10 {
 			err = errAssetLimitExceed
@@ -72,6 +71,6 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 	})
 }
 
-func (r *router) getTokensPrices() (string, gin.HandlerFunc) {
-	return getTokensPricesRoute, r.TokensPrices
+func (r *router) getTokensPriceAndSupplies() (string, gin.HandlerFunc) {
+	return getTokensPricesRoute, r.TokensPriceAndSupplies
 }

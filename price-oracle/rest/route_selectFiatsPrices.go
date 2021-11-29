@@ -42,7 +42,7 @@ func (r *router) fiatPriceHandler(ctx *gin.Context) {
 		return
 	}
 
-	if fiats.Fiats == nil || len(fiats.Fiats) == 0 || len(fiats.Fiats) > 10 {
+	if len(fiats.Fiats) == 0 || len(fiats.Fiats) > 10 {
 		err := errZeroAsset
 		if len(fiats.Fiats) > 10 {
 			err = errAssetLimitExceed
@@ -53,7 +53,7 @@ func (r *router) fiatPriceHandler(ctx *gin.Context) {
 		return
 	}
 
-	fiatPrices, httpStatus, err := getFiatPrices(fiats.Fiats, r.s.c.WhitelistFiats, r.s.sh, r.s.l)
+	fiatPrices, httpStatus, err := getFiatPrices(fiats.Fiats, r.s.c.WhitelistedFiats, r.s.sh, r.s.l)
 	if err != nil {
 		e(ctx, httpStatus, err)
 		return

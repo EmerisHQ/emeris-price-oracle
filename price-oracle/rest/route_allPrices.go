@@ -34,7 +34,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 	// if fiat is EUR; then corresponding fiat symbol is USDEUR.
 	var whitelistedFiatSymbols []string
-	for _, fiat := range r.s.c.WhitelistFiats {
+	for _, fiat := range r.s.c.WhitelistedFiats {
 		whitelistedFiatSymbols = append(whitelistedFiatSymbols, types.USD+fiat)
 	}
 

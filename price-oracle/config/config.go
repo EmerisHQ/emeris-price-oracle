@@ -14,7 +14,7 @@ type Config struct {
 	Debug                 bool
 	LogPath               string
 	Interval              string   `validate:"required"`
-	WhitelistFiats        []string `validate:"required"`
+	WhitelistedFiats      []string `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
 
 	//Not currently used, but may be used in the future
