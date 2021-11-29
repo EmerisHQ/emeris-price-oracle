@@ -2,17 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 )
 
 var Version = "not specified"
@@ -35,7 +34,12 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	storeHandler, err := store.NewStoreHandler(db, logger, cfg, nil)
+	storeHandler, err := store.NewStoreHandler(
+		store.WithDB(db),
+		store.WithConfig(cfg),
+		store.WithLogger(logger),
+		store.WithCache(nil),
+	)
 	if err != nil {
 		logger.Fatal(err)
 	}

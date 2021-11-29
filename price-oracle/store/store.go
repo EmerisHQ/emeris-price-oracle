@@ -49,27 +49,67 @@ type Cache struct {
 	Mu              sync.Mutex
 }
 
-func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config, cache *Cache) (*Handler, error) {
-	if store == nil {
-		return nil, fmt.Errorf("store.go, NewStoreHandler : nil store passed")
+type option func(*Handler) error
+
+func WithDB(store Store) func(*Handler) error {
+	return func(handler *Handler) error {
+		if store == nil {
+			return fmt.Errorf("received nil reference for SqlDB")
+		}
+		handler.Store = store
+		return nil
 	}
-	if cfg == nil {
-		return nil, fmt.Errorf("store.go, NewStoreHandler : nil configuration passed")
+}
+
+func WithLogger(logger *zap.SugaredLogger) func(*Handler) error {
+	return func(handler *Handler) error {
+		if logger == nil {
+			return fmt.Errorf("received nil reference for logger")
+		}
+		handler.Logger = logger
+		return nil
 	}
-	if logger == nil {
-		return nil, fmt.Errorf("store.go, NewStoreHandler : nil logger passed")
+}
+
+func WithConfig(cfg *config.Config) func(*Handler) error {
+	return func(handler *Handler) error {
+		if cfg == nil {
+			return fmt.Errorf("received nil reference for config")
+		}
+		handler.Cfg = cfg
+		return nil
 	}
-	if cache == nil {
-		cache = &Cache{
-			Whitelist:             nil,
-			TokenPriceAndSupplies: nil,
-			FiatPrices:            nil,
-			RefreshInterval:       time.Second * 5,
-			Mu:                    sync.Mutex{},
+}
+
+func WithCache(cache *Cache) func(*Handler) error {
+	return func(handler *Handler) error {
+		if cache == nil {
+			cache = &Cache{
+				Whitelist:             nil,
+				TokenPriceAndSupplies: nil,
+				FiatPrices:            nil,
+				RefreshInterval:       time.Second * 5,
+				Mu:                    sync.Mutex{},
+			}
+		}
+		handler.Cache = cache
+		return nil
+	}
+}
+
+func NewStoreHandler(options ...option) (*Handler, error) {
+	handler := &Handler{
+		Store:  nil,
+		Logger: nil,
+		Cfg:    nil,
+		Cache:  nil,
+	}
+	for _, opt := range options {
+		if err := opt(handler); err != nil {
+			return nil, fmt.Errorf("option failed: %w", err)
 		}
 	}
-
-	if err := store.Init(); err != nil {
+	if err := handler.Store.Init(); err != nil {
 		return nil, err
 	}
 	// Invalidate in-memory cache after RefreshInterval
@@ -87,8 +127,8 @@ func NewStoreHandler(store Store, logger *zap.SugaredLogger, cfg *config.Config,
 				cache.Mu.Unlock()
 			}
 		}
-	}(cache)
-	return &Handler{Store: store, Logger: logger, Cfg: cfg, Cache: cache}, nil
+	}(handler.Cache)
+	return handler, nil
 }
 
 // GetCNSWhitelistedTokens returns the whitelisted tokens.

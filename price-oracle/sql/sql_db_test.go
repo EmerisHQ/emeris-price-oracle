@@ -28,6 +28,7 @@ func TestStore(t *testing.T) {
 
 	store.TestStore(t, mDB)
 }
+
 func TestInit(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
