@@ -33,7 +33,7 @@ type Api struct {
 func StartSubscription(ctx context.Context, storeHandler *StoreHandler, logger *zap.SugaredLogger, cfg *config.Config) {
 
 	api := Api{
-		Client:       &http.Client{Timeout: 2 * time.Second},
+		Client:       &http.Client{Timeout: cfg.HttpClientTimeOut},
 		StoreHandler: storeHandler,
 	}
 

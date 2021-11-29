@@ -13,10 +13,12 @@ type Config struct {
 	ListenAddr            string `validate:"required"`
 	Debug                 bool
 	LogPath               string
+	HttpClientTimeOut     time.Duration
 	Interval              string `validate:"required"`
 	RecoverCount          int
 	WorkerPulse           time.Duration `validate:"required"`
 	Whitelistfiats        []string      `validate:"required"`
+	MaxAssetsReq          int
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`
 	RedisUrl    string        `validate:"required"`

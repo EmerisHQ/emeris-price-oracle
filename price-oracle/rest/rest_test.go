@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -91,7 +92,7 @@ func TestRest(t *testing.T) {
 		"Token: Exceeds limit": {
 			types.SelectToken{Tokens: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			"Not allow More than " + strconv.Itoa(router.s.c.MaxAssetsReq) + " asset",
 		},
 	}
 
@@ -146,7 +147,7 @@ func TestRest(t *testing.T) {
 		"Fiat: Exceeds limit": {
 			types.SelectFiat{Fiats: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}},
 			http.StatusForbidden,
-			"Not allow More than 10 asset",
+			"Not allow More than " + strconv.Itoa(router.s.c.MaxAssetsReq) + " asset",
 		},
 	}
 
@@ -208,6 +209,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+		MaxAssetsReq:          10,
 		ListenAddr:            "127.0.0.1:9898",
 		RedisExpiry:           10 * time.Second,
 	}

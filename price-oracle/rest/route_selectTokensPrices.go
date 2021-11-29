@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -20,11 +21,11 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 	if err := ctx.BindJSON(&selectToken); err != nil {
 		r.s.l.Error("Error", "TokensPrices", err.Error(), "Duration", time.Second)
 	}
-	if len(selectToken.Tokens) > 10 {
+	if len(selectToken.Tokens) > r.s.c.MaxAssetsReq {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
-			"message": "Not allow More than 10 asset",
+			"message": "Not allow More than " + strconv.Itoa(r.s.c.MaxAssetsReq) + " asset",
 		})
 		return
 	}

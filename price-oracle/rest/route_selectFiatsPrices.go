@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -18,14 +19,14 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 	var symbols []types.FiatPriceResponse
 
 	if err := ctx.BindJSON(&selectFiat); err != nil {
-		r.s.l.Error("Error", "FiatsPrices", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "FiatsPrices", err.Error())
 	}
 
-	if len(selectFiat.Fiats) > 10 {
+	if len(selectFiat.Fiats) > r.s.c.MaxAssetsReq {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
-			"message": "Not allow More than 10 asset",
+			"message": "Not allow More than " + strconv.Itoa(r.s.c.MaxAssetsReq) + " asset",
 		})
 		return
 	}
@@ -63,19 +64,19 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 	}
 	selectFiatkey, err := json.Marshal(selectFiat.Fiats)
 	if err != nil {
-		r.s.l.Error("Error", "Redis-selectFiatkey", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Redis-selectFiatkey", err.Error())
 		return
 	}
 	if r.s.ri.Exists(string(selectFiatkey)) {
 		bz, err := r.s.ri.Client.Get(context.Background(), string(selectFiatkey)).Bytes()
 		if err != nil {
-			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			r.s.l.Error("Error", "Redis-Get", err.Error())
 			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}
 
 		if err = json.Unmarshal(bz, &symbols); err != nil {
-			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			r.s.l.Error("Error", "Redis-Unmarshal", err.Error())
 			fetchFiatPricesFromStore(r, ctx, selectFiat, selectFiatkey)
 			return
 		}

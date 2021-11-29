@@ -30,7 +30,7 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 	}
 	tokens, err := r.s.sh.Store.GetTokens(selectTokens)
 	if err != nil {
-		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetTokens()", err.Error())
 		return nil, nil, err
 	}
 
@@ -43,7 +43,7 @@ func allPrices(r *router) ([]types.TokenPriceResponse, []types.FiatPriceResponse
 	}
 	fiats, err := r.s.sh.Store.GetFiats(selectFiats)
 	if err != nil {
-		r.s.l.Error("Error", "Store.GetFiats()", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetFiats()", err.Error())
 		return tokens, nil, err
 	}
 
@@ -55,13 +55,13 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 	if r.s.ri.Exists("prices") {
 		bz, err := r.s.ri.Client.Get(context.Background(), "prices").Bytes()
 		if err != nil {
-			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
+			r.s.l.Error("Error", "Redis-Get", err.Error())
 			fetchAllPricesFromStore(r, ctx)
 			return
 		}
 
 		if err = json.Unmarshal(bz, &AllPriceResponse); err != nil {
-			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
+			r.s.l.Error("Error", "Redis-Unmarshal", err.Error())
 			fetchAllPricesFromStore(r, ctx)
 			return
 		}
@@ -92,11 +92,11 @@ func fetchAllPricesFromStore(r *router, ctx *gin.Context) {
 
 	bz, err := json.Marshal(AllPriceResponse)
 	if err != nil {
-		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Marshal AllPriceResponse", err.Error(), "Duration", r.s.c.RedisExpiry)
 		return
 	}
 	if err := r.s.ri.SetWithExpiryTime("prices", string(bz), r.s.c.RedisExpiry); err != nil {
-		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", r.s.c.RedisExpiry)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{

@@ -160,6 +160,7 @@ func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, f
 		WorkerPulse:           3 * time.Second,
 		RecoverCount:          5,
 		Interval:              "10s",
+		HttpClientTimeOut:     2 * time.Second,
 		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
 	}
 
