@@ -52,7 +52,7 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		database.StartAggregate(ctx, storeHandler, logger, config, 5)
+		database.StartAggregate(ctx, storeHandler, logger, config)
 	}()
 	go func() {
 		defer wg.Done()

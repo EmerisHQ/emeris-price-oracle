@@ -13,7 +13,9 @@ type Config struct {
 	ListenAddr            string `validate:"required"`
 	Debug                 bool
 	LogPath               string
-	Interval              string   `validate:"required"`
+	Interval              string `validate:"required"`
+	RecoverCount          int
+	DeamonPulse           time.Duration
 	Whitelistfiats        []string `validate:"required"`
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`

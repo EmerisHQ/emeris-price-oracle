@@ -47,7 +47,7 @@ func TestStartAggregate(t *testing.T) {
 		require.Equal(t, tokens[i].Price, price.Price)
 	}
 
-	go database.StartAggregate(ctx, storeHandler, logger, cfg, 3)
+	go database.StartAggregate(ctx, storeHandler, logger, cfg)
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {

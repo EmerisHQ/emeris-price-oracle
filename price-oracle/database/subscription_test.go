@@ -157,8 +157,10 @@ func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, f
 		LogPath:               "",
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
-		Interval:              "10s",
-		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+		// DeamonPulse:           3 * time.Second,
+		RecoverCount:   5,
+		Interval:       "10s",
+		Whitelistfiats: []string{"EUR", "KRW", "CHF"},
 	}
 
 	logger := logging.New(logging.LoggingConfig{

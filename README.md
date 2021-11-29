@@ -12,6 +12,11 @@ Description of the `emeris-price-oracle.toml` setting file.
 
 Key Feature Settings
 
+- recovercount: indicates on how many times the deamon will recover from errors caused by the worker 
+- - recoverCount can have
+ 		1. Value 0, which means do not numRecover from fatal error.
+ 		2. Negative value, means always numRecover from fatal error.
+ 		3. Positive value, self explaining.
 - interval: The delay time of the function for an external price provider api request.
 - whitelistfiats : List of fiats you want to request (default currency is USD)
 - coinmarketcapapikey : This is the api-key of the provider.
