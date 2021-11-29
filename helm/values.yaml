@@ -22,4 +22,5 @@ debug: true
 
 redisUrl: redis-master:6379
 redisExpiry: 10s
+workerPulse: 3s
 updateInterval: 20s
