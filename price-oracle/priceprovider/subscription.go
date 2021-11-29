@@ -80,16 +80,16 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 func (api *Api) SubscriptionBinance() error {
 	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens()
 	if err != nil {
-		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: %w", err)
+		return fmt.Errorf("SubscriptionBinance, GetCNSWhitelistedTokens(): %w", err)
 	}
 	if len(whitelistedTokens) == 0 {
-		return fmt.Errorf("SubscriptionBinance GetCNSWhitelistedTokens: The token does not exist")
+		return fmt.Errorf("SubscriptionBinance: Tokens do not exist")
 	}
 	for _, token := range whitelistedTokens {
 		tokenSymbol := token + types.USDT
 		req, err := http.NewRequest("GET", BinanceURL, nil)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance fetch binance: %w", err)
+			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 		}
 
 		q := url.Values{}
@@ -99,12 +99,12 @@ func (api *Api) SubscriptionBinance() error {
 
 		resp, err := api.Client.Do(req)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance fetch binance: %w", err)
+			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 		}
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance read body: %w", err)
+			return fmt.Errorf("SubscriptionBinance: read body: %w", err)
 		}
 		if err := resp.Body.Close(); err != nil {
 			return err
@@ -123,12 +123,12 @@ func (api *Api) SubscriptionBinance() error {
 
 		bp := types.Binance{}
 		if err = json.Unmarshal(body, &bp); err != nil {
-			return fmt.Errorf("SubscriptionBinance unmarshal body: %w", err)
+			return fmt.Errorf("SubscriptionBinance: unmarshal body: %w", err)
 		}
 
 		strToFloat, err := strconv.ParseFloat(bp.Price, 64)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance convert price to float: %w", err)
+			return fmt.Errorf("SubscriptionBinance: convert price to float: %w", err)
 		}
 		if strToFloat == float64(0) {
 			continue
@@ -146,10 +146,10 @@ func (api *Api) SubscriptionBinance() error {
 func (api *Api) SubscriptionCoingecko() error {
 	whitelistedTokens, err := api.StoreHandler.CNSPriceIdQuery()
 	if err != nil {
-		return fmt.Errorf("SubscriptionCoingecko CNSPriceIdQuery: %w", err)
+		return fmt.Errorf("SubscriptionCoingecko, CNSPriceIdQuery(): %w", err)
 	}
 	if len(whitelistedTokens) == 0 {
-		return fmt.Errorf("SubscriptionCoingecko CNSPriceIdQuery: The token does not exist")
+		return fmt.Errorf("SubscriptionCoingecko: Tokens do not exist")
 	}
 
 	cg := gecko.NewClient(api.Client)
@@ -158,7 +158,7 @@ func (api *Api) SubscriptionCoingecko() error {
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
 	market, err := cg.CoinsMarket(types.USD, whitelistedTokens, order, 1, 1, false, priceChangePercentage)
 	if err != nil {
-		return fmt.Errorf("SubscriptionCoingecko cg.CoinsMarket: %w", err)
+		return fmt.Errorf("SubscriptionCoingecko, cg.CoinsMarket(): %w", err)
 	}
 
 	for _, token := range *market {
@@ -181,7 +181,7 @@ func (api *Api) SubscriptionCoingecko() error {
 func (api *Api) SubscriptionFixer() error {
 	req, err := http.NewRequest("GET", FixerURL, nil)
 	if err != nil {
-		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)
+		return fmt.Errorf("SubscriptionFixer: fetch Fixer: %w", err)
 	}
 	q := url.Values{}
 	q.Add("access_key", api.StoreHandler.Cfg.FixerApiKey)
@@ -192,12 +192,12 @@ func (api *Api) SubscriptionFixer() error {
 
 	resp, err := api.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("SubscriptionFixer fetch Fixer: %w", err)
+		return fmt.Errorf("SubscriptionFixer: fetch Fixer: %w", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("SubscriptionFixer read body: %w", err)
+		return fmt.Errorf("SubscriptionFixer: read body: %w", err)
 	}
 	if err := resp.Body.Close(); err != nil {
 		return err
@@ -213,7 +213,7 @@ func (api *Api) SubscriptionFixer() error {
 
 	bp := types.Fixer{}
 	if err = json.Unmarshal(body, &bp); err != nil {
-		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
+		return fmt.Errorf("SubscriptionFixer: unmarshal body: %w", err)
 	}
 	if !bp.Success {
 		api.StoreHandler.Logger.Infow("SubscriptionFixer", "The status message of the query is fail(Maybe the apikey problem)", bp.Success)
@@ -221,7 +221,7 @@ func (api *Api) SubscriptionFixer() error {
 	}
 	var data map[string]float64
 	if err = json.Unmarshal(bp.Rates, &data); err != nil {
-		return fmt.Errorf("SubscriptionFixer unmarshal body: %w", err)
+		return fmt.Errorf("SubscriptionFixer: unmarshal body: %w", err)
 	}
 
 	for _, fiat := range api.StoreHandler.Cfg.WhitelistedFiats {
