@@ -15,8 +15,8 @@ import (
 const getselectFiatsPricesRoute = "/fiats"
 
 func selectFiatsPrices(r *router, selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	symbolList := make([]interface{}, len(selectFiat.Fiats))
-	symbols := make([]types.FiatPriceResponse, len(symbolList))
+	symbolList := make([]interface{}, 0, len(selectFiat.Fiats))
+	symbols := make([]types.FiatPriceResponse, 0, len(symbolList))
 
 	var symbol types.FiatPriceResponse
 	symbolNum := len(selectFiat.Fiats)
@@ -84,7 +84,7 @@ func (r *router) FiatsPrices(ctx *gin.Context) {
 		return
 	}
 
-	basefiats := make([]string, len(r.s.c.Whitelistfiats))
+	basefiats := make([]string, 0, len(r.s.c.Whitelistfiats))
 	for _, fiat := range r.s.c.Whitelistfiats {
 		fiats := types.USDBasecurrency + fiat
 		basefiats = append(basefiats, fiats)

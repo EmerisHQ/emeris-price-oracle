@@ -15,8 +15,8 @@ import (
 const getselectTokensPricesRoute = "/tokens"
 
 func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
-	Tokens := make([]types.TokenPriceResponse, len(selectToken.Tokens))
-	symbolList := make([]interface{}, len(selectToken.Tokens))
+	Tokens := make([]types.TokenPriceResponse, 0, len(selectToken.Tokens))
+	symbolList := make([]interface{}, 0, len(selectToken.Tokens))
 
 	var Token types.TokenPriceResponse
 	symbolNum := len(selectToken.Tokens)
@@ -108,7 +108,7 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
 		return
 	}
-	basetokens := make([]string, len(Whitelists))
+	basetokens := make([]string, 0, len(Whitelists))
 	for _, token := range Whitelists {
 		tokens := token + types.USDTBasecurrency
 		basetokens = append(basetokens, tokens)

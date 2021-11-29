@@ -48,7 +48,7 @@ func (q Querier) ChainByName(name string) (v1.NodeSet, error) {
 }
 
 func (q Querier) ChainsByName(names ...string) ([]v1.NodeSet, error) {
-	chainList := make([]v1.NodeSet, len(names))
+	chainList := make([]v1.NodeSet, 0, len(names))
 
 	for _, name := range names {
 		c, err := q.ChainByName(name)
