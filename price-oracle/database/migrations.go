@@ -24,12 +24,10 @@ CREATE TABLE oracle.coingeckosupply (symbol STRING PRIMARY KEY, supply FLOAT);
 const createTableFixer = `
 CREATE TABLE oracle.fixer (symbol STRING PRIMARY KEY, price FLOAT, updatedat INT);
 `
-const createTableTokens = `
-CREATE TABLE oracle.tokens (symbol STRING PRIMARY KEY, price FLOAT);
-`
-const createTableFiats = `
-CREATE TABLE oracle.fiats (symbol STRING PRIMARY KEY, price FLOAT);
-`
+
+const createTableTokens = `CREATE TABLE oracle.tokens (symbol STRING PRIMARY KEY, price FLOAT);`
+
+const createTableFiats = `CREATE TABLE oracle.fiats (symbol STRING PRIMARY KEY, price FLOAT);`
 
 var migrationList = []string{
 	createDatabase,

@@ -15,10 +15,10 @@ import (
 const getselectTokensPricesRoute = "/tokens"
 
 func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
-	var Tokens []types.TokenPriceResponse
-	var Token types.TokenPriceResponse
-	var symbolList []interface{}
+	Tokens := make([]types.TokenPriceResponse, 0, len(selectToken.Tokens))
+	symbolList := make([]interface{}, 0, len(selectToken.Tokens))
 
+	var Token types.TokenPriceResponse
 	symbolNum := len(selectToken.Tokens)
 
 	query := "SELECT * FROM oracle.tokens WHERE symbol=$1"
@@ -46,7 +46,7 @@ func selectTokensPrices(r *router, selectToken types.SelectToken) ([]types.Token
 			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
 			return nil, err
 		}
-		//rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
+		// rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coinmarketcapsupply WHERE symbol=$1", symbol)
 		rowCmcSupply, err := r.s.d.Query("SELECT * FROM oracle.coingeckosupply WHERE symbol=$1", symbol)
 		if err != nil {
 			r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
@@ -108,12 +108,12 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
 		return
 	}
-	var basetokens []string
+	basetokens := make([]string, 0, len(Whitelists))
 	for _, token := range Whitelists {
 		tokens := token + types.USDTBasecurrency
 		basetokens = append(basetokens, tokens)
 	}
-	if Diffpair(selectToken.Tokens, basetokens) == false {
+	if !Diffpair(selectToken.Tokens, basetokens) {
 		ctx.JSON(http.StatusForbidden, gin.H{
 			"status":  http.StatusForbidden,
 			"data":    nil,
@@ -151,6 +151,11 @@ func (r *router) TokensPrices(ctx *gin.Context) {
 		return
 	}
 	bz, err := json.Marshal(symbols)
+	if err != nil {
+		r.s.l.Error("Error", "Marshal", err.Error())
+		return
+	}
+
 	err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), 10*time.Second)
 	if err != nil {
 		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)

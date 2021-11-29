@@ -33,7 +33,7 @@ func New(connString string) (*Instance, error) {
 		ii.runMigrations()
 	}
 
-	//interim measures
+	// interim measures
 	q, err = ii.Query("SELECT * FROM oracle.coingecko")
 	if q != nil {
 		defer q.Close()
