@@ -12,11 +12,12 @@ Description of the `emeris-price-oracle.toml` setting file.
 
 Key Feature Settings
 
-- recovercount: indicates on how many times the deamon will recover from errors caused by the worker 
-- - recoverCount can have
- 		1. Value 0, which means do not numRecover from fatal error.
- 		2. Negative value, means always numRecover from fatal error.
- 		3. Positive value, self explaining.
+- recovercount: Indicates how many times the deamon will recover from errors caused by the worker 
+	- recovercount can have
+		1. Value 0, which means do not recover from fatal error.
+		2. Negative value, means always recover from fatal error.
+		3. Positive value, self explaining.
+- workerpulse: The pulse of heartbeat deamon worker function.
 - interval: The delay time of the function for an external price provider api request.
 - whitelistfiats : List of fiats you want to request (default currency is USD)
 - coinmarketcapapikey : This is the api-key of the provider.
@@ -32,11 +33,14 @@ DatabaseConnectionURL = "postgres://root@127.0.0.1:26257?sslmode=disable"
 ListenAddr = "127.0.0.1:9898"
 Debug = true
 LogPath = "/home/ubuntu/log"
+recovercount = 5
+workerpulse = "3s"
 interval = "10s"
 whitelistfiats = ["EUR","KRW","CHF"]
 #Not currently used, but may be used in the future
 coinmarketcapapikey =""
 fixerapikey = ""
+redisexpiry = "10s"
 ```
 
 ### Local exec DB
