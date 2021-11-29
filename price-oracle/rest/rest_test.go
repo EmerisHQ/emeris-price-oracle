@@ -107,6 +107,9 @@ func TestRest(t *testing.T) {
 			body, err = ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
+			err = resp.Body.Close()
+			require.NoError(t, err)
+
 			var gotPost struct {
 				Data    []types.TokenPriceResponse `json:"data"`
 				Status  int                        `json:"status"`
@@ -157,6 +160,9 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			body, err = ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			err = resp.Body.Close()
 			require.NoError(t, err)
 
 			var gotPost struct {
