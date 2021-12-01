@@ -38,7 +38,7 @@ func getTokenPriceAndSupplies(
 	return tokenPriceAndSupplies, http.StatusOK, nil
 }
 
-func (r *router) TokensPriceAndSupplies(ctx *gin.Context) {
+func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 	var tokens types.Tokens
 	if err := ctx.BindJSON(&tokens); err != nil {
 		r.s.l.Error("Error", "TokenPriceAndSupplies", err.Error())
@@ -59,7 +59,6 @@ func (r *router) TokensPriceAndSupplies(ctx *gin.Context) {
 
 	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(tokens.Tokens, r.s.sh, r.s.l)
 	if err != nil {
-		r.s.l.Error("Error", "Store.GetTokenPriceAndSupplies()", err.Error())
 		e(ctx, httpStatus, err)
 		return
 	}
@@ -72,5 +71,5 @@ func (r *router) TokensPriceAndSupplies(ctx *gin.Context) {
 }
 
 func (r *router) getTokensPriceAndSupplies() (string, gin.HandlerFunc) {
-	return getTokensPricesRoute, r.TokensPriceAndSupplies
+	return getTokensPricesRoute, r.tokensPriceAndSuppliesHandler
 }

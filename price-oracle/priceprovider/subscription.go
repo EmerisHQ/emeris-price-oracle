@@ -207,10 +207,6 @@ func (api *Api) SubscriptionFixer() error {
 		return fmt.Errorf("SubscriptionFixer: %s, Status: %s", body, resp.Status)
 	}
 
-	if err := resp.Body.Close(); err != nil {
-		return err
-	}
-
 	bp := types.Fixer{}
 	if err = json.Unmarshal(body, &bp); err != nil {
 		return fmt.Errorf("SubscriptionFixer: unmarshal body: %w", err)

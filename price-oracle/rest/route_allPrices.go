@@ -1,12 +1,10 @@
 package rest
 
 import (
-	"net/http"
-	"time"
-
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"net/http"
 )
 
 const getAllPriceRoute = "/prices"
@@ -40,7 +38,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 
 	fiatPrices, err := r.s.sh.GetFiatPrices(whitelistedFiatSymbols)
 	if err != nil {
-		r.s.l.Error("Error", "Store.GetFiatPrices()", err.Error(), "Duration", time.Second)
+		r.s.l.Error("Error", "Store.GetFiatPrices()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}

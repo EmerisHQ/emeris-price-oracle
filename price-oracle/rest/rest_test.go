@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
@@ -199,10 +198,6 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	// Put dummy data in cns DB
 	insertToken(t, connStr)
 
-	// Setup redis
-	minRedis, err := miniredis.Run()
-	require.NoError(t, err)
-
 	w := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(w)
 
@@ -213,7 +208,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		g:  engine,
 	}
 
-	return router{s: server}, ctx, w, func() { tServer.Stop(); minRedis.Close() }
+	return router{s: server}, ctx, w, func() { tServer.Stop() }
 }
 
 func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
