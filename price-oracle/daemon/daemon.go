@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	AggFunc    = func(*zap.SugaredLogger, *config.Config) error
+	AggFunc    = func() error
 	WorkerFunc = func(
 		chan struct{},
 		time.Duration,
@@ -27,13 +27,13 @@ type (
 // ErrWorkerRestarted is used to indicate a restarting process is taking place.
 var ErrWorkerRestarted = errors.New("daemon: process not responsive; restarting")
 
-// or takes an arbitrary number of channels (chans) and return a channel
-// named orDone. If any of the channels in (chans) is closed, orDone
+// or takes an arbitrary number of channels (param:<chans>) and return a channel
+// named orDone. If any of the channels in (param:<chans>) is closed, orDone
 // is also closed.
 //
 // If we have 4 channels named ch1...ch4, the logic is,
-// if closed(ch1) || closed(ch2) || closed(ch3) || closed(ch4) -> return True.
-// And thus the name `or`
+// if closed(ch1) || closed(ch2) || closed(ch3) || closed(ch4) -> closed(orDOne)
+// must hold true. And thus the name `or`
 func or(chans ...chan struct{}) chan struct{} {
 	switch len(chans) {
 	case 0:
@@ -62,11 +62,12 @@ func or(chans ...chan struct{}) chan struct{} {
 	return orDone
 }
 
-// MakeDaemon takes a WorkerFunc and wraps it with self-healing daemon-like functionality.
-// When the worker is not responsive for a certain timeout period (timeout), it restarts
-// the worker. It also has a recoverCount param, which indicates on how many times it
-// will numRecover from errors in caused by the worker.
-// recoverCount can have
+// MakeDaemon takes a WorkerFunc (param:<worker>) and wraps it with self-healing
+// daemon-like functionality. When the worker is not responsive for a certain timeout
+// period (param:<timeout>), it restarts the worker. It also has a (param:<recoverCount>)
+// which indicates on how many times it will recover from errors caused by the worker.
+//
+// (param:<recoverCount>) can have one of 3 types of values.
 //		1. Value 0, which means do not numRecover from fatal error.
 //		2. Negative value, means always numRecover from fatal error.
 // 		3. Positive value, self explaining.

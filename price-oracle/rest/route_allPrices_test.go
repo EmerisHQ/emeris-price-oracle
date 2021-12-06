@@ -13,17 +13,17 @@ func TestAllPricesHandler(t *testing.T) {
 	defer tDown()
 
 	wantData := types.AllPriceResponse{
-		Fiats: []types.FiatPriceResponse{
+		Fiats: []types.FiatPrice{
 			{Symbol: "USDCHF", Price: 10},
 			{Symbol: "USDEUR", Price: 20},
 			{Symbol: "USDKRW", Price: 5},
 		},
-		Tokens: []types.TokenPriceResponse{
+		Tokens: []types.TokenPriceAndSupply{
 			{Price: 10, Symbol: "ATOMUSDT", Supply: 113563929433.0},
 			{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 		},
 	}
-	err := insertWantData(router, wantData, router.s.l)
+	err := insertWantData(router, wantData)
 	require.NoError(t, err)
 
 	router.allPricesHandler(ctx)

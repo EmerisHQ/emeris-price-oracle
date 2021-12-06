@@ -6,21 +6,21 @@ import (
 )
 
 const (
-	USDTBasecurrency = "USDT"
-	USDBasecurrency  = "USD"
+	USDT = "USDT"
+	USD  = "USD"
 )
 
 type AllPriceResponse struct {
-	Tokens []TokenPriceResponse
-	Fiats  []FiatPriceResponse
+	Tokens []TokenPriceAndSupply
+	Fiats  []FiatPrice
 }
 
-type TokenPriceResponse struct {
+type TokenPriceAndSupply struct {
 	Symbol string  `db:"symbol"`
 	Price  float64 `db:"price"`
 	Supply float64 `db:"supply"`
 }
-type FiatPriceResponse struct {
+type FiatPrice struct {
 	Symbol string  `db:"symbol"`
 	Price  float64 `db:"price"`
 }
@@ -31,11 +31,11 @@ type Prices struct {
 	UpdatedAt int64   `db:"updatedat"`
 }
 
-type SelectToken struct {
+type Tokens struct {
 	Tokens []string `json:"tokens"`
 }
 
-type SelectFiat struct {
+type Fiats struct {
 	Fiats []string `json:"fiats"`
 }
 

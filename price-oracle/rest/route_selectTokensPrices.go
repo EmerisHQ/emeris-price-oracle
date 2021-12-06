@@ -1,123 +1,75 @@
 package rest
 
 import (
-	"context"
-	"encoding/json"
-	"net/http"
-	"time"
-
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"go.uber.org/zap"
+	"net/http"
 )
 
-const getselectTokensPricesRoute = "/tokens"
+const getTokensPricesRoute = "/tokens"
 
-func (r *router) TokensPrices(ctx *gin.Context) {
-	var selectToken types.SelectToken
-	var symbols []types.TokenPriceResponse
+func getTokenPriceAndSupplies(
+	tokens []string,
+	store *store.Handler,
+	logger *zap.SugaredLogger) ([]types.TokenPriceAndSupply, int, error) {
 
-	if err := ctx.BindJSON(&selectToken); err != nil {
-		r.s.l.Error("Error", "TokensPrices", err.Error(), "Duration", time.Second)
-	}
-	if len(selectToken.Tokens) > 10 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow More than 10 asset",
-		})
-		return
-	}
-
-	if selectToken.Tokens == nil {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow nil asset",
-		})
-		return
-	}
-
-	if len(selectToken.Tokens) == 0 {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not allow 0 asset",
-		})
-		return
-	}
-
-	whitelists, err := r.s.sh.CnsTokenQuery()
+	whitelistedTokens, err := store.GetCNSWhitelistedTokens()
 	if err != nil {
-		r.s.l.Error("Error", "DB", err.Error(), "Duration", time.Second)
-		return
+		logger.Error("Error", "store.GetCNSWhitelistedTokens()", err.Error())
+		return nil, http.StatusInternalServerError, err
 	}
-	var basetokens []string
-	for _, token := range whitelists {
-		tokens := token + types.USDTBasecurrency
-		basetokens = append(basetokens, tokens)
+	var whitelistedTokenSymbols []string
+	for _, token := range whitelistedTokens {
+		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}
-	if !IsSubset(selectToken.Tokens, basetokens) {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status":  http.StatusForbidden,
-			"data":    nil,
-			"message": "Not whitelisting asset",
-		})
-		return
+
+	if !isSubset(tokens, whitelistedTokenSymbols) {
+		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
-	selectTokenkey, err := json.Marshal(selectToken.Tokens)
+
+	tokenPriceAndSupplies, err := store.GetTokenPriceAndSupplies(tokens)
 	if err != nil {
-		r.s.l.Error("Error", "Redis-selectTokenkey", err.Error(), "Duration", time.Second)
-		return
+		logger.Error("Error", "Store.GetTokenPriceAndSupplies()", err.Error())
+		return nil, http.StatusInternalServerError, err
 	}
-	if r.s.ri.Exists(string(selectTokenkey)) {
-		bz, err := r.s.ri.Client.Get(context.Background(), string(selectTokenkey)).Bytes()
-		if err != nil {
-			r.s.l.Error("Error", "Redis-Get", err.Error(), "Duration", time.Second)
-			fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
-			return
-		}
-
-		if err = json.Unmarshal(bz, &symbols); err != nil {
-			r.s.l.Error("Error", "Redis-Unmarshal", err.Error(), "Duration", time.Second)
-			fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
-			return
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"data":    &symbols,
-			"message": nil,
-		})
-
-		return
-	}
-	fetchTokenPricesFromStore(r, ctx, selectToken, selectTokenkey)
+	return tokenPriceAndSupplies, http.StatusOK, nil
 }
 
-func (r *router) getselectTokensPrices() (string, gin.HandlerFunc) {
-	return getselectTokensPricesRoute, r.TokensPrices
-}
-
-func fetchTokenPricesFromStore(r *router, ctx *gin.Context, selectToken types.SelectToken, selectTokenkey []byte) {
-	symbols, err := r.s.sh.Store.GetTokens(selectToken)
-	if err != nil {
-		e(ctx, http.StatusInternalServerError, err)
-		r.s.l.Error("Error", "Store.GetTokens()", err.Error(), "Duration", time.Second)
-		return
-	}
-	bz, err := json.Marshal(symbols)
-	if err != nil {
-		r.s.l.Error("Error", "Marshal symbols", err.Error(), "Duration", time.Second)
+func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
+	var tokens types.Tokens
+	if err := ctx.BindJSON(&tokens); err != nil {
+		r.s.l.Error("Error", "TokenPriceAndSupplies", err.Error())
+		e(ctx, http.StatusBadRequest, err)
 		return
 	}
 
-	if err = r.s.ri.SetWithExpiryTime(string(selectTokenkey), string(bz), r.s.c.RedisExpiry); err != nil {
-		r.s.l.Error("Error", "Redis-Set", err.Error(), "Duration", time.Second)
+	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > 10 {
+		err := errZeroAsset
+		if len(tokens.Tokens) > 10 {
+			err = errAssetLimitExceed
+		} else if tokens.Tokens == nil {
+			err = errNilAsset
+		}
+		e(ctx, http.StatusForbidden, err)
 		return
 	}
+
+	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(tokens.Tokens, r.s.sh, r.s.l)
+	if err != nil {
+		e(ctx, httpStatus, err)
+		return
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  http.StatusOK,
-		"data":    &symbols,
+		"data":    &tokenPriceAndSupplies,
 		"message": nil,
 	})
+}
+
+func (r *router) getTokensPriceAndSupplies() (string, gin.HandlerFunc) {
+	return getTokensPricesRoute, r.tokensPriceAndSuppliesHandler
 }

@@ -15,11 +15,11 @@ func TestSelectTokensPrices(t *testing.T) {
 	router, ctx, w, tDown := setup(t)
 	defer tDown()
 
-	want := []types.TokenPriceResponse{
+	want := []types.TokenPriceAndSupply{
 		{Price: 10, Symbol: "ATOMUSDT", Supply: 113563929433.0},
 		{Price: 10, Symbol: "LUNAUSDT", Supply: 113563929433.0},
 	}
-	err := insertWantData(router, types.AllPriceResponse{Tokens: want}, router.s.l)
+	err := insertWantData(router, types.AllPriceResponse{Tokens: want})
 	require.NoError(t, err)
 
 	ctx.Request = &http.Request{
@@ -28,18 +28,18 @@ func TestSelectTokensPrices(t *testing.T) {
 	ctx.Request.Method = "POST" // or PUT
 	ctx.Request.Header.Set("Content-Type", "application/json")
 
-	fiats := types.SelectToken{
+	fiats := types.Tokens{
 		Tokens: []string{"ATOMUSDT", "LUNAUSDT"},
 	}
 	jsonBytes, err := json.Marshal(fiats)
 	require.NoError(t, err)
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(jsonBytes))
 
-	_, handler := router.getselectTokensPrices()
+	_, handler := router.getTokensPriceAndSupplies()
 	handler(ctx)
 
 	var got struct {
-		Data []types.TokenPriceResponse `json:"data"`
+		Data []types.TokenPriceAndSupply `json:"data"`
 	}
 	err = json.Unmarshal(w.Body.Bytes(), &got)
 	require.NoError(t, err)

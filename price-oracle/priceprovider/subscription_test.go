@@ -1,16 +1,20 @@
-package database_test
+package priceprovider_test
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	models "github.com/allinbits/demeris-backend-models/cns"
+	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
@@ -28,7 +32,7 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -39,22 +43,22 @@ func TestSubscriptionBinance(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionBinance(ctx, logger, cfg)
+	err = api.SubscriptionBinance()
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(database.BinanceStore)
+	prices, err := storeHandler.Store.GetPrices(store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -50.0)
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -78,15 +82,15 @@ func TestSubscriptionCoingecko(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionCoingecko(ctx, logger, cfg)
+	err = api.SubscriptionCoingecko()
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(database.CoingeckoStore)
+	prices, err := storeHandler.Store.GetPrices(store.CoingeckoStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -39.41)
@@ -107,7 +111,7 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	ctx, storeHandler, cancel, logger, cfg, tDown := setupSubscription(t)
+	_, cancel, storeHandler, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -118,15 +122,15 @@ func TestSubscriptionFixer(t *testing.T) {
 		}
 	})
 
-	api := database.Api{
+	api := priceprovider.Api{
 		Client:       client,
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionFixer(ctx, logger, cfg)
+	err = api.SubscriptionFixer()
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(database.FixerStore)
+	prices, err := storeHandler.Store.GetPrices(store.FixerStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[1].Symbol, "USDEUR")
 	require.Equal(t, prices[1].Price, 0.806942)
@@ -144,7 +148,7 @@ func newTestClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, func(), *zap.SugaredLogger, *config.Config, func()) {
+func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -158,7 +162,7 @@ func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, f
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
-		Whitelistfiats:        []string{"EUR", "KRW", "CHF"},
+		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
 	}
 
 	logger := logging.New(logging.LoggingConfig{
@@ -169,40 +173,78 @@ func setupSubscription(t *testing.T) (context.Context, *database.StoreHandler, f
 	insertToken(t, connStr)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	storeHandler, err := getStoreHandler(t, testServer)
+	storeHandler, err := getStoreHandler(t, testServer, logger, cfg)
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	tokens := []types.TokenPriceResponse{
-		{
-			Symbol: "ATOMUSDT",
-			Price:  10,
+	return ctx, cancel, storeHandler, func() { testServer.Stop() }
+}
+
+func insertToken(t *testing.T, connStr string) {
+	chain := models.Chain{
+		ChainName:        "cosmos-hub",
+		DemerisAddresses: []string{"addr1"},
+		DisplayName:      "ATOM display name",
+		GenesisHash:      "hash",
+		NodeInfo:         models.NodeInfo{},
+		ValidBlockThresh: models.Threshold(1 * time.Second),
+		DerivationPath:   "derivation_path",
+		SupportedWallets: []string{"metamask"},
+		Logo:             "logo 1",
+		Denoms: []models.Denom{
+			{
+				Name:        "ATOM",
+				PriceID:     "cosmos",
+				DisplayName: "ATOM",
+				FetchPrice:  true,
+				Ticker:      "ATOM",
+			},
+			{
+				Name:        "LUNA",
+				PriceID:     "terra-luna",
+				DisplayName: "LUNA",
+				FetchPrice:  true,
+				Ticker:      "LUNA",
+			},
 		},
-		{
-			Symbol: "LUNAUSDT",
-			Price:  10,
+		PrimaryChannel: models.DbStringMap{
+			"cosmos-hub":  "ch0",
+			"persistence": "ch2",
 		},
 	}
-	stores := []string{database.BinanceStore, database.CoingeckoStore}
-	for _, token := range tokens {
-		err := storeHandler.Store.UpsertPrice(database.TokensStore, token.Price, token.Symbol, logger)
-		require.NoError(t, err)
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
+	cnsInstanceDB, err := cnsDB.New(connStr)
+	require.NoError(t, err)
+
+	err = cnsInstanceDB.AddChain(chain)
+	require.NoError(t, err)
+
+	cc, err := cnsInstanceDB.Chains()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(cc))
+}
+
+func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
+	t.Helper()
+	connStr := ts.PGURL().String()
+	return sql.NewDB(connStr)
+}
+
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
+	t.Helper()
+	db, err := getDB(t, ts)
+	if err != nil {
+		return nil, err
 	}
 
-	fiats := types.SelectFiat{
-		Fiats: []string{"USDCHF", "USDEUR", "USDKRW"},
-	}
-	stores = []string{database.FixerStore}
-	for _, tk := range fiats.Fiats {
-		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix(), logger)
-			require.NoError(t, err)
-		}
+	storeHandler, err := store.NewStoreHandler(
+		store.WithDB(db),
+		store.WithLogger(logger),
+		store.WithConfig(cfg),
+		store.WithCache(nil),
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	return ctx, storeHandler, cancel, logger, cfg, func() { testServer.Stop() }
+	return storeHandler, nil
 }

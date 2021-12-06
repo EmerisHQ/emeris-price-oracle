@@ -4,16 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 )
 
 const (
@@ -57,34 +56,31 @@ func (m *SqlDB) Init() error {
 	return nil
 }
 
-func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResponse, error) {
-	var tokens []types.TokenPriceResponse
-	var token types.TokenPriceResponse
-	var symbolList []interface{}
-
-	query := "SELECT * FROM " + database.TokensStore + " WHERE symbol=$1"
-
-	for i := 2; i <= len(selectToken.Tokens); i++ {
+func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
+	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
+	for i := 2; i <= len(tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	for _, usersymbol := range selectToken.Tokens {
-		symbolList = append(symbolList, usersymbol)
+	var symbolList []interface{}
+	for _, symbol := range tokens {
+		symbolList = append(symbolList, symbol)
 	}
+
+	var priceAndSupplies []types.TokenPriceAndSupply
+	var symbol string
+	var price float64
+	var supply float64
 
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		var symbol string
-		var price float64
-		var supply float64
-
 		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
-		rowGeckoSupply, err := m.Query("SELECT * FROM "+database.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		rowGeckoSupply, err := m.Query("SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -96,50 +92,48 @@ func (m *SqlDB) GetTokens(selectToken types.SelectToken) ([]types.TokenPriceResp
 		if err = rowGeckoSupply.Close(); err != nil {
 			return nil, err
 		}
-		token.Symbol = symbol
-		token.Price = price
-		token.Supply = supply
-
-		tokens = append(tokens, token)
+		detail := types.TokenPriceAndSupply{
+			Symbol: symbol,
+			Price:  price,
+			Supply: supply,
+		}
+		priceAndSupplies = append(priceAndSupplies, detail)
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
 
-	return tokens, nil
+	return priceAndSupplies, nil
 }
 
-func (m *SqlDB) GetFiats(selectFiat types.SelectFiat) ([]types.FiatPriceResponse, error) {
-	var symbols []types.FiatPriceResponse
-	var symbol types.FiatPriceResponse
-	var symbolList []interface{}
-
-	query := "SELECT * FROM " + database.FiatsStore + " WHERE symbol=$1"
-
-	for i := 2; i <= len(selectFiat.Fiats); i++ {
+func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
+	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
+	for i := 2; i <= len(fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	for _, usersymbol := range selectFiat.Fiats {
-		symbolList = append(symbolList, usersymbol)
+	var symbolList []interface{}
+	for _, fiat := range fiats {
+		symbolList = append(symbolList, fiat)
 	}
 
+	var fiatPrices []types.FiatPrice
+	var price types.FiatPrice
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-
-		if err := rows.StructScan(&symbol); err != nil {
+		if err := rows.StructScan(&price); err != nil {
 			return nil, err
 		}
-		symbols = append(symbols, symbol)
+		fiatPrices = append(fiatPrices, price)
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
 
-	return symbols, nil
+	return fiatPrices, nil
 }
 
 func (m *SqlDB) GetTokenNames() ([]string, error) {
@@ -150,12 +144,12 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 	}
 	for q.Next() {
 		var ticker string
-		var fetch_price bool
+		var fetchPrice bool
 
-		if err := q.Scan(&ticker, &fetch_price); err != nil {
+		if err := q.Scan(&ticker, &fetchPrice); err != nil {
 			return nil, err
 		}
-		if fetch_price {
+		if fetchPrice {
 			ticker = strings.TrimRight(ticker, "\"")
 			ticker = strings.TrimLeft(ticker, "\"")
 			whitelists = append(whitelists, ticker)
@@ -171,17 +165,17 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 		return nil, err
 	}
 	for q.Next() {
-		var price_id sql.NullString
-		var fetch_price bool
+		var priceId sql.NullString
+		var fetchPrice bool
 
-		if err := q.Scan(&price_id, &fetch_price); err != nil {
+		if err := q.Scan(&priceId, &fetchPrice); err != nil {
 			return nil, err
 		}
-		if price_id.Valid {
-			if fetch_price {
-				price_id.String = strings.TrimRight(price_id.String, "\"")
-				price_id.String = strings.TrimLeft(price_id.String, "\"")
-				whitelists = append(whitelists, price_id.String)
+		if priceId.Valid {
+			if fetchPrice {
+				priceId.String = strings.TrimRight(priceId.String, "\"")
+				priceId.String = strings.TrimLeft(priceId.String, "\"")
+				whitelists = append(whitelists, priceId.String)
 			}
 		} else {
 			continue
@@ -210,28 +204,27 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	return prices, nil
 }
 
-func (m *SqlDB) UpsertPrice(to string, price float64, token string, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
 	tx := m.db.MustBegin()
 
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
-	updateresult, err := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("DB update: %w", err)
 	}
 	//If you perform an update without a token column, it does not respond as an error; it responds with zero.
 	//So you have to insert a new one in the column.
-	if updateresult == 0 {
+	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
 	}
 
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("DB commit: %w", err)
 	}
-	logger.Infow("Insert to ", token, price)
 	return nil
 }
 
-func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64) error {
 	tx := m.db.MustBegin()
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 
@@ -249,15 +242,15 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64,
 	return nil
 }
 
-func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64, logger *zap.SugaredLogger) error {
+func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64) error {
 	tx := m.db.MustBegin()
-	resultsupply := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+	result := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
 
-	updateresultsupply, err := resultsupply.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
 	}
-	if updateresultsupply == 0 {
+	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
 	}
 
@@ -275,7 +268,7 @@ func (m *SqlDB) Query(query string, args ...interface{}) (*sqlx.Rows, error) {
 	return q, nil
 }
 
-// New returns an Instance connected to the database pointed by connString.
+// NewDB returns an Instance connected to the database pointed by connString.
 func NewDB(connString string) (*SqlDB, error) {
 	return NewWithDriver(connString, DriverPGX)
 }
@@ -303,7 +296,7 @@ func NewWithDriver(connString string, driver string) (*SqlDB, error) {
 	return m, nil
 }
 
-// Close closes the connection held by i.
+// Close closes the connection held by m.
 func (m *SqlDB) Close() error {
 	return m.db.Close()
 }

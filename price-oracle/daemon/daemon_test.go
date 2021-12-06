@@ -140,7 +140,7 @@ func TestDaemon_worker_not_responding_restart_twice(t *testing.T) {
 					plsCnt++
 				case <-callFn:
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(logger, cfg); err != nil {
+					if err := fn(); err != nil {
 						errCh <- err
 					}
 				}
@@ -183,16 +183,16 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 	t.Helper()
 
 	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
-		LogPath:        "",
-		Debug:          true,
-		Interval:       "10s",
-		Whitelistfiats: []string{"EUR", "KRW", "CHF"},
+		LogPath:          "",
+		Debug:            true,
+		Interval:         "10s",
+		WhitelistedFiats: []string{"EUR", "KRW", "CHF"},
 	}
 
 	observedZapCore, logs := observer.New(zap.InfoLevel)
 	logger := zap.New(observedZapCore).Sugar()
 
-	dummyAgg := func(logger *zap.SugaredLogger, cfg *config.Config) error {
+	dummyAgg := func() error {
 		return fmt.Errorf("not implemented")
 	}
 	dummyWorker := func(
@@ -219,7 +219,7 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 				case <-callFn:
 					logger.Infof("Worker: calling fn")
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(logger, cfg); err != nil {
+					if err := fn(); err != nil {
 						logger.Infof("Worker: found Error: %v", err)
 						errCh <- err
 					}
