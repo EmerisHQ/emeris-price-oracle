@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -35,7 +36,7 @@ type Api struct {
 
 func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger *zap.SugaredLogger, cfg *config.Config) {
 	api := Api{
-		Client:       &http.Client{Timeout: 2 * time.Second},
+		Client:       &http.Client{Timeout: cfg.HttpClientTimeout},
 		StoreHandler: storeHandler,
 	}
 

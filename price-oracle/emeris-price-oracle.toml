@@ -8,4 +8,5 @@ whitelistedFiats = ["EUR","KRW","CHF"]
 coinmarketcapapikey =""
 fixerapikey = ""
 RedisExpiry = "10s"
-DeamonPulse = "3s"
+recovercount = 5
+workerpulse = "3s"

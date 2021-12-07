@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
+
+	models "github.com/allinbits/demeris-backend-models/cns"
+	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
@@ -163,6 +164,7 @@ func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, f
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
+		HttpClientTimeout:     2 * time.Second,
 	}
 
 	logger := logging.New(logging.LoggingConfig{

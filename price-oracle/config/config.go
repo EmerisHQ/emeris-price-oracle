@@ -17,7 +17,8 @@ type Config struct {
 	WhitelistedFiats      []string `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
 	RecoverCount          int
-	DaemonPulse           time.Duration `validate:"required"`
+	WorkerPulse           time.Duration `validate:"required"`
+	HttpClientTimeout     time.Duration
 
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`
