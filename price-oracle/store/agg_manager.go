@@ -29,8 +29,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 	}
 	for _, properties := range workers {
 		wg.Add(1)
-		// TODO: Hack!! Move pulse (3 * time.Second) on abstraction later.
-		heartbeatCh, errCh := runAsDaemon(properties.doneCh, 3*time.Second, storeHandler.Logger, storeHandler.Cfg, properties.worker)
+		heartbeatCh, errCh := runAsDaemon(properties.doneCh, storeHandler.Cfg.DaemonPulse, storeHandler.Logger, storeHandler.Cfg, properties.worker)
 		go func(ctx context.Context, done chan struct{}, workerName string) {
 			defer close(done)
 			defer wg.Done()

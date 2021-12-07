@@ -21,3 +21,5 @@ databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
 debug: true
 
 updateInterval: 20s
+
+deamonPulse: 3s
