@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
@@ -92,12 +93,12 @@ func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAnd
 		if err = rowGeckoSupply.Close(); err != nil {
 			return nil, err
 		}
-		detail := types.TokenPriceAndSupply{
+
+		priceAndSupplies = append(priceAndSupplies, types.TokenPriceAndSupply{
 			Symbol: symbol,
 			Price:  price,
 			Supply: supply,
-		}
-		priceAndSupplies = append(priceAndSupplies, detail)
+		})
 	}
 	if err = rows.Close(); err != nil {
 		return nil, err
@@ -189,12 +190,12 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	var price types.Prices
 	rows, err := m.Query("SELECT * FROM " + from)
 	if err != nil {
-		return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
+		return nil, fmt.Errorf("fatal: GetPrices: %w", err)
 	}
 	for rows.Next() {
 
 		if err := rows.StructScan(&price); err != nil {
-			return nil, fmt.Errorf("fatal: GetPrices: %w, duration:%s", err, time.Second)
+			return nil, fmt.Errorf("fatal: GetPrices: %w", err)
 		}
 		prices = append(prices, price)
 	}
