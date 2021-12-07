@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -25,7 +26,7 @@ const (
 	BinanceURL = "https://api.binance.com/api/v3/ticker/price"
 	FixerURL   = "https://data.fixer.io/api/latest"
 
-	//CoinMarketCapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+	// CoinMarketCapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
 )
 
 type Api struct {

@@ -2,8 +2,9 @@ package rest
 
 import (
 	"errors"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"net/http"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/go-playground/validator/v10"
 
