@@ -2,14 +2,13 @@ package rest
 
 import (
 	"errors"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -17,17 +16,16 @@ import (
 
 type Server struct {
 	l  *zap.SugaredLogger
-	d  *database.Instance
+	sh *store.Handler
 	g  *gin.Engine
 	c  *config.Config
-	ri *store.Store
 }
 
 type router struct {
 	s *Server
 }
 
-func NewServer(ri *store.Store, l *zap.SugaredLogger, d *database.Instance, c *config.Config) *Server {
+func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Server {
 	if !c.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -36,10 +34,9 @@ func NewServer(ri *store.Store, l *zap.SugaredLogger, d *database.Instance, c *c
 
 	s := &Server{
 		l:  l,
-		d:  d,
 		g:  g,
+		sh: sh,
 		c:  c,
-		ri: ri,
 	}
 
 	r := &router{s: s}
@@ -47,9 +44,9 @@ func NewServer(ri *store.Store, l *zap.SugaredLogger, d *database.Instance, c *c
 	g.Use(logging.LogRequest(l.Desugar()))
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
 
-	g.GET(r.getallPrices())
-	g.POST(r.getselectTokensPrices())
-	g.POST(r.getselectFiatsPrices())
+	g.GET(r.getAllPrices())
+	g.POST(r.getTokensPriceAndSupplies())
+	g.POST(r.getFiatsPrices())
 
 	g.NoRoute(func(context *gin.Context) {
 		e(context, http.StatusNotFound, errors.New("not found"))
@@ -70,6 +67,13 @@ type restValidationError struct {
 	ValidationErrors []string `json:"validation_errors"`
 }
 
+var (
+	errAssetLimitExceed    = errors.New("more than 10 asset not allowed")
+	errZeroAsset           = errors.New("0 asset not allowed")
+	errNilAsset            = errors.New("nil asset not allowed")
+	errNotWhitelistedAsset = errors.New("not whitelisted asset")
+)
+
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
 	var jsonErr interface{}
@@ -88,25 +92,22 @@ func e(c *gin.Context, status int, err error) {
 		jsonErr = rve
 	}
 
-	c.Error(err) // nolint: errcheck
+	_ = c.Error(err)
 	c.AbortWithStatusJSON(status, jsonErr)
 }
 
-func Diffpair(a []string, b []string) bool {
-	// Turn b into a map
-	m := make(map[string]bool, len(b))
-	for _, s := range b {
-		m[s] = false
-	}
-	// Append values from the longest slice that don't exist in the map
-	var diff []string
-	for _, s := range a {
-		if _, ok := m[s]; !ok {
-			diff = append(diff, s)
-			continue
-		}
-		m[s] = true
+// isSubset returns true if all element of (param:<subList>) in found in (param:<globalList>)
+func isSubset(subList []string, globalList []string) bool {
+	// Turn globalList into a map
+	globalSet := make(map[string]bool, len(globalList))
+	for _, s := range globalList {
+		globalSet[s] = true
 	}
 
-	return diff == nil
+	for _, s := range subList {
+		if _, ok := globalSet[s]; !ok {
+			return false
+		}
+	}
+	return true
 }

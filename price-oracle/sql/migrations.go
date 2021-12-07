@@ -1,6 +1,6 @@
-package database
+package sql
 
-import "github.com/allinbits/emeris-price-oracle/utils/database"
+import "fmt"
 
 const createDatabase = `
 CREATE DATABASE oracle;
@@ -46,14 +46,32 @@ var migrationCoingecko = []string{
 	createTableCoingeckoSupply,
 }
 
-func (i *Instance) runMigrations() {
-	if err := database.RunMigrations(i.connString, migrationList); err != nil {
-		panic(err)
+func (m *SqlDB) runMigrations() error {
+	if err := m.RunMigrations(migrationList); err != nil {
+		return err
 	}
+	return nil
 }
 
-func (i *Instance) runMigrationsCoingecko() {
-	if err := database.RunMigrations(i.connString, migrationCoingecko); err != nil {
-		panic(err)
+func (m *SqlDB) runMigrationsCoingecko() error {
+	if err := m.RunMigrations(migrationCoingecko); err != nil {
+		return err
 	}
+	return nil
+}
+
+func (m *SqlDB) RunMigrations(migrations []string) error {
+	m, err := NewDB(m.connString)
+	if err != nil {
+		return err
+	}
+
+	for i, migration := range migrations {
+
+		if _, err := m.db.Exec(migration); err != nil {
+			return fmt.Errorf("error while running migration #%d, %w", i, err)
+		}
+	}
+
+	return m.db.Close()
 }

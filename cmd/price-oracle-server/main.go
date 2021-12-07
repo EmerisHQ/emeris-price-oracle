@@ -2,40 +2,46 @@ package main
 
 import (
 	"context"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
 )
 
 var Version = "not specified"
 
 func main() {
-	config, err := config.Read()
+	cfg, err := config.Read()
 	if err != nil {
 		panic(err)
 	}
 
 	logger := logging.New(logging.LoggingConfig{
-		LogPath: config.LogPath,
-		Debug:   config.Debug,
+		LogPath: cfg.LogPath,
+		Debug:   cfg.Debug,
 	})
 
 	logger.Infow("price-oracle-server", "version", Version)
 
-	di, err := database.New(config.DatabaseConnectionURL)
+	db, err := sql.NewDB(cfg.DatabaseConnectionURL)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	ri, err := store.NewClient(config.RedisUrl)
+
+	storeHandler, err := store.NewStoreHandler(
+		store.WithDB(db),
+		store.WithConfig(cfg),
+		store.WithLogger(logger),
+		store.WithCache(nil),
+	)
 	if err != nil {
-		logger.Panicw("unable to start redis client", "error", err)
+		logger.Fatal(err)
 	}
 
 	var wg sync.WaitGroup
@@ -46,21 +52,16 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		database.StartAggregate(ctx, logger, config)
+		store.StartAggregate(ctx, storeHandler, 5)
 	}()
 	go func() {
 		defer wg.Done()
-		database.StartSubscription(ctx, logger, config)
+		priceprovider.StartSubscription(ctx, storeHandler, logger, cfg)
 	}()
 
-	restServer := rest.NewServer(
-		ri,
-		logger,
-		di,
-		config,
-	)
+	restServer := rest.NewServer(storeHandler, logger, cfg)
 	go func() {
-		if err := restServer.Serve(config.ListenAddr); err != nil {
+		if err := restServer.Serve(cfg.ListenAddr); err != nil {
 			logger.Panicw("rest http server error", "error", err)
 		}
 	}()
