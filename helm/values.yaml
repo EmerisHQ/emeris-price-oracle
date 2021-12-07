@@ -23,3 +23,5 @@ debug: true
 updateInterval: 20s
 
 workerPulse: 3s
+
+maxAssetsReq: 10

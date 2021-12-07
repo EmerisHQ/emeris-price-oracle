@@ -15,6 +15,7 @@ type Config struct {
 	LogPath               string
 	Interval              string   `validate:"required"`
 	WhitelistedFiats      []string `validate:"required"`
+	MaxAssetsReq          int      `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
 	RecoverCount          int
 	WorkerPulse           time.Duration `validate:"required"`

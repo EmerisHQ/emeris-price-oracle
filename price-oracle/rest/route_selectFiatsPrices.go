@@ -1,12 +1,13 @@
 package rest
 
 import (
+	"net/http"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 const getFiatsPricesRoute = "/fiats"
@@ -42,9 +43,9 @@ func (r *router) fiatPriceHandler(ctx *gin.Context) {
 		return
 	}
 
-	if len(fiats.Fiats) == 0 || len(fiats.Fiats) > 10 {
+	if len(fiats.Fiats) == 0 || len(fiats.Fiats) > r.s.c.MaxAssetsReq {
 		err := errZeroAsset
-		if len(fiats.Fiats) > 10 {
+		if len(fiats.Fiats) > r.s.c.MaxAssetsReq {
 			err = errAssetLimitExceed
 		} else if fiats.Fiats == nil {
 			err = errNilAsset

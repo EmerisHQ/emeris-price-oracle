@@ -1,12 +1,13 @@
 package rest
 
 import (
+	"net/http"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 const getTokensPricesRoute = "/tokens"
@@ -46,9 +47,9 @@ func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 		return
 	}
 
-	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > 10 {
+	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > r.s.c.MaxAssetsReq {
 		err := errZeroAsset
-		if len(tokens.Tokens) > 10 {
+		if len(tokens.Tokens) > r.s.c.MaxAssetsReq {
 			err = errAssetLimitExceed
 		} else if tokens.Tokens == nil {
 			err = errNilAsset

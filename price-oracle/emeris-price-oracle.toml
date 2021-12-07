@@ -10,3 +10,4 @@ fixerapikey = ""
 RedisExpiry = "10s"
 recovercount = 5
 workerpulse = "3s"
+maxassetsreq = 10
