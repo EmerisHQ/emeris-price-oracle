@@ -1,12 +1,13 @@
 package rest
 
 import (
+	"net/http"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 const getFiatsPricesRoute = "/fiats"
@@ -17,7 +18,7 @@ func getFiatPrices(
 	store *store.Handler,
 	logger *zap.SugaredLogger) ([]types.FiatPrice, int, error) {
 
-	var fiatSymbols []string
+	fiatSymbols := make([]string, 0, len(whitelisted))
 	for _, fiat := range whitelisted {
 		fiatSymbols = append(fiatSymbols, types.USD+fiat)
 	}

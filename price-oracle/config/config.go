@@ -17,8 +17,8 @@ type Config struct {
 	WhitelistedFiats      []string `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
 
-	//Not currently used, but may be used in the future
-	//CoinmarketcapapiKey string `validate:"required"`
+	// Not currently used, but may be used in the future
+	// CoinmarketcapapiKey string `validate:"required"`
 }
 
 func (c Config) Validate() error {

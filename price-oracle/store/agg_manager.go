@@ -72,17 +72,19 @@ func AggregateManager(
 			errCh <- err
 			return
 		}
-		ticker := time.Tick(fetchInterval)
-		pulse := time.Tick(pulseInterval)
+		ticker := time.NewTicker(fetchInterval)
+		defer ticker.Stop()
+		pulse := time.NewTicker(pulseInterval)
+		defer pulse.Stop()
 		for {
 			select {
 			case <-done:
 				return
-			case <-ticker:
+			case <-ticker.C:
 				if err := fn(); err != nil {
 					errCh <- err
 				}
-			case <-pulse:
+			case <-pulse.C:
 				select {
 				case heartbeatCh <- fmt.Sprintf("AggregateManager(%v)", daemon.GetFunctionName(fn)):
 				default:
@@ -95,10 +97,10 @@ func AggregateManager(
 
 func Averaging(prices map[string]float64) (float64, error) {
 	if prices == nil {
-		return 0, fmt.Errorf("Store.Averaging(): nil price list recieved")
+		return 0, fmt.Errorf("Store.Averaging(): nil price list received")
 	}
 	if len(prices) == 0 {
-		return 0, fmt.Errorf("Store.Averaging(): empty price list recieved")
+		return 0, fmt.Errorf("Store.Averaging(): empty price list received")
 	}
 	var total float64
 	for _, p := range prices {

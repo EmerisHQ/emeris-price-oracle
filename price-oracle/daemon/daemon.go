@@ -1,9 +1,9 @@
 package daemon
 
 import (
+	"crypto/rand"
 	"errors"
-	"fmt"
-	"math/rand"
+	"math/big"
 	"reflect"
 	"runtime"
 	"strings"
@@ -108,18 +108,23 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			//
 			// Jitter should be at least 1/20 of the pulseInterval and not more than
 			// 1/10 th of the pulseInterval.
-			randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(10) + 10
-			jitter := pulseInterval / time.Duration(randomInt)
-			pulse := time.Tick((2 * pulseInterval) + jitter)
+			randInt, err := rand.Int(rand.Reader, big.NewInt(10))
+			if err != nil {
+				errCh <- err
+				return
+			}
+			jitter := pulseInterval / time.Duration(randInt.Int64())
+			pulse := time.NewTicker((2 * pulseInterval) + jitter)
+			defer pulse.Stop()
 
 		monitorLoop:
 			for {
 				timeoutSignal := time.After(timeout)
 				for {
 					select {
-					case <-pulse:
+					case <-pulse.C:
 						select {
-						case heartbeat <- fmt.Sprintf("Heartbeat from daemon"):
+						case heartbeat <- "Heartbeat from daemon":
 						default:
 						}
 					case beat := <-workerHeartbeat:
