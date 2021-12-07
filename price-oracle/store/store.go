@@ -2,17 +2,18 @@ package store
 
 import (
 	"fmt"
+	"math/rand"
+	"sync"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
-	"math/rand"
-	"sync"
 
 	"time"
 )
 
 type Store interface {
-	Init() error //runs migrations
+	Init() error // runs migrations
 	Close() error
 	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error)
 	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)
@@ -245,7 +246,7 @@ func (h *Handler) PriceTokenAggregator() error {
 			}
 			now := time.Now()
 
-			//do not update if it was already updated in the last minute
+			// do not update if it was already updated in the last minute
 			if token.UpdatedAt < now.Unix()-60 {
 				continue
 			}

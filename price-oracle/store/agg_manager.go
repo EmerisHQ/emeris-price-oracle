@@ -95,10 +95,10 @@ func AggregateManager(
 
 func Averaging(prices map[string]float64) (float64, error) {
 	if prices == nil {
-		return 0, fmt.Errorf("Store.Averaging(): nil price list recieved")
+		return 0, fmt.Errorf("Store.Averaging(): nil price list received")
 	}
 	if len(prices) == 0 {
-		return 0, fmt.Errorf("Store.Averaging(): empty price list recieved")
+		return 0, fmt.Errorf("Store.Averaging(): empty price list received")
 	}
 	var total float64
 	for _, p := range prices {
