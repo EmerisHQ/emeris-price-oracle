@@ -16,6 +16,7 @@ type Config struct {
 	Interval              string   `validate:"required"`
 	WhitelistedFiats      []string `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
+	RecoverCount          int
 
 	//Not currently used, but may be used in the future
 	//CoinmarketcapapiKey string `validate:"required"`

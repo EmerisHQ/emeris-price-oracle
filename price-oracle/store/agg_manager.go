@@ -11,14 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(ctx context.Context, storeHandler *Handler, maxRecover int) {
+func StartAggregate(ctx context.Context, storeHandler *Handler) {
 	fetchInterval, err := time.ParseDuration(storeHandler.Cfg.Interval)
 	if err != nil {
 		storeHandler.Logger.Fatal(err)
 	}
 
 	var wg sync.WaitGroup
-	runAsDaemon := daemon.MakeDaemon(fetchInterval*3, maxRecover, AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(fetchInterval*3, storeHandler.Cfg.RecoverCount, AggregateManager)
 
 	workers := map[string]struct {
 		worker daemon.AggFunc

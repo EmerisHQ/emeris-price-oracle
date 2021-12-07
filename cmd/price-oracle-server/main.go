@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 )
 
 var Version = "not specified"
@@ -52,7 +53,7 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		store.StartAggregate(ctx, storeHandler, 5)
+		store.StartAggregate(ctx, storeHandler)
 	}()
 	go func() {
 		defer wg.Done()

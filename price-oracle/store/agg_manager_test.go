@@ -2,10 +2,11 @@ package store_test
 
 import (
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -56,7 +57,7 @@ func TestStartAggregate(t *testing.T) {
 		require.Equal(t, tokens[i].Price, price.Price)
 	}
 
-	go store.StartAggregate(ctx, storeHandler, 3)
+	go store.StartAggregate(ctx, storeHandler)
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {

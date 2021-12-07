@@ -2,12 +2,13 @@ package store_test
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
@@ -135,6 +136,7 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
+		RecoverCount:          3,
 	}
 
 	logger := logging.New(logging.LoggingConfig{
