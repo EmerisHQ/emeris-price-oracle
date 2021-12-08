@@ -113,6 +113,7 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 				errCh <- err
 				return
 			}
+
 			jitter := pulseInterval / time.Duration(randInt.Int64()+10)
 			pulse := time.NewTicker((2 * pulseInterval) + jitter)
 			defer pulse.Stop()
