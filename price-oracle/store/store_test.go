@@ -2,12 +2,14 @@ package store_test
 
 import (
 	"context"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"go.uber.org/zap"
 	"testing"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/allinbits/emeris-price-oracle/utils/logging"
+	"go.uber.org/zap"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
@@ -99,6 +101,91 @@ func TestPriceFiatAggregator(t *testing.T) {
 		require.Equal(t, fiats[i], p.Symbol)
 		require.Equal(t, float64(10), p.Price)
 	}
+}
+
+func TestGetTokenPriceAndSupplies(t *testing.T) {
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	// alphabetic order
+	upsertTokens := []types.TokenPriceAndSupply{
+		{
+			Symbol: "ATOMUSDT",
+			Price:  12.3,
+			Supply: 456789,
+		},
+		{
+			Symbol: "LUNAUSDT",
+			Price:  98.7,
+			Supply: 654321,
+		},
+	}
+
+	var tokens []string
+	for _, token := range upsertTokens {
+		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol)
+		require.NoError(t, err)
+
+		err = storeHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply)
+		require.NoError(t, err)
+
+		tokens = append(tokens, token.Symbol)
+	}
+
+	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
+
+	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	require.NoError(t, err)
+
+	require.Equal(t, upsertTokens, tokensFromStore)
+
+	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
+
+	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	require.NoError(t, err)
+
+	require.Equal(t, upsertTokens, tokensFromCache)
+}
+
+func TestGetFiatPrices(t *testing.T) {
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	// alphabetic order
+	upsertFiats := []types.FiatPrice{
+		{
+			Symbol: "CHFUSD",
+			Price:  0.6,
+		},
+		{
+			Symbol: "EURUSD",
+			Price:  1.2,
+		},
+	}
+
+	var fiats []string
+	for _, fiat := range upsertFiats {
+		err := storeHandler.Store.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol)
+		require.NoError(t, err)
+
+		fiats = append(fiats, fiat.Symbol)
+	}
+
+	require.Nil(t, storeHandler.Cache.FiatPrices)
+
+	fiatsFromStore, err := storeHandler.GetFiatPrices(fiats)
+	require.NoError(t, err)
+
+	require.Equal(t, upsertFiats, fiatsFromStore)
+
+	require.NotNil(t, storeHandler.Cache.FiatPrices)
+
+	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
+	require.NoError(t, err)
+
+	require.Equal(t, upsertFiats, fiatsFromCache)
 }
 
 func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
