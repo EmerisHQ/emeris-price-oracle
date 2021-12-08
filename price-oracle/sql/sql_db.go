@@ -42,7 +42,7 @@ func (m *SqlDB) Init() error {
 		}
 	}
 
-	//interim measures
+	// interim measures
 	q, err = m.Query("SELECT * FROM oracle.coingecko")
 	if err != nil {
 		if err = m.runMigrationsCoingecko(); err != nil {
@@ -63,12 +63,12 @@ func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAnd
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	var symbolList []interface{}
+	symbolList := make([]interface{}, 0, len(tokens))
 	for _, symbol := range tokens {
 		symbolList = append(symbolList, symbol)
 	}
 
-	var priceAndSupplies []types.TokenPriceAndSupply
+	var priceAndSupplies []types.TokenPriceAndSupply //nolint:prealloc
 	var symbol string
 	var price float64
 	var supply float64
@@ -113,12 +113,12 @@ func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
 	}
 
-	var symbolList []interface{}
+	symbolList := make([]interface{}, 0, len(fiats))
 	for _, fiat := range fiats {
 		symbolList = append(symbolList, fiat)
 	}
 
-	var fiatPrices []types.FiatPrice
+	var fiatPrices []types.FiatPrice //nolint:prealloc
 	var price types.FiatPrice
 	rows, err := m.Query(query, symbolList...)
 	if err != nil {
@@ -186,7 +186,7 @@ func (m *SqlDB) GetPriceIDs() ([]string, error) {
 }
 
 func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
-	var prices []types.Prices
+	var prices []types.Prices //nolint:prealloc
 	var price types.Prices
 	rows, err := m.Query("SELECT * FROM " + from)
 	if err != nil {
@@ -213,8 +213,8 @@ func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
 	if err != nil {
 		return fmt.Errorf("DB update: %w", err)
 	}
-	//If you perform an update without a token column, it does not respond as an error; it responds with zero.
-	//So you have to insert a new one in the column.
+	// If you perform an update without a token column, it does not respond as an error; it responds with zero.
+	// So you have to insert a new one in the column.
 	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
 	}

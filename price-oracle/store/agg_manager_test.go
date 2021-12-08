@@ -132,9 +132,9 @@ func TestAveraging(t *testing.T) {
 
 	_, err = store.Averaging(nil)
 	require.Error(t, err)
-	require.Equal(t, fmt.Errorf("Store.Averaging(): nil price list recieved"), err)
+	require.Equal(t, fmt.Errorf("Store.Averaging(): nil price list received"), err)
 
 	_, err = store.Averaging(map[string]float64{})
 	require.Error(t, err)
-	require.Equal(t, fmt.Errorf("Store.Averaging(): empty price list recieved"), err)
+	require.Equal(t, fmt.Errorf("Store.Averaging(): empty price list received"), err)
 }

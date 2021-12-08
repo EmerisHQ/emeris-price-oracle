@@ -26,7 +26,7 @@ const (
 	BinanceURL = "https://api.binance.com/api/v3/ticker/price"
 	FixerURL   = "https://data.fixer.io/api/latest"
 
-	//CoinMarketCapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+	// CoinMarketCapURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
 )
 
 type Api struct {

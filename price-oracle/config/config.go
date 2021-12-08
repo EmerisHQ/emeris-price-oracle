@@ -21,8 +21,8 @@ type Config struct {
 	WorkerPulse           time.Duration `validate:"required"`
 	HttpClientTimeout     time.Duration
 
-	//Not currently used, but may be used in the future
-	//CoinmarketcapapiKey string `validate:"required"`
+	// Not currently used, but may be used in the future
+	// CoinmarketcapapiKey string `validate:"required"`
 }
 
 func (c Config) Validate() error {

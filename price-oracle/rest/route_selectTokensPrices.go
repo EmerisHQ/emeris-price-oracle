@@ -22,7 +22,7 @@ func getTokenPriceAndSupplies(
 		logger.Error("Error", "store.GetCNSWhitelistedTokens()", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
-	var whitelistedTokenSymbols []string
+	whitelistedTokenSymbols := make([]string, 0, len(whitelistedTokens))
 	for _, token := range whitelistedTokens {
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}

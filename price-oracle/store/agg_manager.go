@@ -71,17 +71,19 @@ func AggregateManager(
 			errCh <- err
 			return
 		}
-		ticker := time.Tick(fetchInterval)
-		pulse := time.Tick(pulseInterval)
+		ticker := time.NewTicker(fetchInterval)
+		defer ticker.Stop()
+		pulse := time.NewTicker(pulseInterval)
+		defer pulse.Stop()
 		for {
 			select {
 			case <-done:
 				return
-			case <-ticker:
+			case <-ticker.C:
 				if err := fn(); err != nil {
 					errCh <- err
 				}
-			case <-pulse:
+			case <-pulse.C:
 				select {
 				case heartbeatCh <- fmt.Sprintf("AggregateManager(%v)", daemon.GetFunctionName(fn)):
 				default:

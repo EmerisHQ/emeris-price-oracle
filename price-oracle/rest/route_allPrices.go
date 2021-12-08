@@ -1,10 +1,11 @@
 package rest
 
 import (
+	"net/http"
+
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"net/http"
 )
 
 const getAllPriceRoute = "/prices"
@@ -18,7 +19,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 	}
 
 	// if token is ATOM; then corresponding token symbol is ATOMUSDT.
-	var whitelistedTokenSymbols []string
+	whitelistedTokenSymbols := make([]string, 0, len(whitelistedTokens))
 	for _, token := range whitelistedTokens {
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}
@@ -31,7 +32,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 	}
 
 	// if fiat is EUR; then corresponding fiat symbol is USDEUR.
-	var whitelistedFiatSymbols []string
+	whitelistedFiatSymbols := make([]string, 0, len(r.s.c.WhitelistedFiats))
 	for _, fiat := range r.s.c.WhitelistedFiats {
 		whitelistedFiatSymbols = append(whitelistedFiatSymbols, types.USD+fiat)
 	}

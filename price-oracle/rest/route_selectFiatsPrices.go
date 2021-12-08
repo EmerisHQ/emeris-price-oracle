@@ -18,7 +18,7 @@ func getFiatPrices(
 	store *store.Handler,
 	logger *zap.SugaredLogger) ([]types.FiatPrice, int, error) {
 
-	var fiatSymbols []string
+	fiatSymbols := make([]string, 0, len(whitelisted))
 	for _, fiat := range whitelisted {
 		fiatSymbols = append(fiatSymbols, types.USD+fiat)
 	}

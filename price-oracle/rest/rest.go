@@ -7,6 +7,8 @@ import (
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+
 	"github.com/go-playground/validator/v10"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
