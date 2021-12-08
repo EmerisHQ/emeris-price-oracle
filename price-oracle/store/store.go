@@ -121,7 +121,6 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 		for {
 			select {
 			case <-time.Tick(d):
-				fmt.Println("Invalidate in-memory cache", time.Now().Second()) // Feeling cute, might delete later! UwU
 				cache.Mu.Lock()
 				cache.Whitelist = nil
 				cache.FiatPrices = nil
