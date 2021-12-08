@@ -115,8 +115,9 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 	}
 	// Invalidate in-memory cache after RefreshInterval
 	go func(cache *Cache) {
-		randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5
+		randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
 		d := cache.RefreshInterval + (cache.RefreshInterval / time.Duration(randomInt))
+		//nolint
 		for {
 			select {
 			case <-time.Tick(d):
@@ -182,7 +183,7 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 		return tokensDetails, err
 	}
 
-	var tokenDetails []types.TokenPriceAndSupply
+	tokenDetails := make([]types.TokenPriceAndSupply, 0, len(tokens))
 	for _, t := range tokens {
 		tokenDetails = append(tokenDetails, h.Cache.TokenPriceAndSupplies[t])
 	}
@@ -214,7 +215,7 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 		h.Cache.Mu.Unlock()
 		return fiatPrices, nil
 	}
-	var fiatPrices []types.FiatPrice
+	fiatPrices := make([]types.FiatPrice, 0, len(fiats))
 	for _, f := range fiats {
 		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
 	}
