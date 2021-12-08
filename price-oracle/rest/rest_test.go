@@ -159,6 +159,9 @@ func TestRest(t *testing.T) {
 			body, err = ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
+			err = resp.Body.Close()
+			require.NoError(t, err)
+
 			var restError restError
 			err = json.Unmarshal(body, &restError)
 			require.NoError(t, err)
