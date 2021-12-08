@@ -22,18 +22,54 @@ func TestNewStoreHandler(t *testing.T) {
 	_, _, storeHandler, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
+
+	require.Nil(t, storeHandler.Cache.Whitelist)
+	require.Nil(t, storeHandler.Cache.FiatPrices)
+	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
+
+	_, err := storeHandler.GetCNSWhitelistedTokens()
+	require.NoError(t, err)
+	require.NotNil(t, storeHandler.Cache.Whitelist)
+	require.Eventually(t, func() bool { return storeHandler.Cache.Whitelist == nil }, 10*time.Second, 1*time.Second)
+
+	_, fiats, err := upsertFiats(storeHandler)
+	require.NoError(t, err)
+
+	_, err = storeHandler.GetFiatPrices(fiats)
+	require.NoError(t, err)
+	require.NotNil(t, storeHandler.Cache.FiatPrices)
+	require.Eventually(t, func() bool { return storeHandler.Cache.FiatPrices == nil }, 10*time.Second, 1*time.Second)
+
+	_, tokens, err := upsertTokens(storeHandler)
+	require.NoError(t, err)
+
+	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
+	require.NoError(t, err)
+	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
+	require.Eventually(t, func() bool { return storeHandler.Cache.TokenPriceAndSupplies == nil }, 10*time.Second, 1*time.Second)
+
 }
 
-func TestCnsTokenQuery(t *testing.T) {
+func TestGetCNSWhitelistedTokens(t *testing.T) {
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
-	whiteList, err := storeHandler.GetCNSWhitelistedTokens()
-	require.NoError(t, err)
-	require.NotNil(t, whiteList)
+	whiteList := []string{"ATOM", "LUNA"}
 
-	require.Equal(t, []string{"ATOM", "LUNA"}, whiteList)
+	require.Nil(t, storeHandler.Cache.Whitelist)
+
+	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
+	require.NoError(t, err)
+
+	require.Equal(t, whiteList, whiteListFromStore)
+
+	require.NotNil(t, storeHandler.Cache.Whitelist)
+
+	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
+	require.NoError(t, err)
+
+	require.Equal(t, whiteList, whiteListFromCache)
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
@@ -108,44 +144,22 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	// alphabetic order
-	upsertTokens := []types.TokenPriceAndSupply{
-		{
-			Symbol: "ATOMUSDT",
-			Price:  12.3,
-			Supply: 456789,
-		},
-		{
-			Symbol: "LUNAUSDT",
-			Price:  98.7,
-			Supply: 654321,
-		},
-	}
-
-	var tokens []string
-	for _, token := range upsertTokens {
-		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol)
-		require.NoError(t, err)
-
-		err = storeHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply)
-		require.NoError(t, err)
-
-		tokens = append(tokens, token.Symbol)
-	}
+	upsertedTokens, tokens, err := upsertTokens(storeHandler)
+	require.NoError(t, err)
 
 	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
 
 	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
-	require.Equal(t, upsertTokens, tokensFromStore)
+	require.Equal(t, upsertedTokens, tokensFromStore)
 
 	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
 
 	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
-	require.Equal(t, upsertTokens, tokensFromCache)
+	require.Equal(t, upsertedTokens, tokensFromCache)
 }
 
 func TestGetFiatPrices(t *testing.T) {
@@ -153,39 +167,22 @@ func TestGetFiatPrices(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	// alphabetic order
-	upsertFiats := []types.FiatPrice{
-		{
-			Symbol: "CHFUSD",
-			Price:  0.6,
-		},
-		{
-			Symbol: "EURUSD",
-			Price:  1.2,
-		},
-	}
-
-	var fiats []string
-	for _, fiat := range upsertFiats {
-		err := storeHandler.Store.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol)
-		require.NoError(t, err)
-
-		fiats = append(fiats, fiat.Symbol)
-	}
-
 	require.Nil(t, storeHandler.Cache.FiatPrices)
+
+	upsertedFiats, fiats, err := upsertFiats(storeHandler)
+	require.NoError(t, err)
 
 	fiatsFromStore, err := storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
 
-	require.Equal(t, upsertFiats, fiatsFromStore)
+	require.Equal(t, upsertedFiats, fiatsFromStore)
 
 	require.NotNil(t, storeHandler.Cache.FiatPrices)
 
 	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
 
-	require.Equal(t, upsertFiats, fiatsFromCache)
+	require.Equal(t, upsertedFiats, fiatsFromCache)
 }
 
 func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
@@ -278,4 +275,59 @@ func insertToken(t *testing.T, connStr string) {
 	cc, err := cnsInstanceDB.Chains()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(cc))
+}
+
+func upsertTokens(storeHandler *store.Handler) ([]types.TokenPriceAndSupply, []string, error) {
+	// alphabetic order
+	upsertTokens := []types.TokenPriceAndSupply{
+		{
+			Symbol: "ATOMUSDT",
+			Price:  12.3,
+			Supply: 456789,
+		},
+		{
+			Symbol: "LUNAUSDT",
+			Price:  98.7,
+			Supply: 654321,
+		},
+	}
+
+	var tokens []string
+	for _, token := range upsertTokens {
+		if err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol); err != nil {
+			return nil, nil, err
+		}
+
+		if err := storeHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply); err != nil {
+			return nil, nil, err
+		}
+
+		tokens = append(tokens, token.Symbol)
+	}
+	return upsertTokens, tokens, nil
+}
+
+func upsertFiats(storeHandler *store.Handler) ([]types.FiatPrice, []string, error) {
+	// alphabetic order
+	upsertFiats := []types.FiatPrice{
+		{
+			Symbol: "CHFUSD",
+			Price:  0.6,
+		},
+		{
+			Symbol: "EURUSD",
+			Price:  1.2,
+		},
+	}
+
+	var fiats []string
+	for _, fiat := range upsertFiats {
+		if err := storeHandler.Store.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol); err != nil {
+			return nil, nil, err
+		}
+
+		fiats = append(fiats, fiat.Symbol)
+	}
+
+	return upsertFiats, fiats, nil
 }
