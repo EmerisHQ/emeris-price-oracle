@@ -263,7 +263,7 @@ func (h *Handler) PriceTokenAggregator() error {
 	for token := range whitelist {
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
-			return fmt.Errorf("Store.PriceTokenAggregator:%w", err)
+			return fmt.Errorf("Store.PriceTokenAggregator: %w", err)
 		}
 
 		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
@@ -308,7 +308,7 @@ func (h *Handler) PriceFiatAggregator() error {
 	for fiat := range symbolKV {
 		mean, err := Averaging(symbolKV[fiat])
 		if err != nil {
-			return fmt.Errorf("Store.PriceFiatAggregator:%w", err)
+			return fmt.Errorf("Store.PriceFiatAggregator: %w", err)
 		}
 
 		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
