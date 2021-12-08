@@ -1,9 +1,7 @@
 package daemon
 
 import (
-	"crypto/rand"
 	"errors"
-	"math/big"
 	"reflect"
 	"runtime"
 	"strings"
@@ -108,12 +106,12 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			//
 			// Jitter should be at least 1/20 of the pulseInterval and not more than
 			// 1/10 th of the pulseInterval.
-			randInt, err := rand.Int(rand.Reader, big.NewInt(10))
-			if err != nil {
-				errCh <- err
-				return
-			}
-			jitter := pulseInterval / time.Duration(randInt.Int64())
+			// randInt, err := rand.Int(rand.Reader, big.NewInt(10))
+			// if err != nil {
+			// 	errCh <- err
+			// 	return
+			// }
+			jitter := pulseInterval / time.Duration(10)
 			pulse := time.NewTicker((2 * pulseInterval) + jitter)
 			defer pulse.Stop()
 
