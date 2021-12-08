@@ -185,11 +185,6 @@ func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, *
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
 	}
 
-	// logger := logging.New(logging.LoggingConfig{
-	// 	LogPath: cfg.LogPath,
-	// 	Debug:   cfg.Debug,
-	// })
-
 	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
 	observedLogger := zap.New(observedZapCore)
 
