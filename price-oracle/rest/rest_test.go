@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
 	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
@@ -100,10 +101,13 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getTokensPricesRoute)
-			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
 			body, err = ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			err = resp.Body.Close()
 			require.NoError(t, err)
 
 			var restError restError
@@ -149,10 +153,13 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getFiatsPricesRoute)
-			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
 			body, err = ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			err = resp.Body.Close()
 			require.NoError(t, err)
 
 			var restError restError

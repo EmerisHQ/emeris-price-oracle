@@ -7,4 +7,3 @@ interval = "10s"
 whitelistfiats = ["EUR","KRW","CHF"]
 coinmarketcapapikey =""
 fixerapikey = ""
-RedisExpiry = "10s"

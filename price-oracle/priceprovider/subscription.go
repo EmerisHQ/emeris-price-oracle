@@ -34,7 +34,7 @@ type Api struct {
 	StoreHandler *store.Handler
 }
 
-func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger *zap.SugaredLogger, cfg *config.Config) {
+func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 	api := Api{
 		Client:       &http.Client{Timeout: 2 * time.Second},
 		StoreHandler: storeHandler,
@@ -49,7 +49,7 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler, logger 
 		wg.Add(1)
 		go func(subscriber daemon.AggFunc) {
 			defer wg.Done()
-			SubscriptionWorker(ctx, logger, cfg, subscriber)
+			SubscriptionWorker(ctx, storeHandler.Logger, storeHandler.Cfg, subscriber)
 		}(s)
 	}
 
