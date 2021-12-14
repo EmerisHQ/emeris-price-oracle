@@ -57,7 +57,7 @@ func main() {
 	}()
 	go func() {
 		defer wg.Done()
-		priceprovider.StartSubscription(ctx, storeHandler, logger, cfg)
+		priceprovider.StartSubscription(ctx, storeHandler)
 	}()
 
 	restServer := rest.NewServer(storeHandler, logger, cfg)

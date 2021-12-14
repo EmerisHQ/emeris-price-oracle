@@ -101,7 +101,7 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getTokensPricesRoute)
-			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
 			body, err = ioutil.ReadAll(resp.Body)
@@ -153,7 +153,7 @@ func TestRest(t *testing.T) {
 			require.NoError(t, err)
 
 			url := fmt.Sprintf("http://%s%s", router.s.c.ListenAddr, getFiatsPricesRoute)
-			resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
 			body, err = ioutil.ReadAll(resp.Body)

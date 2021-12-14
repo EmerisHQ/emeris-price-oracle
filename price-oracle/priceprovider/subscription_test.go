@@ -17,12 +17,31 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
 	"github.com/stretchr/testify/require"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
+
+func TestStartSubscription(t *testing.T) {
+	ctx, cancel, storeHandler, observedLogs, tDown := setupSubscription(t)
+	defer tDown()
+	defer cancel()
+
+	go priceprovider.StartSubscription(ctx, storeHandler)
+
+	// Validate Worker start message...
+	require.Eventually(t, func() bool {
+		count := 0
+		for _, info := range observedLogs.All() {
+			if info.ContextMap()["PriceProvider"] == "SubscriptionWorker Start" {
+				count++
+			}
+		}
+		return count == 3
+	}, 25*time.Second, 2*time.Second)
+}
 
 func TestSubscriptionBinance(t *testing.T) {
 	binance := types.Binance{
@@ -33,7 +52,7 @@ func TestSubscriptionBinance(t *testing.T) {
 	b, err := json.Marshal(binance)
 	require.NoError(t, err)
 
-	_, cancel, storeHandler, tDown := setupSubscription(t)
+	_, cancel, storeHandler, _, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -59,7 +78,7 @@ func TestSubscriptionBinance(t *testing.T) {
 }
 
 func TestSubscriptionCoingecko(t *testing.T) {
-	_, cancel, storeHandler, tDown := setupSubscription(t)
+	_, cancel, storeHandler, _, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -112,7 +131,7 @@ func TestSubscriptionFixer(t *testing.T) {
 	b, err := json.Marshal(&fixer)
 	require.NoError(t, err)
 
-	_, cancel, storeHandler, tDown := setupSubscription(t)
+	_, cancel, storeHandler, _, tDown := setupSubscription(t)
 	defer tDown()
 	defer cancel()
 
@@ -149,7 +168,7 @@ func newTestClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, func()) {
+func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, *observer.ObservedLogs, func()) {
 	t.Helper()
 	testServer, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -167,19 +186,17 @@ func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, f
 		HttpClientTimeout:     2 * time.Second,
 	}
 
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: cfg.LogPath,
-		Debug:   cfg.Debug,
-	})
+	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+	observedLogger := zap.New(observedZapCore)
 
 	insertToken(t, connStr)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	storeHandler, err := getStoreHandler(t, testServer, logger, cfg)
+	storeHandler, err := getStoreHandler(t, testServer, observedLogger.Sugar(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, storeHandler.Store)
 
-	return ctx, cancel, storeHandler, func() { testServer.Stop() }
+	return ctx, cancel, storeHandler, observedLogs, func() { testServer.Stop() }
 }
 
 func insertToken(t *testing.T, connStr string) {
