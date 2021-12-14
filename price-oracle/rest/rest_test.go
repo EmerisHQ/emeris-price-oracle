@@ -188,6 +188,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
 		ListenAddr:            "127.0.0.1:9898",
+		MaxAssetsReq:          10,
 	}
 
 	logger := logging.New(logging.LoggingConfig{

@@ -15,7 +15,11 @@ type Config struct {
 	LogPath               string
 	Interval              string   `validate:"required"`
 	WhitelistedFiats      []string `validate:"required"`
+	MaxAssetsReq          int      `validate:"required"`
 	FixerApiKey           string   `validate:"required"`
+	RecoverCount          int
+	WorkerPulse           time.Duration `validate:"required"`
+	HttpClientTimeout     time.Duration
 
 	// Not currently used, but may be used in the future
 	// CoinmarketcapapiKey string `validate:"required"`

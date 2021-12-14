@@ -43,9 +43,9 @@ func (r *router) fiatPriceHandler(ctx *gin.Context) {
 		return
 	}
 
-	if len(fiats.Fiats) == 0 || len(fiats.Fiats) > 10 {
+	if len(fiats.Fiats) == 0 || len(fiats.Fiats) > r.s.c.MaxAssetsReq {
 		err := errZeroAsset
-		if len(fiats.Fiats) > 10 {
+		if len(fiats.Fiats) > r.s.c.MaxAssetsReq {
 			err = errAssetLimitExceed
 		} else if fiats.Fiats == nil {
 			err = errNilAsset

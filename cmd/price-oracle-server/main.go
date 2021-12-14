@@ -53,7 +53,7 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		store.StartAggregate(ctx, storeHandler, 5)
+		store.StartAggregate(ctx, storeHandler)
 	}()
 	go func() {
 		defer wg.Done()

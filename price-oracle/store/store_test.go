@@ -219,6 +219,8 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
+		RecoverCount:          3,
+		WorkerPulse:           3 * time.Second,
 	}
 
 	logger := logging.New(logging.LoggingConfig{
