@@ -36,7 +36,7 @@ spec:
               value: "{{ .Values.redisUrl }}"
             - name: DEMERIS-PRICE-ORACLE_INTERVAL
               value: "{{ .Values.updateInterval }}"
-            - name: DEMERIS-PRICE-ORACLE_WHITELISTFIATS
+            - name: DEMERIS-PRICE-ORACLE_WHITELISTEDFIATS
               value: "EUR,USD"
             - name: DEMERIS-PRICE-ORACLE_FIXERAPIKEY
               valueFrom:
