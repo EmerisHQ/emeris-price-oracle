@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -34,7 +35,7 @@ func ReadConfig(v Validator, configName string, defaultValues map[string]string)
 	vip.AutomaticEnv()
 
 	if err := vip.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		if errors.As(err, &viper.ConfigFileNotFoundError{}) {
 			return err
 		}
 	}

@@ -41,5 +41,5 @@ func (c Config) Validate() error {
 func Read() (*Config, error) {
 	var c Config
 
-	return &c, configuration.ReadConfig(&c, "demeris-price-oracle", map[string]string{})
+	return &c, configuration.ReadConfig(&c, "emeris-price-oracle", map[string]string{})
 }
