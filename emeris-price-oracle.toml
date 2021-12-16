@@ -1,0 +1,15 @@
+#kubectl port-forward service/cockroachdb-public 26257
+DatabaseConnectionURL = "postgres://root@127.0.0.1:26257?sslmode=disable"
+ListenAddr = "127.0.0.1:9898"
+Debug = true
+LogPath = ""
+Interval = "10s"
+WhitelistedFiats = ["EUR","KRW","CHF"]
+MaxAssetsReq = 10
+FixerApiKey = "3a13728de73fdada3d3af728f09cc644" # Free plan, 100 call/mo
+RecoverCount = 5
+WorkerPulse = "3s"
+HttpClientTimeout = "20s"
+
+# Not currently used, but may be used in the future
+# CoinmarketcapapiKey = ""

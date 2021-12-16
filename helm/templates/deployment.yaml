@@ -26,19 +26,17 @@ spec:
           ports:
 {{- include "ports.pod" . | indent 8 }}
           env:
-            - name: DEMERIS-PRICE-ORACLE_LISTENADDR
+            - name: EMERIS-PRICE-ORACLE_LISTENADDR
               value: 0.0.0.0:{{ .Values.ports.http }}
-            - name: DEMERIS-PRICE-ORACLE_DATABASECONNECTIONURL
+            - name: EMERIS-PRICE-ORACLE_DATABASECONNECTIONURL
               value: "{{ .Values.databaseConnectionURL }}"
-            - name: DEMERIS-PRICE-ORACLE_DEBUG
+            - name: EMERIS-PRICE-ORACLE_DEBUG
               value: "{{ .Values.debug }}"
-            - name: DEMERIS-PRICE-ORACLE_REDISURL
-              value: "{{ .Values.redisUrl }}"
-            - name: DEMERIS-PRICE-ORACLE_INTERVAL
+            - name: EMERIS-PRICE-ORACLE_INTERVAL
               value: "{{ .Values.updateInterval }}"
-            - name: DEMERIS-PRICE-ORACLE_WHITELISTFIATS
+            - name: EMERIS-PRICE-ORACLE_WHITELISTEDFIATS
               value: "EUR,USD"
-            - name: DEMERIS-PRICE-ORACLE_FIXERAPIKEY
+            - name: EMERIS-PRICE-ORACLE_FIXERAPIKEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}
