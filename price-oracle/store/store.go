@@ -3,7 +3,11 @@ package store
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
+
+	gecko "github.com/superoo7/go-gecko/v3"
+	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
@@ -32,22 +36,52 @@ const (
 	TokensStore          = "oracle.tokens"
 	FiatsStore           = "oracle.fiats"
 	CoingeckoSupplyStore = "oracle.coingeckosupply"
+
+	GranularityMinute = "5M"
+	GranularityHour   = "1H"
+	GranularityDay    = "1D"
 )
 
 type Handler struct {
 	Store  Store
 	Logger *zap.SugaredLogger
 	Cfg    *config.Config
-	Cache  *Cache
+	Cache  *TokenAndFiatCache
+	Chart  *ChartDataCache
 }
 
-type Cache struct {
+type TokenAndFiatCache struct {
 	Whitelist             []string
 	TokenPriceAndSupplies map[string]types.TokenPriceAndSupply
 	FiatPrices            map[string]types.FiatPrice
 
 	RefreshInterval time.Duration
 	Mu              sync.Mutex
+}
+
+// ChartDataCache is holder of chart data in a map and evacuating the cache
+// in every 5M, 1H and 1D depending on what data it's holding. Data is a map
+// that holds another map that holds a geckoTypes.CoinsIDMarketChart type.
+//
+// Couple of example of ChartDataCache can be:
+// [5M][cosmos] -> geckoTypes.CoinsIDMarketChart{...}
+// [1D][bitcoin] -> geckoTypes.CoinsIDMarketChart{...}
+// [1D][cosmos] -> geckoTypes.CoinsIDMarketChart{...}
+// Where 1D means it's a one-day granularity data. bitcoin/cosmos is the key
+// for the second map, which holds geckoTypes.CoinsIDMarketChart as value.
+// geckoTypes.CoinsIDMarketChart holds 3 lists of geckoTypes.ChartItems
+// which is a native coinGecko type that is basically a [2]float32, where
+// the zero index represent the unix timestamp and the first index is the value.
+//
+// Discussion can be found in this GH issue:
+// https://github.com/allinbits/demeris-backend/issues/109#issuecomment-993513347
+//
+// RefreshInterval is always 5 minutes. To know why, follow the description of
+// GetChartData function.
+type ChartDataCache struct {
+	Data            map[string]map[string]*geckoTypes.CoinsIDMarketChart
+	Mu              sync.Mutex
+	RefreshInterval time.Duration
 }
 
 type option func(*Handler) error
@@ -82,10 +116,10 @@ func WithConfig(cfg *config.Config) func(*Handler) error {
 	}
 }
 
-func WithCache(cache *Cache) func(*Handler) error {
+func WithTokenAndFiatCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
 		if cache == nil {
-			cache = &Cache{
+			cache = &TokenAndFiatCache{
 				Whitelist:             nil,
 				TokenPriceAndSupplies: nil,
 				FiatPrices:            nil,
@@ -94,6 +128,59 @@ func WithCache(cache *Cache) func(*Handler) error {
 			}
 		}
 		handler.Cache = cache
+		// Invalidate in-memory cache after RefreshInterval
+		go func(cache *TokenAndFiatCache) {
+			randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
+			d := cache.RefreshInterval + (cache.RefreshInterval / time.Duration(randomInt))
+			//nolint
+			for {
+				select {
+				case <-time.Tick(d):
+					cache.Mu.Lock()
+					cache.Whitelist = nil
+					cache.FiatPrices = nil
+					cache.TokenPriceAndSupplies = nil
+					cache.Mu.Unlock()
+				}
+			}
+		}(handler.Cache)
+		return nil
+	}
+}
+
+func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Handler) error {
+	return func(handler *Handler) error {
+		if cache == nil {
+			cache = &ChartDataCache{
+				Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{},
+				Mu:              sync.Mutex{},
+				RefreshInterval: refresh,
+			}
+		}
+		handler.Chart = cache
+
+		// Invalidate in-memory cache for chart data after RefreshInterval
+		go func(cache *ChartDataCache) {
+			//nolint
+			for {
+				select {
+				case tm := <-time.Tick(cache.RefreshInterval):
+					cache.Mu.Lock()
+					cache.Data[GranularityMinute] = nil
+					// Minute return an int value in [0, 59]
+					// so, 0 means it's the beginning of the hour.
+					if tm.Minute() == 0 {
+						cache.Data[GranularityHour] = nil
+					}
+					// Hour returns an int in [0, 23]
+					// so, 0 means beginning of the day
+					if tm.Hour() == 0 {
+						cache.Data[GranularityDay] = nil
+					}
+					cache.Mu.Unlock()
+				}
+			}
+		}(cache)
 		return nil
 	}
 }
@@ -104,6 +191,7 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 		Logger: nil,
 		Cfg:    nil,
 		Cache:  nil,
+		Chart:  nil,
 	}
 	for _, opt := range options {
 		if err := opt(handler); err != nil {
@@ -113,22 +201,6 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 	if err := handler.Store.Init(); err != nil {
 		return nil, err
 	}
-	// Invalidate in-memory cache after RefreshInterval
-	go func(cache *Cache) {
-		randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
-		d := cache.RefreshInterval + (cache.RefreshInterval / time.Duration(randomInt))
-		//nolint
-		for {
-			select {
-			case <-time.Tick(d):
-				cache.Mu.Lock()
-				cache.Whitelist = nil
-				cache.FiatPrices = nil
-				cache.TokenPriceAndSupplies = nil
-				cache.Mu.Unlock()
-			}
-		}
-	}(handler.Cache)
 	return handler, nil
 }
 
@@ -219,6 +291,73 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
 	}
 	return fiatPrices, nil
+}
+
+func (h *Handler) GetChartData(
+	coinId string,
+	days string,
+	currency string,
+	geckoClient *gecko.Client,
+) (*geckoTypes.CoinsIDMarketChart, error) {
+	var granularity, maxFetchDays string
+	switch days {
+	case "1":
+		granularity = GranularityMinute
+		maxFetchDays = "1"
+	case "7", "14", "30", "90":
+		granularity = GranularityHour
+		maxFetchDays = "90"
+	default:
+		granularity = GranularityDay
+		maxFetchDays = "max"
+	}
+
+	var err error
+	h.Chart.Mu.Lock()
+	chartData, ok := h.Chart.Data[granularity][coinId]
+	if !ok {
+		chartData, err = geckoClient.CoinsIDMarketChart(coinId, currency, maxFetchDays)
+		if err != nil {
+			h.Chart.Mu.Unlock() // unlock mutex
+			return nil, err
+		}
+		if h.Chart.Data[granularity] == nil {
+			h.Chart.Data[granularity] = map[string]*geckoTypes.CoinsIDMarketChart{}
+		}
+		h.Chart.Data[granularity][coinId] = chartData
+	}
+	h.Chart.Mu.Unlock() // unlock mutex
+
+	if days == "1" || days == "max" {
+		return chartData, nil
+	}
+	// daysInt can only have values: 7, 14, 30, 90, 180, 365
+	daysInt, err := strconv.Atoi(days)
+	if err != nil {
+		return nil, err
+	}
+	sliceLimit := daysInt
+	if daysInt <= 90 {
+		// When 1 < days <= 90; data granularity is by hour.
+		sliceLimit = daysInt * 24
+	}
+
+	// Serve with the best effort! If we don't have all the data
+	// response with what we have.
+	//
+	// This should not occur in real life. Only for test.
+	if sliceLimit > len(*(chartData.Prices)) {
+		sliceLimit = len(*(chartData.Prices))
+	}
+	prices := (*chartData.Prices)[:sliceLimit]
+	marketCap := (*chartData.MarketCaps)[:sliceLimit]
+	volume := (*chartData.TotalVolumes)[:sliceLimit]
+
+	return &geckoTypes.CoinsIDMarketChart{
+		Prices:       &prices,
+		MarketCaps:   &marketCap,
+		TotalVolumes: &volume,
+	}, nil
 }
 
 func (h *Handler) PriceTokenAggregator() error {
