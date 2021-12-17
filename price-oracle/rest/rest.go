@@ -3,6 +3,7 @@ package rest
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
@@ -41,6 +42,8 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	}
 
 	r := &router{s: s}
+
+	errAssetLimitExceed = errors.New("more than " + strconv.Itoa(sh.Cfg.MaxAssetsReq) + " asset not allowed")
 
 	g.Use(logging.LogRequest(l.Desugar()))
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))

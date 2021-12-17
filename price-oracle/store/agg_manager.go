@@ -11,14 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartAggregate(ctx context.Context, storeHandler *Handler, maxRecover int) {
+func StartAggregate(ctx context.Context, storeHandler *Handler) {
 	fetchInterval, err := time.ParseDuration(storeHandler.Cfg.Interval)
 	if err != nil {
 		storeHandler.Logger.Fatal(err)
 	}
 
 	var wg sync.WaitGroup
-	runAsDaemon := daemon.MakeDaemon(fetchInterval*3, maxRecover, AggregateManager)
+	runAsDaemon := daemon.MakeDaemon(fetchInterval*3, storeHandler.Cfg.RecoverCount, AggregateManager)
 
 	workers := map[string]struct {
 		worker daemon.AggFunc
@@ -29,8 +29,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler, maxRecover int) 
 	}
 	for _, properties := range workers {
 		wg.Add(1)
-		// TODO: Hack!! Move pulse (3 * time.Second) on abstraction later.
-		heartbeatCh, errCh := runAsDaemon(properties.doneCh, 3*time.Second, storeHandler.Logger, storeHandler.Cfg, properties.worker)
+		heartbeatCh, errCh := runAsDaemon(properties.doneCh, storeHandler.Cfg.WorkerPulse, storeHandler.Logger, storeHandler.Cfg, properties.worker)
 		go func(ctx context.Context, done chan struct{}, workerName string) {
 			defer close(done)
 			defer wg.Done()

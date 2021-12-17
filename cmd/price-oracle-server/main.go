@@ -53,11 +53,11 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		store.StartAggregate(ctx, storeHandler, 5)
+		store.StartAggregate(ctx, storeHandler)
 	}()
 	go func() {
 		defer wg.Done()
-		priceprovider.StartSubscription(ctx, storeHandler, logger, cfg)
+		priceprovider.StartSubscription(ctx, storeHandler)
 	}()
 
 	restServer := rest.NewServer(storeHandler, logger, cfg)

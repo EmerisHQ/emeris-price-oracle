@@ -13,11 +13,20 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-ports:
-  http: 8000
 
 databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
 
+ports:
+  http: 8000
+
 debug: true
 
-updateInterval: 20s
+interval: 20s
+
+maxAssetsReq: 10
+
+recoverCount: 5
+
+workerPulse: 3s
+
+httpClientTimeout: 20s

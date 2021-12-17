@@ -47,9 +47,9 @@ func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 		return
 	}
 
-	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > 10 {
+	if len(tokens.Tokens) == 0 || len(tokens.Tokens) > r.s.c.MaxAssetsReq {
 		err := errZeroAsset
-		if len(tokens.Tokens) > 10 {
+		if len(tokens.Tokens) > r.s.c.MaxAssetsReq {
 			err = errAssetLimitExceed
 		} else if tokens.Tokens == nil {
 			err = errNilAsset

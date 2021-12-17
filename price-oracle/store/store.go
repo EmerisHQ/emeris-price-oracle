@@ -222,7 +222,8 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 }
 
 func (h *Handler) PriceTokenAggregator() error {
-	symbolKV := make(map[string][]float64)
+	// symbolKV[Symbol][Store]=price
+	symbolKV := make(map[string]map[string]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
@@ -250,20 +251,20 @@ func (h *Handler) PriceTokenAggregator() error {
 			if token.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			symbolKV[token.Symbol] = append(symbolKV[token.Symbol], token.Price)
+			pricelist, ok := symbolKV[token.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
+			pricelist[s] = token.Price
+			symbolKV[token.Symbol] = pricelist
 		}
 	}
 
 	for token := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolKV[token] {
-			total += value
+		mean, err := Averaging(symbolKV[token])
+		if err != nil {
+			return fmt.Errorf("Store.PriceTokenAggregator: %w", err)
 		}
-		if len(symbolKV[token]) == 0 {
-			return nil
-		}
-
-		mean := total / float64(len(symbolKV[token]))
 
 		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
 			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
@@ -273,7 +274,8 @@ func (h *Handler) PriceTokenAggregator() error {
 }
 
 func (h *Handler) PriceFiatAggregator() error {
-	symbolKV := make(map[string][]float64)
+	// symbolKV[Symbol][Store]=price
+	symbolKV := make(map[string]map[string]float64)
 	stores := []string{FixerStore}
 
 	whitelist := make(map[string]struct{})
@@ -295,18 +297,19 @@ func (h *Handler) PriceFiatAggregator() error {
 			if fiat.UpdatedAt < now.Unix()-60 {
 				continue
 			}
-			symbolKV[fiat.Symbol] = append(symbolKV[fiat.Symbol], fiat.Price)
+			pricelist, ok := symbolKV[fiat.Symbol]
+			if !ok {
+				pricelist = make(map[string]float64)
+			}
+			pricelist[s] = fiat.Price
+			symbolKV[fiat.Symbol] = pricelist
 		}
 	}
-	for fiat := range whitelist {
-		var total float64 = 0
-		for _, value := range symbolKV[fiat] {
-			total += value
+	for fiat := range symbolKV {
+		mean, err := Averaging(symbolKV[fiat])
+		if err != nil {
+			return fmt.Errorf("Store.PriceFiatAggregator: %w", err)
 		}
-		if len(symbolKV[fiat]) == 0 {
-			return nil
-		}
-		mean := total / float64(len(symbolKV[fiat]))
 
 		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
 			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
