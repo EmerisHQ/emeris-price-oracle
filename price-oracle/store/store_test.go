@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	gecko "github.com/superoo7/go-gecko/v3"
-	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	gecko "github.com/superoo7/go-gecko/v3"
+	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
