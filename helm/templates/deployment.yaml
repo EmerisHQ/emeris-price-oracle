@@ -26,21 +26,31 @@ spec:
           ports:
 {{- include "ports.pod" . | indent 8 }}
           env:
-            - name: EMERIS-PRICE-ORACLE_LISTENADDR
-              value: 0.0.0.0:{{ .Values.ports.http }}
             - name: EMERIS-PRICE-ORACLE_DATABASECONNECTIONURL
               value: "{{ .Values.databaseConnectionURL }}"
+            - name: EMERIS-PRICE-ORACLE_LISTENADDR
+              value: 0.0.0.0:{{ .Values.ports.http }}
             - name: EMERIS-PRICE-ORACLE_DEBUG
               value: "{{ .Values.debug }}"
+            - name: EMERIS-PRICE-ORACLE_LOGPATH
+              value: ""
             - name: EMERIS-PRICE-ORACLE_INTERVAL
-              value: "{{ .Values.updateInterval }}"
+              value: "{{ .Values.interval }}"
             - name: EMERIS-PRICE-ORACLE_WHITELISTEDFIATS
               value: "EUR,USD"
+            - name: EMERIS-PRICE-ORACLE_MAXASSETSREQ
+              value: "{{ .Values.maxAssetsReq }}"
             - name: EMERIS-PRICE-ORACLE_FIXERAPIKEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}
                   key: fixerKey
+            - name: EMERIS-PRICE-ORACLE_RECOVERCOUNT
+              value: "{{ .Values.recoverCount }}"
+            - name: EMERIS-PRICE-ORACLE_WORKERPULSE
+              value: "{{ .Values.workerPulse }}"
+            - name: EMERIS-PRICE-ORACLE_HTTPCLIENTTIMEOUT
+              value: "{{ .Values.httpClientTimeout }}"
 
           resources:
 {{ toYaml .Values.resources | indent 12 }}
