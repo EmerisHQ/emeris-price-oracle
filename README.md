@@ -2,6 +2,10 @@
 
 ![example workflow](https://github.com/allinbits/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
 [![Build docker images](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml/badge.svg)](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml)
+[![codecov](https://codecov.io/gh/allinbits/emeris-price-oracle/branch/main/graph/badge.svg?token=MNF1SLOK6P)](https://codecov.io/gh/allinbits/emeris-price-oracle)
+[![Build status](https://github.com/allinbits/emeris-price-oracle/workflows/Build/badge.svg)](https://github.com/allinbits/emeris-price-oracle/commits/main)
+[![Tests status](https://github.com/allinbits/emeris-price-oracle/workflows/Tests/badge.svg)](https://github.com/allinbits/emeris-price-oracle/commits/main)
+[![Lint](https://github.com/allinbits/emeris-price-oracle/workflows/Lint/badge.svg?token)](https://github.com/allinbits/emeris-price-oracle/commits/main)
 
 Aggregates and caches price data feeds from external data providers.
 
