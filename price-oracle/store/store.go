@@ -64,9 +64,9 @@ type TokenAndFiatCache struct {
 // that holds another map that holds a geckoTypes.CoinsIDMarketChart type.
 //
 // Couple of example of ChartDataCache can be:
-// [5M][cosmos] -> geckoTypes.CoinsIDMarketChart{...}
-// [1D][bitcoin] -> geckoTypes.CoinsIDMarketChart{...}
-// [1D][cosmos] -> geckoTypes.CoinsIDMarketChart{...}
+// [5M][cosmos-usd] -> geckoTypes.CoinsIDMarketChart{...}
+// [1D][bitcoin-eur] -> geckoTypes.CoinsIDMarketChart{...}
+// [1D][cosmos-usd] -> geckoTypes.CoinsIDMarketChart{...}
 // Where 1D means it's a one-day granularity data. bitcoin/cosmos is the key
 // for the second map, which holds geckoTypes.CoinsIDMarketChart as value.
 // geckoTypes.CoinsIDMarketChart holds 3 lists of geckoTypes.ChartItems
@@ -116,7 +116,7 @@ func WithConfig(cfg *config.Config) func(*Handler) error {
 	}
 }
 
-func WithTokenAndFiatCache(cache *TokenAndFiatCache) func(*Handler) error {
+func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
 		if cache == nil {
 			cache = &TokenAndFiatCache{
@@ -313,8 +313,9 @@ func (h *Handler) GetChartData(
 	}
 
 	var err error
+	coinIDCurrency := fmt.Sprintf("%s-%s", coinId, currency)
 	h.Chart.Mu.Lock()
-	chartData, ok := h.Chart.Data[granularity][coinId]
+	chartData, ok := h.Chart.Data[granularity][coinIDCurrency]
 	if !ok {
 		chartData, err = geckoClient.CoinsIDMarketChart(coinId, currency, maxFetchDays)
 		if err != nil {
@@ -324,14 +325,14 @@ func (h *Handler) GetChartData(
 		if h.Chart.Data[granularity] == nil {
 			h.Chart.Data[granularity] = map[string]*geckoTypes.CoinsIDMarketChart{}
 		}
-		h.Chart.Data[granularity][coinId] = chartData
+		h.Chart.Data[granularity][coinIDCurrency] = chartData
 	}
 	h.Chart.Mu.Unlock() // unlock mutex
 
 	if days == "1" || days == "max" {
 		return chartData, nil
 	}
-	// daysInt can only have values: 7, 14, 30, 90, 180, 365
+	// Since we've covered the "max" case, daysInt now can only have values: 7, 14, 30, 90, 180, 365
 	daysInt, err := strconv.Atoi(days)
 	if err != nil {
 		return nil, err

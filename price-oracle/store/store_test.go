@@ -295,6 +295,10 @@ func TestGetChartData_CacheHit(t *testing.T) {
 
 	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
 	require.Equal(t, 1, clientInvoked)
+	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.Equal(t, 1, clientInvoked)
+	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.Equal(t, 1, clientInvoked)
 }
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
@@ -451,7 +455,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithTokenAndFiatCache(nil),
+		store.WithSpotPriceCache(nil),
 		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {

@@ -40,7 +40,7 @@ func main() {
 		store.WithDB(db),
 		store.WithConfig(cfg),
 		store.WithLogger(logger),
-		store.WithTokenAndFiatCache(nil),
+		store.WithSpotPriceCache(nil),
 		store.WithChartDataCache(nil, time.Minute*5),
 	)
 	if err != nil {
