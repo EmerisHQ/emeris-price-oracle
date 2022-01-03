@@ -10,8 +10,8 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/database"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
-	"github.com/allinbits/emeris-price-oracle/utils/store"
+	"github.com/allinbits/emeris-utils/logging"
+	"github.com/allinbits/emeris-utils/store"
 )
 
 var Version = "not specified"
