@@ -52,11 +52,16 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 			SubscriptionWorker(ctx, storeHandler.Logger, storeHandler.Cfg, subscriber)
 		}(s)
 	}
-
 	wg.Wait()
 }
 
 func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *config.Config, fn daemon.AggFunc) {
+	interval, err := time.ParseDuration(cfg.Interval)
+	if err != nil {
+		logger.Errorw("PriceProvider", "SubscriptionWorker", err)
+		return
+	}
+
 	logger.Infow("INFO", "PriceProvider", "SubscriptionWorker Start")
 	for {
 		select {
@@ -67,12 +72,6 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 
 		if err := fn(); err != nil {
 			logger.Errorw("PriceProvider", "SubscriptionWorker", err)
-		}
-
-		interval, err := time.ParseDuration(cfg.Interval)
-		if err != nil {
-			logger.Errorw("PriceProvider", "SubscriptionWorker", err)
-			return
 		}
 		time.Sleep(interval)
 	}
@@ -112,10 +111,10 @@ func (api *Api) SubscriptionBinance() error {
 		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == http.StatusBadRequest {
-				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
 				continue
 			}
-			return fmt.Errorf("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+			return fmt.Errorf("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
 		}
 
 		if err := resp.Body.Close(); err != nil {

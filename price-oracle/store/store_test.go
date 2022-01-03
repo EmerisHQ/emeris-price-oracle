@@ -336,7 +336,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, resp, dataBTC)
-			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin"], dataBTC)
+			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
 
 			time.Sleep(time.Second * 2)
 
@@ -423,7 +423,7 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
-			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin"].Prices))
+			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
 		})
 	}
 }
