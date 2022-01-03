@@ -10,7 +10,7 @@ import (
 
 const getChartData = "/chart/:id"
 
-var validDays = map[string]bool{"1": true, "7": true, "14": true, "30": true, "90": true, "365": true, "max": true}
+var validDays = map[string]struct{}{"1": {}, "7": {}, "14": {}, "30": {}, "90": {}, "365": {}, "max": {}}
 
 func (r *router) chartDataHandler(ctx *gin.Context) {
 	var reqQueries struct {
@@ -18,18 +18,18 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		Currency string `form:"vs_currency"`
 	}
 	if err := ctx.ShouldBindQuery(&reqQueries); err != nil {
-		r.s.l.Error("Error", "Invalid request query:", err)
+		r.s.l.Errorw("Invalid request query:", err)
 		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query"))
 		return
 	}
 
 	if _, ok := validDays[reqQueries.Days]; !ok {
-		r.s.l.Error("Error", "Invalid request query:", reqQueries.Days)
+		r.s.l.Errorw("Invalid request query:", reqQueries.Days)
 		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query"))
 		return
 	}
 
-	vsCurrency := strings.ToLower(reqQueries.Currency)
+	vsCurrency := strings.ToLower(reqQueries.Currency) // Optional query param, default usd.
 	if vsCurrency == "" {
 		vsCurrency = "usd"
 	}
@@ -41,14 +41,14 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		}
 	}
 	if !ok {
-		r.s.l.Error("Error", "Invalid request query:", vsCurrency)
-		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query"))
+		r.s.l.Errorw("Invalid request query: fiat name not whitelisted", "fiat name:", vsCurrency)
+		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query: fiat name not whitelisted"))
 		return
 	}
 
 	whitelistedPriceIds, err := r.s.sh.CNSPriceIdQuery()
 	if err != nil {
-		r.s.l.Error("Error", "Store.CNSPriceIdQuery()", err)
+		r.s.l.Errorw("Store.CNSPriceIdQuery()", err)
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
@@ -62,14 +62,14 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		}
 	}
 	if !ok {
-		r.s.l.Error("Error", "Invalid request param:", coinId)
-		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request param"))
+		r.s.l.Errorw("Invalid request param: coin ID not whitelisted", "coin ID:", coinId)
+		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request param: coin ID not whitelisted"))
 		return
 	}
 
 	chartData, err := r.s.sh.GetChartData(coinId, reqQueries.Days, reqQueries.Currency, nil)
 	if err != nil {
-		r.s.l.Error("Error", "Store.GetChartData()", err)
+		r.s.l.Errorw("Store.GetChartData()", err)
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}
