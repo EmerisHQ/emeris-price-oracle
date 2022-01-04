@@ -235,7 +235,8 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithCache(nil),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {
 		return nil, err

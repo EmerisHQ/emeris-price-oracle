@@ -49,6 +49,7 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
 
 	g.GET(r.getAllPrices())
+	g.GET(r.getChartData())
 	g.POST(r.getTokensPriceAndSupplies())
 	g.POST(r.getFiatsPrices())
 
