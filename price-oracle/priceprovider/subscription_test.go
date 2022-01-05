@@ -37,7 +37,7 @@ func TestStartSubscription(t *testing.T) {
 	require.Eventually(t, func() bool {
 		count := 0
 		for _, info := range observedLogs.All() {
-			if strings.Contains(fmt.Sprintf("%s", info.ContextMap()["PriceProvider"]), "SubscriptionWorker Start") {
+			if strings.Contains(fmt.Sprintf("%s", info.ContextMap()["SubscriptionWorker"]), "Start") {
 				count++
 			}
 		}
