@@ -62,7 +62,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		return
 	}
 
-logger.Infow("PriceProvider", "SubscriptionWorker", "Start", "subscription function", daemon.GetFunctionName(fn))
+	logger.Infow("PriceProvider", "SubscriptionWorker", "Start", "subscription function", daemon.GetFunctionName(fn))
 	for {
 		select {
 		case <-ctx.Done():
