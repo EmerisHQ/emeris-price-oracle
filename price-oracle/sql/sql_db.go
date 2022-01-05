@@ -160,7 +160,7 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 }
 
 func (m *SqlDB) GetPriceIDs() ([]string, error) {
-	var whitelists []string
+	whitelists := make([]string, 0)
 	q, err := m.Query("SELECT  y.x->'price_id',y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
 		return nil, err
