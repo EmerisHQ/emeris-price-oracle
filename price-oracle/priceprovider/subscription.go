@@ -62,7 +62,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		return
 	}
 
-	logger.Infow("INFO", "PriceProvider", "SubscriptionWorker Start")
+	logger.Infow("INFO", "PriceProvider", "SubscriptionWorker Start with function:", daemon.GetFunctionName(fn))
 	for {
 		select {
 		case <-ctx.Done():
@@ -71,7 +71,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		}
 
 		if err := fn(); err != nil {
-			logger.Errorw("PriceProvider", "SubscriptionWorker", err)
+			logger.Errorw("PriceProvider", "SubscriptionWorker", "function name:", daemon.GetFunctionName(fn), err)
 		}
 		time.Sleep(interval)
 	}

@@ -46,27 +46,12 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		return
 	}
 
-	whitelistedPriceIds, err := r.s.sh.CNSPriceIdQuery()
-	if err != nil {
-		r.s.l.Errorw("Store.CNSPriceIdQuery()", err)
-		e(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ok = false
 	coinId := ctx.Param("id")
-	for _, id := range whitelistedPriceIds {
-		if strings.EqualFold(id, coinId) {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		r.s.l.Errorw("Invalid request param: coin ID not whitelisted", "coin ID:", coinId)
-		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request param: coin ID not whitelisted"))
+	if coinId == "" {
+		r.s.l.Errorw("Invalid request id: coinID empty")
+		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request id: coinID empty"))
 		return
 	}
-
 	chartData, err := r.s.sh.GetChartData(coinId, reqQueries.Days, reqQueries.Currency, nil)
 	if err != nil {
 		r.s.l.Errorw("Store.GetChartData()", err)
