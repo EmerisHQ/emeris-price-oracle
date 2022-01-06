@@ -17,7 +17,7 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/allinbits/emeris-price-oracle/utils/logging"
+	"github.com/allinbits/emeris-utils/logging"
 	"go.uber.org/zap"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
