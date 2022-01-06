@@ -2,6 +2,7 @@ package rest
 
 import (
 	"fmt"
+	gecko "github.com/superoo7/go-gecko/v3"
 	"net/http"
 	"strings"
 
@@ -52,7 +53,8 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request id: coinID empty"))
 		return
 	}
-	chartData, err := r.s.sh.GetChartData(coinId, reqQueries.Days, reqQueries.Currency, nil)
+	geckoClient := gecko.NewClient(&http.Client{Timeout: r.s.c.HttpClientTimeout})
+	chartData, err := r.s.sh.GetChartData(coinId, reqQueries.Days, reqQueries.Currency, geckoClient)
 	if err != nil {
 		r.s.l.Errorw("Store.GetChartData()", err)
 		e(ctx, http.StatusInternalServerError, err)
