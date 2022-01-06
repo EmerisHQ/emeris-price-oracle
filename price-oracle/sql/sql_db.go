@@ -160,27 +160,28 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 }
 
 func (m *SqlDB) GetPriceIDs() ([]string, error) {
-	var whitelists []string
-	q, err := m.Query("SELECT  y.x->'price_id',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
+	whitelists := make([]string, 0)
+	q, err := m.Query("SELECT  y.x->'price_id',y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
 		return nil, err
 	}
 	for q.Next() {
 		var priceId sql.NullString
+		var ticker string
 		var fetchPrice bool
 
-		if err := q.Scan(&priceId, &fetchPrice); err != nil {
+		if err := q.Scan(&priceId, &ticker, &fetchPrice); err != nil {
 			return nil, err
 		}
-		if priceId.Valid {
-			if fetchPrice {
-				priceId.String = strings.TrimRight(priceId.String, "\"")
-				priceId.String = strings.TrimLeft(priceId.String, "\"")
-				whitelists = append(whitelists, priceId.String)
-			}
-		} else {
+		if !fetchPrice {
 			continue
 		}
+		tokenIdOrTicker := strings.Trim(ticker, "\"")
+		// If price_id is not null use that.
+		if priceId.Valid {
+			tokenIdOrTicker = strings.Trim(priceId.String, "\"")
+		}
+		whitelists = append(whitelists, tokenIdOrTicker)
 	}
 	return whitelists, nil
 }
