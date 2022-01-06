@@ -33,7 +33,9 @@ func TestRest(t *testing.T) {
 	go func() {
 		close(ch)
 		err := s.Serve(router.s.c.ListenAddr)
-		require.NoError(t, err)
+		if err != nil {
+			require.Contains(t, err.Error(), "address already in use")
+		}
 	}()
 	<-ch // Wait for the goroutine to start. Still hack!!
 	wantData := types.AllPriceResponse{
@@ -235,7 +237,8 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithCache(nil),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {
 		return nil, err

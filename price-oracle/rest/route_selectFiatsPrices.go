@@ -29,7 +29,7 @@ func getFiatPrices(
 
 	fiatPrices, err := store.GetFiatPrices(fiats)
 	if err != nil {
-		logger.Error("Error", "Store.GetFiatPrices()", err.Error())
+		logger.Errorw("Store.GetFiatPrices()", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 	return fiatPrices, http.StatusOK, nil
@@ -38,7 +38,7 @@ func getFiatPrices(
 func (r *router) fiatPriceHandler(ctx *gin.Context) {
 	var fiats types.Fiats
 	if err := ctx.BindJSON(&fiats); err != nil {
-		r.s.l.Error("Error", "FiatPrices", err.Error())
+		r.s.l.Errorw("FiatPrices", err.Error())
 		e(ctx, http.StatusBadRequest, err)
 		return
 	}

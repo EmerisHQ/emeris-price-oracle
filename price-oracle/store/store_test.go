@@ -1,9 +1,18 @@
 package store_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io/ioutil"
+	"math/rand"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	gecko "github.com/superoo7/go-gecko/v3"
+	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
@@ -19,6 +28,7 @@ import (
 )
 
 func TestNewStoreHandler(t *testing.T) {
+	t.Parallel()
 	_, _, storeHandler, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
@@ -51,6 +61,7 @@ func TestNewStoreHandler(t *testing.T) {
 }
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -73,6 +84,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -85,6 +97,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -112,6 +125,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 }
 
 func TestPriceFiatAggregator(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -140,6 +154,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 }
 
 func TestGetTokenPriceAndSupplies(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -163,6 +178,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 }
 
 func TestGetFiatPrices(t *testing.T) {
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -185,6 +201,249 @@ func TestGetFiatPrices(t *testing.T) {
 	require.Equal(t, upsertedFiats, fiatsFromCache)
 }
 
+type roundTripFunc func(req *http.Request) *http.Response
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req), nil
+}
+
+func newTestClient(fn roundTripFunc, timeout time.Duration) *http.Client {
+	return &http.Client{
+		Transport: fn,
+		Timeout:   timeout,
+	}
+}
+
+func TestGetChartData_CorrectDataReturned(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	require.NotNil(t, storeHandler.Chart.Data)
+
+	nowUnix := float32(time.Now().Unix())
+
+	dataBTC := generateChartData(2, nowUnix)
+	dataATOM := generateChartData(2, nowUnix)
+
+	client := newTestClient(func(req *http.Request) *http.Response {
+		data := dataATOM
+		if strings.Contains(req.URL.Path, "bitcoin") {
+			data = dataBTC
+		}
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(bytes.NewReader(b)),
+		}
+	}, time.Second)
+	geckoClient := gecko.NewClient(client)
+
+	// Test: Proper data is returned.
+	tests := []struct {
+		coinId   string
+		days     string
+		currency string
+		want     *geckoTypes.CoinsIDMarketChart
+	}{
+		{"bitcoin", "1", "usd", dataBTC},
+		{"cosmos", "14", "usd", dataATOM},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.coinId, func(t *testing.T) {
+			t.Parallel()
+			resp, err := storeHandler.GetChartData(tt.coinId, tt.days, tt.currency, geckoClient)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, resp)
+		})
+	}
+}
+
+func TestGetChartData_CacheHit(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	require.NotNil(t, storeHandler.Chart.Data)
+
+	nowUnix := float32(time.Now().Unix())
+	var clientInvoked int
+
+	dataBTC := generateChartData(2, nowUnix)
+
+	client := newTestClient(func(req *http.Request) *http.Response {
+		clientInvoked++
+		b, err := json.Marshal(dataBTC)
+		require.NoError(t, err)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(bytes.NewReader(b)),
+		}
+	}, time.Second)
+	geckoClient := gecko.NewClient(client)
+
+	// Test: Cache hit!
+	clientInvoked = 0
+	resp, err := storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.NoError(t, err)
+	require.Equal(t, dataBTC, resp)
+	require.Equal(t, 1, clientInvoked)
+
+	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.Equal(t, 1, clientInvoked)
+	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.Equal(t, 1, clientInvoked)
+	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	require.Equal(t, 1, clientInvoked)
+}
+
+func TestGetChartData_CacheEmptied(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	nowUnix := float32(time.Now().Unix())
+	dataBTC := generateChartData(2, nowUnix)
+
+	// Test: Cache is set and emptied correctly.
+	for _, tt := range []struct {
+		name             string
+		days             string
+		cacheGranularity string
+	}{
+		{name: "1 day should have cached in 5M", days: "1", cacheGranularity: "5M"},
+		{name: "14 days should have cached in 1H", days: "14", cacheGranularity: "1H"},
+		{name: "90 days should have cached in 1H", days: "90", cacheGranularity: "1H"},
+		{name: "more than 90 days should have cached in 1D", days: "180", cacheGranularity: "1D"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			client := newTestClient(func(req *http.Request) *http.Response {
+				b, err := json.Marshal(dataBTC)
+				require.NoError(t, err)
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+				}
+			}, time.Second)
+			geckoClient := gecko.NewClient(client)
+
+			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
+			require.NoError(t, err)
+			require.Equal(t, resp, dataBTC)
+			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
+
+			time.Sleep(time.Second * 2)
+
+			// We can only ensure that after the refresh interval (1 sec for test setup), the 5M
+			// cache is evicted. Others are dependent on os clock, thus hard to test.
+			if tt.days == "1" {
+				require.Nil(t, storeHandler.Chart.Data[tt.cacheGranularity])
+			}
+		})
+	}
+}
+
+func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	nowUnix := float32(time.Now().Unix())
+	daysInSevenYears := 7 * 365
+	hoursInNinetyDays := 24 * 90
+	numberOfFiveMinutesOneDay := 24 * (60 / 5)
+
+	maxData := generateChartData(daysInSevenYears, nowUnix)
+	ninetyDayData := generateChartData(hoursInNinetyDays, nowUnix)
+	oneDayData := generateChartData(numberOfFiveMinutesOneDay, nowUnix)
+
+	// Test: Fetched max per granularity from coinGecko, bet returned proper amount.
+	for _, tt := range []struct {
+		name              string
+		maxDataCount      int
+		expectedDataCount int
+		cacheGranularity  string
+		fetchedData       *geckoTypes.CoinsIDMarketChart
+	}{
+		{
+			"max",
+			daysInSevenYears,
+			daysInSevenYears,
+			store.GranularityDay,
+			maxData,
+		},
+		{
+			"1",
+			numberOfFiveMinutesOneDay,
+			numberOfFiveMinutesOneDay,
+			store.GranularityMinute,
+			oneDayData,
+		},
+		{
+			"14",
+			hoursInNinetyDays,
+			24 * 14,
+			store.GranularityHour,
+			ninetyDayData,
+		},
+		{
+			"30",
+			hoursInNinetyDays,
+			24 * 30,
+			store.GranularityHour,
+			ninetyDayData,
+		},
+		{
+			"180",
+			daysInSevenYears,
+			1 * 180,
+			store.GranularityDay,
+			maxData,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			client := newTestClient(func(req *http.Request) *http.Response {
+				data := tt.fetchedData
+				b, err := json.Marshal(data)
+				require.NoError(t, err)
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+				}
+			}, time.Second)
+			geckoClient := gecko.NewClient(client)
+			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
+			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
+		})
+	}
+}
+
+func generateChartData(n int, tm float32) *geckoTypes.CoinsIDMarketChart {
+	return &geckoTypes.CoinsIDMarketChart{
+		Prices:       generateChartItems(n, tm),
+		MarketCaps:   generateChartItems(n, tm),
+		TotalVolumes: generateChartItems(n, tm),
+	}
+}
+
+func generateChartItems(n int, timestamp float32) *[]geckoTypes.ChartItem {
+	ret := make([]geckoTypes.ChartItem, 0, n)
+	for i := 0; i < n; i++ {
+		ret = append(ret, geckoTypes.ChartItem{timestamp, rand.Float32()})
+	}
+	return &ret
+}
+
 func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
 	t.Helper()
 	db, err := sql.NewDB(ts.PGURL().String())
@@ -196,7 +455,8 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithCache(nil),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {
 		return nil, err

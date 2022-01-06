@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +37,7 @@ func TestStartSubscription(t *testing.T) {
 	require.Eventually(t, func() bool {
 		count := 0
 		for _, info := range observedLogs.All() {
-			if info.ContextMap()["PriceProvider"] == "SubscriptionWorker Start" {
+			if strings.Contains(fmt.Sprintf("%s", info.ContextMap()["SubscriptionWorker"]), "Start") {
 				count++
 			}
 		}
@@ -259,7 +261,8 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithCache(nil),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {
 		return nil, err

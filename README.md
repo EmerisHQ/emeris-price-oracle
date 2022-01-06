@@ -53,8 +53,10 @@ go build
 ### Use
 Given an exchange API, the price oracle will periodically check with it prices of the tokens we're interested in monitoring, and cache the result until the next period:
 
-1. at startup, oracle will grab data from the API and expose it on `GET /prices`
-2. once every 10 seconds, new data will be downloaded and cached
+1. At startup, oracle will grab data from the API and expose it on `GET /prices`
+2. Once every 10 seconds, new data will be downloaded and cached
+3. Once every 5minutes, 1 hour and 24 hour historical data will be collected from the Coin-gecko
+4. Historical data will be exposed via `GET /chart:id`, this api takes one parameter named _days_ and one optional parameter named _vs_currency_ (default usd).
 
 Oracle must return prices of all the tokens that it is configured to fetch.
 
@@ -99,18 +101,18 @@ go env -w GOPRIVATE="github.com/allinbits/{module}"
 
 The list of non-{Cosmos, AiB, Tendermint} dependencies and their licenses are:
 
-|Module   	                  |License          |
-|---	                      |---  	        |
-|alicebob/miniredis           |MIT    	        |
-|gin-contrib/zap   	          |MIT    	        |
-|gin-gonic/gin   	          |MIT   	        |
-|go-playground/validator   	  |MIT   	        |
-|go-playground/validator   	  |MIT   	        |
-|go.uber.org/zap   	          |MIT           	|
-|jackc/pgx         	          |MIT    	        |
-|jmoiron/sqlx   	          |MIT   	        |
-|lib/pq                       |Open use         |
-|sigs.k8s.io/controller-runtime |MIT            |
-|sony/sonyflake               |MIT              |
-|superoo7/go-gecko            |MIT              |
+| Module   	                     | License         |
+|--------------------------------|-----------------|
+| alicebob/miniredis             | MIT    	        |
+| gin-contrib/zap   	            | MIT    	        |
+| gin-gonic/gin   	              | MIT   	         |
+| go-playground/validator   	    | MIT   	         |
+| go-playground/validator   	    | MIT   	         |
+| go.uber.org/zap   	            | MIT           	 |
+| jackc/pgx         	            | MIT    	        |
+| jmoiron/sqlx   	               | MIT   	         |
+| lib/pq                         | Open use        |
+| sigs.k8s.io/controller-runtime | MIT             |
+| sony/sonyflake                 | MIT             |
+| superoo7/go-gecko              | MIT             |
 

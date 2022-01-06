@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
@@ -39,7 +40,8 @@ func main() {
 		store.WithDB(db),
 		store.WithConfig(cfg),
 		store.WithLogger(logger),
-		store.WithCache(nil),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Minute*5),
 	)
 	if err != nil {
 		logger.Fatal(err)
