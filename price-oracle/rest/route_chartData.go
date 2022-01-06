@@ -2,9 +2,10 @@ package rest
 
 import (
 	"fmt"
-	gecko "github.com/superoo7/go-gecko/v3"
 	"net/http"
 	"strings"
+
+	gecko "github.com/superoo7/go-gecko/v3"
 
 	"github.com/gin-gonic/gin"
 )
