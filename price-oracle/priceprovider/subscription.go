@@ -36,7 +36,7 @@ type Api struct {
 
 func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 	api := Api{
-		Client:       &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
+		Client:       &http.Client{Timeout: 0},
 		StoreHandler: storeHandler,
 	}
 
@@ -71,7 +71,7 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		}
 
 		if err := fn(); err != nil {
-			logger.Errorw("PriceProvider", "SubscriptionWorker", "function name:", daemon.GetFunctionName(fn), err)
+			logger.Errorw("PriceProvider", "SubscriptionWorker function name:", daemon.GetFunctionName(fn), "Error:", err)
 		}
 		time.Sleep(interval)
 	}
