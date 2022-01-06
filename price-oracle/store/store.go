@@ -404,12 +404,12 @@ func (h *Handler) PriceTokenAggregator() error {
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
 			h.Logger.Errorw("PriceTokenAggregator", "Err:", err, "Token:", token)
-			//continue
-			return fmt.Errorf("Store.PriceTokenAggregator: %w", err)
+			continue // Best effort, update as much as we can.
 		}
 
 		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
-			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
+			h.Logger.Errorw("PriceTokenAggregator", "UpsertPrice Err:", err, "Token:", token)
+			continue // Best effort, update as much as we can.
 		}
 	}
 	return nil
@@ -450,11 +450,13 @@ func (h *Handler) PriceFiatAggregator() error {
 	for fiat := range symbolKV {
 		mean, err := Averaging(symbolKV[fiat])
 		if err != nil {
-			return fmt.Errorf("Store.PriceFiatAggregator: %w", err)
+			h.Logger.Errorw("PriceFiatAggregator", "Err:", err, "Fiat:", fiat)
+			continue // Best effort, update as much as we can.
 		}
 
 		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
-			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
+			h.Logger.Errorw("PriceFiatAggregator", "UpsertPrice Err:", err, "Token:", fiat)
+			continue // Best effort, update as much as we can.
 		}
 	}
 	return nil
