@@ -52,7 +52,6 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 			SubscriptionWorker(ctx, storeHandler.Logger, storeHandler.Cfg, subscriber)
 		}(s)
 	}
-
 	wg.Wait()
 }
 
@@ -112,10 +111,10 @@ func (api *Api) SubscriptionBinance() error {
 		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == http.StatusBadRequest {
-				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
 				continue
 			}
-			return fmt.Errorf("SubscriptionBinance: %s, Status: %s", body, resp.Status)
+			return fmt.Errorf("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
 		}
 
 		if err := resp.Body.Close(); err != nil {
