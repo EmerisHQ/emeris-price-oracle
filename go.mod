@@ -11,7 +11,7 @@ replace (
 require (
 	github.com/allinbits/demeris-backend-models v0.0.0-20211022115747-df6f5881eb00
 	github.com/allinbits/emeris-cns-server v0.0.0-20211021152447-99e15c2c0714
-	github.com/allinbits/emeris-utils v0.0.0-20211214203740-3e2cdc43f1fb
+	github.com/allinbits/emeris-utils v0.0.0-20220104112240-0cadfeac11ca
 	github.com/cockroachdb/cockroach-go/v2 v2.1.1
 	github.com/gin-contrib/zap v0.0.1
 	github.com/gin-gonic/gin v1.7.4
