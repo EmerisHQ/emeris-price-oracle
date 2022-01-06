@@ -20,7 +20,9 @@ func TestChartData(t *testing.T) {
 	go func() {
 		close(ch)
 		err := s.Serve(router.s.c.ListenAddr)
-		require.NoError(t, err)
+		if err != nil {
+			require.Contains(t, err.Error(), "address already in use")
+		}
 	}()
 	<-ch // Wait for the goroutine to start. Still hack!!
 
