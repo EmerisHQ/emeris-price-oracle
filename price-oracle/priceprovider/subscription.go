@@ -83,7 +83,7 @@ func (api *Api) SubscriptionBinance() error {
 		return fmt.Errorf("SubscriptionBinance, GetCNSWhitelistedTokens(): %w", err)
 	}
 	if len(whitelistedTokens) == 0 {
-		return fmt.Errorf("SubscriptionBinance: Tokens do not exist")
+		return fmt.Errorf("SubscriptionBinance: No whitelisted tokens")
 	}
 	for _, token := range whitelistedTokens {
 		tokenSymbol := token + types.USDT
