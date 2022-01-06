@@ -96,7 +96,7 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			var workerFatalErr <-chan error
 
 			startWorker := func() {
-				logger.Infof("Daemon: starts function %v", GetFunctionName(fn))
+				logger.Infow("Daemon", "starts function:", GetFunctionName(fn))
 				workerDone = make(chan struct{})
 				workerHeartbeat, workerFatalErr = worker(or(workerDone, done), pulseInterval, logger, cfg, fn)
 			}
@@ -133,11 +133,12 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 						// the worker? Revisit here later when implement monitoring for price-oracle.
 						//
 						// Until we figure what to do with the heartbeat, we just log it.
-						logger.Infof("Daemon: heartbeat received: %v", beat)
+						logger.Infow("Daemon", "heartbeat received:", beat)
 						continue monitorLoop
 					case err := <-workerFatalErr:
-						logger.Infof("Daemon: received fatal error from worker: %v", err)
+						logger.Infow("Daemon", "received fatal error from worker:", err)
 						if recoverCount == 0 {
+							logger.Errorw("Daemon", "Terminating", "Max recovery limit reached:")
 							return
 						}
 						recoverCount--

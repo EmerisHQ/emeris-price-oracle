@@ -403,6 +403,8 @@ func (h *Handler) PriceTokenAggregator() error {
 	for token := range whitelist {
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
+			h.Logger.Errorw("PriceTokenAggregator", "Err:", err, "Token:", token)
+			//continue
 			return fmt.Errorf("Store.PriceTokenAggregator: %w", err)
 		}
 

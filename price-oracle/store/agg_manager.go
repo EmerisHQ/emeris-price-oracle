@@ -67,7 +67,7 @@ func AggregateManager(
 		defer close(errCh)
 		fetchInterval, err := time.ParseDuration(cfg.Interval)
 		if err != nil {
-			logger.Errorw("DB", "Aggregate WORK err", err)
+			logger.Errorw("AggregateManager", "Err:", err)
 			errCh <- err
 			return
 		}
@@ -81,6 +81,7 @@ func AggregateManager(
 				return
 			case <-ticker.C:
 				if err := fn(); err != nil {
+					logger.Errorw("AggregateManager", "Worker returned Err:", err)
 					errCh <- err
 				}
 			case <-pulse.C:

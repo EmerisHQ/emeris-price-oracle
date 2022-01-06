@@ -149,7 +149,7 @@ func (api *Api) SubscriptionCoingecko() error {
 		return fmt.Errorf("SubscriptionCoingecko, CNSPriceIdQuery(): %w", err)
 	}
 	if len(whitelistedTokens) == 0 {
-		return fmt.Errorf("SubscriptionCoingecko: Tokens do not exist")
+		return fmt.Errorf("SubscriptionCoingecko: No whitelisted tokens")
 	}
 
 	cg := gecko.NewClient(api.Client)
