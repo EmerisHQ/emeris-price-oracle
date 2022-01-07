@@ -231,7 +231,6 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64)
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 
 	rowsAffected, err := result.RowsAffected()
-	fmt.Printf("*** Upserted To: %v Symbol: %v Price: %v Time: %v\nRows Affected: %v\n", to, symbol, price, time, rowsAffected)
 	if err != nil {
 		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
 	}
