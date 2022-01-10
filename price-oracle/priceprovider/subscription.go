@@ -144,19 +144,30 @@ func (api *Api) SubscriptionBinance() error {
 }
 
 func (api *Api) SubscriptionCoingecko() error {
-	whitelistedTokens, err := api.StoreHandler.CNSPriceIdQuery()
+	// CNS actually don't collect price ids, so our defensive implementation fallbacks on tickers
+	// if price id is not found. So, for now priceIds is actually a list of tickers.
+	priceIds, err := api.StoreHandler.CNSPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, CNSPriceIdQuery(): %w", err)
 	}
-	if len(whitelistedTokens) == 0 {
+	if len(priceIds) == 0 {
 		return fmt.Errorf("SubscriptionCoingecko: No whitelisted tokens")
 	}
 
+	var tickerToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network"}
+	// Update []ticker -> []id, required for coin-gecko.
+	for i, token := range priceIds {
+		tokenSymbol := strings.ToLower(token)
+		if id, ok := tickerToID[tokenSymbol]; ok {
+			priceIds[i] = id
+		}
+	}
+	fmt.Printf("*** *** Coingecko: token ids %+v\n", priceIds)
 	cg := gecko.NewClient(api.Client)
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
-	market, err := cg.CoinsMarket(types.USD, whitelistedTokens, order, 1, 1, false, priceChangePercentage)
+	market, err := cg.CoinsMarket(types.USD, priceIds, order, 1, 1, false, priceChangePercentage)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, cg.CoinsMarket(): %w", err)
 	}
