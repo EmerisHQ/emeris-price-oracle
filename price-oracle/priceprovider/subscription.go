@@ -154,7 +154,10 @@ func (api *Api) SubscriptionCoingecko() error {
 		return fmt.Errorf("SubscriptionCoingecko: No whitelisted tokens")
 	}
 
-	var tickerToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network"}
+	var tickerToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network",
+		"cro": "crypto-com-chain", "dvpn": "sentinel", "ion": "ion", "iov": "starname", "iris": "iris-network",
+		"ngm": "e-money", "osmo": "osmosis", "regen": "regen", "xprt": "persistence",
+	}
 	// Update []ticker -> []id, required for coin-gecko.
 	for i, token := range priceIds {
 		tokenSymbol := strings.ToLower(token)
@@ -162,7 +165,6 @@ func (api *Api) SubscriptionCoingecko() error {
 			priceIds[i] = id
 		}
 	}
-	fmt.Printf("*** *** Coingecko: token ids %+v\n", priceIds)
 	cg := gecko.NewClient(api.Client)
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
