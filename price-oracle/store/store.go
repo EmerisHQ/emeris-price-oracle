@@ -217,7 +217,11 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 		h.Cache.Whitelist = whitelists
 		h.Cache.Mu.Unlock()
 	}
-	return h.Cache.Whitelist, nil
+	h.Cache.Mu.Lock()
+	tokens := make([]string, len(h.Cache.Whitelist))
+	copy(tokens, h.Cache.Whitelist)
+	h.Cache.Mu.Unlock()
+	return tokens, nil
 }
 
 func (h *Handler) CNSPriceIdQuery() ([]string, error) {
