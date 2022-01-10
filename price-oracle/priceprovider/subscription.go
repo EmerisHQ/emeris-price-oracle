@@ -36,7 +36,7 @@ type Api struct {
 
 func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 	api := Api{
-		Client:       &http.Client{Timeout: 0},
+		Client:       &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
 		StoreHandler: storeHandler,
 	}
 
