@@ -33,30 +33,30 @@ func TestNewStoreHandler(t *testing.T) {
 	defer tDown()
 	require.NotNil(t, storeHandler)
 
-	require.Nil(t, storeHandler.Cache.Whitelist)
-	require.Nil(t, storeHandler.Cache.FiatPrices)
-	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
+	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.FiatPrices)
+	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 
 	_, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
-	require.NotNil(t, storeHandler.Cache.Whitelist)
-	require.Eventually(t, func() bool { return storeHandler.Cache.Whitelist == nil }, 10*time.Second, 1*time.Second)
+	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	require.Eventually(t, func() bool { return storeHandler.SpotCache.Whitelist == nil }, 10*time.Second, 1*time.Second)
 
 	_, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
 
 	_, err = storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
-	require.NotNil(t, storeHandler.Cache.FiatPrices)
-	require.Eventually(t, func() bool { return storeHandler.Cache.FiatPrices == nil }, 10*time.Second, 1*time.Second)
+	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
+	require.Eventually(t, func() bool { return storeHandler.SpotCache.FiatPrices == nil }, 10*time.Second, 1*time.Second)
 
 	_, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
 
 	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
-	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
-	require.Eventually(t, func() bool { return storeHandler.Cache.TokenPriceAndSupplies == nil }, 10*time.Second, 1*time.Second)
+	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
+	require.Eventually(t, func() bool { return storeHandler.SpotCache.TokenPriceAndSupplies == nil }, 10*time.Second, 1*time.Second)
 
 }
 
@@ -68,14 +68,14 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 
 	whiteList := []string{"ATOM", "LUNA"}
 
-	require.Nil(t, storeHandler.Cache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.Whitelist)
 
 	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromStore)
 
-	require.NotNil(t, storeHandler.Cache.Whitelist)
+	require.NotNil(t, storeHandler.SpotCache.Whitelist)
 
 	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
@@ -162,14 +162,14 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	upsertedTokens, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
 
-	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
+	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 
 	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromStore)
 
-	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
+	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 
 	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestGetFiatPrices(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	require.Nil(t, storeHandler.Cache.FiatPrices)
+	require.Nil(t, storeHandler.SpotCache.FiatPrices)
 
 	upsertedFiats, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestGetFiatPrices(t *testing.T) {
 
 	require.Equal(t, upsertedFiats, fiatsFromStore)
 
-	require.NotNil(t, storeHandler.Cache.FiatPrices)
+	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
 
 	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	require.NotNil(t, storeHandler.Chart.Data)
+	require.NotNil(t, storeHandler.ChartCache.Data)
 
 	nowUnix := float32(time.Now().Unix())
 
@@ -268,7 +268,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	require.NotNil(t, storeHandler.Chart.Data)
+	require.NotNil(t, storeHandler.ChartCache.Data)
 
 	nowUnix := float32(time.Now().Unix())
 	var clientInvoked int
@@ -286,7 +286,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	}, time.Second)
 	geckoClient := gecko.NewClient(client)
 
-	// Test: Cache hit!
+	// Test: SpotCache hit!
 	clientInvoked = 0
 	resp, err := storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
 	require.NoError(t, err)
@@ -310,7 +310,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 	nowUnix := float32(time.Now().Unix())
 	dataBTC := generateChartData(2, nowUnix)
 
-	// Test: Cache is set and emptied correctly.
+	// Test: SpotCache is set and emptied correctly.
 	for _, tt := range []struct {
 		name             string
 		days             string
@@ -336,14 +336,14 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, resp, dataBTC)
-			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
+			require.Equal(t, storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
 
 			time.Sleep(time.Second * 2)
 
 			// We can only ensure that after the refresh interval (1 sec for test setup), the 5M
 			// cache is evicted. Others are dependent on os clock, thus hard to test.
 			if tt.days == "1" {
-				require.Nil(t, storeHandler.Chart.Data[tt.cacheGranularity])
+				require.Nil(t, storeHandler.ChartCache.Data[tt.cacheGranularity])
 			}
 		})
 	}
@@ -423,7 +423,7 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
-			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
+			require.Equal(t, tt.maxDataCount, len(*storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
 		})
 	}
 }

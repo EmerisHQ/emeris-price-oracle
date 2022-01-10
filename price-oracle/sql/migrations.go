@@ -29,6 +29,9 @@ const createTableTokens = `CREATE TABLE oracle.tokens (symbol STRING PRIMARY KEY
 
 const createTableFiats = `CREATE TABLE oracle.fiats (symbol STRING PRIMARY KEY, price FLOAT);`
 
+const createTableGeckoPriceId = `CREATE TABLE IF NOT EXISTS oracle.geckopriceid (name VARCHAR ( 255 ) UNIQUE NOT NULL,
+geckoid VARCHAR ( 255 ) UNIQUE NOT NULL);`
+
 var migrationList = []string{
 	createDatabase,
 	createTableBinance,
@@ -39,6 +42,7 @@ var migrationList = []string{
 	createTableFixer,
 	createTableTokens,
 	createTableFiats,
+	createTableGeckoPriceId,
 }
 
 var migrationCoingecko = []string{

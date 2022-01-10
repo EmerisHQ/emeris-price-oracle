@@ -396,6 +396,29 @@ func TestUpsertTokenSupply(t *testing.T) {
 	require.Equal(t, price, prices[0])
 }
 
+func TestGetGeckoId(t *testing.T) {
+	testServer := setup(t)
+	defer tearDown(testServer)
+
+	connStr := testServer.PGURL().String()
+	require.NotNil(t, connStr)
+
+	mDB, err := NewDB(connStr)
+	require.NoError(t, err)
+	require.Equal(t, mDB.GetConnectionString(), connStr)
+	defer func() {
+		err = mDB.Close()
+		require.NoError(t, err)
+	}()
+
+	err = mDB.Init()
+	require.NoError(t, err)
+
+	ids, err := mDB.GetGeckoId([]string{"ATOM", "LUNA"}, nil)
+	require.NoError(t, err)
+	t.Logf("%+v\n", ids)
+}
+
 func setup(t *testing.T) testserver.TestServer {
 	t.Helper()
 	ts, err := testserver.NewTestServer()

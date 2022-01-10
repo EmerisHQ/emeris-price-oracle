@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -204,6 +205,53 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 		return nil, err
 	}
 	return prices, nil
+}
+
+func (m *SqlDB) GetGeckoId(names []string, client *http.Client) (map[string]string, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	fmt.Println(client)
+	// Coin-gecko is slow for this query. First check if we have everything already in the DB.
+	rows, err := m.Query("SELECT * FROM oracle.geckopriceid")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var existingNameAndID map[string]string
+	for rows.Next() {
+		var name, geckoId string
+		if err := rows.Scan(&name, &geckoId); err != nil {
+			return nil, fmt.Errorf("err while scanning result %w", err)
+		}
+		existingNameAndID[name] = geckoId
+	}
+	return existingNameAndID, err
+	//fmt.Println("Existing Ids:", existingNameAndID)
+	//// Check DB has everything already.
+	//var retMap map[string]string
+	//for _, name := range names {
+	//	if id, ok := existingNameAndID[name]; ok {
+	//		retMap[name] = id
+	//		continue
+	//	}
+	//	retMap = nil
+	//	break
+	//}
+	//if len(retMap) == len(names) {
+	//	return retMap, nil
+	//}
+	//
+	//geckoClient := gecko.NewClient(client)
+	//coinList, err := geckoClient.CoinsList()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//var nameAndID map[string]string
+	//for _, coin := range coinList {
+	//	nameAndID[coin.Symbol] = coin.ID
+	//}
+	//
+	//return nil, nil
 }
 
 func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
