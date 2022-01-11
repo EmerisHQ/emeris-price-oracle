@@ -184,7 +184,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration, mu *sync.R
 					cache.Mu.Unlock()
 				}
 			}
-		}(cache)
+		}(handler.Chart)
 		return nil
 	}
 }
