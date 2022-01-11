@@ -36,12 +36,13 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	var spotMu, chartMu sync.RWMutex
 	storeHandler, err := store.NewStoreHandler(
 		store.WithDB(db),
 		store.WithConfig(cfg),
 		store.WithLogger(logger),
-		store.WithSpotPriceCache(nil),
-		store.WithChartDataCache(nil, time.Minute*5),
+		store.WithSpotPriceCache(nil, &spotMu),
+		store.WithChartDataCache(nil, time.Minute*5, &chartMu),
 	)
 	if err != nil {
 		logger.Fatal(err)
