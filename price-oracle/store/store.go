@@ -118,7 +118,6 @@ func WithConfig(cfg *config.Config) func(*Handler) error {
 
 func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
-		cache.Mu.Lock()
 		if cache == nil {
 			cache = &TokenAndFiatCache{
 				Whitelist:             nil,
@@ -129,7 +128,6 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 			}
 		}
 		handler.Cache = cache
-		cache.Mu.Unlock()
 		// Invalidate in-memory cache after RefreshInterval
 		go func(cache *TokenAndFiatCache) {
 			randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
@@ -152,7 +150,6 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 
 func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Handler) error {
 	return func(handler *Handler) error {
-		cache.Mu.Lock()
 		if cache == nil {
 			cache = &ChartDataCache{
 				Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{},
@@ -161,7 +158,6 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 			}
 		}
 		handler.Chart = cache
-		cache.Mu.Unlock()
 
 		// Invalidate in-memory cache for chart data after RefreshInterval
 		go func(cache *ChartDataCache) {
