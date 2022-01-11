@@ -29,7 +29,7 @@ import (
 )
 
 func TestNewStoreHandler(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, _, storeHandler, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
@@ -91,7 +91,7 @@ func TestNewStoreHandler(t *testing.T) {
 }
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -120,7 +120,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -133,7 +133,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -161,7 +161,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 }
 
 func TestPriceFiatAggregator(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -190,7 +190,7 @@ func TestPriceFiatAggregator(t *testing.T) {
 }
 
 func TestGetTokenPriceAndSupplies(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -218,7 +218,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 }
 
 func TestGetFiatPrices(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -259,7 +259,7 @@ func newTestClient(fn roundTripFunc, timeout time.Duration) *http.Client {
 }
 
 func TestGetChartData_CorrectDataReturned(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -300,7 +300,7 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.coinId, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 			resp, err := storeHandler.GetChartData(tt.coinId, tt.days, tt.currency, geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, resp)
@@ -309,7 +309,7 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 }
 
 func TestGetChartData_CacheHit(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -350,7 +350,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 }
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -370,7 +370,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 		{name: "more than 90 days should have cached in 1D", days: "180", cacheGranularity: "1D"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 			client := newTestClient(func(req *http.Request) *http.Response {
 				b, err := json.Marshal(dataBTC)
 				require.NoError(t, err)
@@ -402,7 +402,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 }
 
 func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	_, cancel, storeHandler, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -461,7 +461,7 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 			client := newTestClient(func(req *http.Request) *http.Response {
 				data := tt.fetchedData
 				b, err := json.Marshal(data)
