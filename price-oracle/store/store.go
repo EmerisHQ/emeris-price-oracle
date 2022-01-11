@@ -129,9 +129,9 @@ func WithSpotPriceCache(cache *TokenAndFiatCache, mu *sync.RWMutex) func(*Handle
 			}
 			mu.Unlock()
 		}
-		handler.Cache.Mu.Lock()
+		mu.Lock()
 		handler.Cache = cache
-		handler.Cache.Mu.Unlock()
+		mu.Unlock()
 		// Invalidate in-memory cache after RefreshInterval
 		go func(cache *TokenAndFiatCache) {
 			randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
@@ -163,9 +163,9 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration, mu *sync.R
 			}
 			mu.Unlock()
 		}
-		handler.Chart.Mu.Lock()
+		mu.Lock()
 		handler.Chart = cache
-		handler.Chart.Mu.Unlock()
+		mu.Unlock()
 
 		// Invalidate in-memory cache for chart data after RefreshInterval
 		go func(cache *ChartDataCache) {
