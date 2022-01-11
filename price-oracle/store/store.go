@@ -56,7 +56,7 @@ type TokenAndFiatCache struct {
 	FiatPrices            map[string]types.FiatPrice
 
 	RefreshInterval time.Duration
-	Mu              sync.Mutex
+	Mu              sync.RWMutex
 }
 
 // ChartDataCache is holder of chart data in a map and evacuating the cache
@@ -80,7 +80,7 @@ type TokenAndFiatCache struct {
 // GetChartData function.
 type ChartDataCache struct {
 	Data            map[string]map[string]*geckoTypes.CoinsIDMarketChart
-	Mu              sync.Mutex
+	Mu              sync.RWMutex
 	RefreshInterval time.Duration
 }
 
@@ -124,7 +124,7 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 				TokenPriceAndSupplies: nil,
 				FiatPrices:            nil,
 				RefreshInterval:       time.Second * 5,
-				Mu:                    sync.Mutex{},
+				Mu:                    sync.RWMutex{},
 			}
 		}
 		handler.Cache = cache
@@ -153,7 +153,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 		if cache == nil {
 			cache = &ChartDataCache{
 				Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{},
-				Mu:              sync.Mutex{},
+				Mu:              sync.RWMutex{},
 				RefreshInterval: refresh,
 			}
 		}
@@ -208,20 +208,25 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 // It first checks the in-memory cache.
 // If cache is nil, it fetches and updates the cache.
 func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
-	if h.Cache.Whitelist == nil {
-		whitelists, err := h.Store.GetTokenNames()
-		if err != nil {
-			return nil, err
-		}
-		h.Cache.Mu.Lock()
-		h.Cache.Whitelist = whitelists
-		h.Cache.Mu.Unlock()
+	var tokens []string
+	h.Cache.Mu.RLock()
+	if h.Cache.Whitelist != nil {
+		tokens = append([]string(nil), h.Cache.Whitelist...)
+	}
+	h.Cache.Mu.RUnlock()
+	if len(tokens) != 0 {
+		return tokens, nil
+	}
+
+	names, err := h.Store.GetTokenNames()
+	if err != nil {
+		return nil, err
 	}
 	h.Cache.Mu.Lock()
-	tokens := make([]string, len(h.Cache.Whitelist))
-	copy(tokens, h.Cache.Whitelist)
+	h.Cache.Whitelist = append([]string(nil), names...)
 	h.Cache.Mu.Unlock()
-	return tokens, nil
+
+	return names, nil
 }
 
 func (h *Handler) CNSPriceIdQuery() ([]string, error) {
@@ -236,10 +241,12 @@ func (h *Handler) CNSPriceIdQuery() ([]string, error) {
 // checks if in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
+	h.Cache.Mu.RLock()
 	cachedTokens := make([]string, 0, len(h.Cache.TokenPriceAndSupplies))
 	for t := range h.Cache.TokenPriceAndSupplies {
 		cachedTokens = append(cachedTokens, t)
 	}
+	h.Cache.Mu.RUnlock()
 
 	if h.Cache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
 		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
@@ -247,10 +254,10 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 			return nil, err
 		}
 
+		h.Cache.Mu.Lock()
 		if h.Cache.TokenPriceAndSupplies == nil {
 			h.Cache.TokenPriceAndSupplies = make(map[string]types.TokenPriceAndSupply, len(tokensDetails))
 		}
-		h.Cache.Mu.Lock()
 		for _, t := range tokensDetails {
 			h.Cache.TokenPriceAndSupplies[t.Symbol] = t
 		}
@@ -258,10 +265,12 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 		return tokensDetails, err
 	}
 
+	h.Cache.Mu.RLock()
 	tokenDetails := make([]types.TokenPriceAndSupply, 0, len(tokens))
 	for _, t := range tokens {
 		tokenDetails = append(tokenDetails, h.Cache.TokenPriceAndSupplies[t])
 	}
+	h.Cache.Mu.RUnlock()
 	return tokenDetails, nil
 }
 
@@ -270,30 +279,34 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	cachedFiats := make([]string, 0, len(h.Cache.FiatPrices))
+	h.Cache.Mu.RLock()
 	for f := range h.Cache.FiatPrices {
 		cachedFiats = append(cachedFiats, f)
 	}
+	h.Cache.Mu.RUnlock()
 
-	if h.Cache.FiatPrices == nil || !isSubset(fiats, cachedFiats) {
+	if len(cachedFiats) == 0 || !isSubset(fiats, cachedFiats) {
 		fiatPrices, err := h.Store.GetFiatPrices(fiats)
 		if err != nil {
 			return nil, err
 		}
 
+		h.Cache.Mu.Lock()
 		if h.Cache.FiatPrices == nil {
 			h.Cache.FiatPrices = make(map[string]types.FiatPrice, len(fiatPrices))
 		}
-		h.Cache.Mu.Lock()
 		for _, f := range fiatPrices {
 			h.Cache.FiatPrices[f.Symbol] = f
 		}
 		h.Cache.Mu.Unlock()
 		return fiatPrices, nil
 	}
+	h.Cache.Mu.RLock()
 	fiatPrices := make([]types.FiatPrice, 0, len(fiats))
 	for _, f := range fiats {
 		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
 	}
+	h.Cache.Mu.RUnlock()
 	return fiatPrices, nil
 }
 
