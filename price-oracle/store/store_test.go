@@ -42,7 +42,11 @@ func TestNewStoreHandler(t *testing.T) {
 
 	_, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
+
+	storeHandler.Cache.Mu.RLock()
 	require.NotNil(t, storeHandler.Cache.Whitelist)
+	storeHandler.Cache.Mu.RUnlock()
+
 	require.Eventually(t, func() bool {
 		storeHandler.Cache.Mu.RLock()
 		isNil := storeHandler.Cache.Whitelist == nil
@@ -55,7 +59,11 @@ func TestNewStoreHandler(t *testing.T) {
 
 	_, err = storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
+
+	storeHandler.Cache.Mu.RLock()
 	require.NotNil(t, storeHandler.Cache.FiatPrices)
+	storeHandler.Cache.Mu.RUnlock()
+
 	require.Eventually(t, func() bool {
 		storeHandler.Cache.Mu.RLock()
 		isNil := storeHandler.Cache.FiatPrices == nil
@@ -68,7 +76,11 @@ func TestNewStoreHandler(t *testing.T) {
 
 	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
+
+	storeHandler.Cache.Mu.RLock()
 	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
+	storeHandler.Cache.Mu.RUnlock()
+
 	require.Eventually(t, func() bool {
 		storeHandler.Cache.Mu.RLock()
 		isNil := storeHandler.Cache.TokenPriceAndSupplies == nil
@@ -102,7 +114,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock()
+	storeHandler.Cache.Mu.RLock() // todo: remove this
 	require.Equal(t, whiteList, whiteListFromCache)
 	storeHandler.Cache.Mu.RUnlock()
 }
@@ -252,9 +264,9 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	storeHandler.Cache.Mu.RLock()
+	storeHandler.Chart.Mu.RLock()
 	require.NotNil(t, storeHandler.Chart.Data)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.Chart.Mu.RUnlock()
 
 	nowUnix := float32(time.Now().Unix())
 
@@ -302,9 +314,9 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	storeHandler.Cache.Mu.RLock()
+	storeHandler.Chart.Mu.RLock()
 	require.NotNil(t, storeHandler.Chart.Data)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.Chart.Mu.RUnlock()
 
 	nowUnix := float32(time.Now().Unix())
 	var clientInvoked int
@@ -372,18 +384,18 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, resp, dataBTC)
-			storeHandler.Cache.Mu.RLock()
+			storeHandler.Chart.Mu.RLock()
 			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
-			storeHandler.Cache.Mu.RUnlock()
+			storeHandler.Chart.Mu.RUnlock()
 
 			time.Sleep(time.Second * 2)
 
 			// We can only ensure that after the refresh interval (1 sec for test setup), the 5M
 			// cache is evicted. Others are dependent on os clock, thus hard to test.
 			if tt.days == "1" {
-				storeHandler.Cache.Mu.RLock()
+				storeHandler.Chart.Mu.RLock()
 				require.Nil(t, storeHandler.Chart.Data[tt.cacheGranularity])
-				storeHandler.Cache.Mu.RUnlock()
+				storeHandler.Chart.Mu.RUnlock()
 			}
 		})
 	}
