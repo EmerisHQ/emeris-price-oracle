@@ -474,10 +474,10 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			geckoClient := gecko.NewClient(client)
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
-			storeHandler.Cache.Mu.RLock()
+			storeHandler.Chart.Mu.RLock()
 			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
 			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
-			storeHandler.Cache.Mu.RUnlock()
+			storeHandler.Chart.Mu.RUnlock()
 		})
 	}
 }
