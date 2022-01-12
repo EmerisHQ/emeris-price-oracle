@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -505,13 +504,12 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		return nil, err
 	}
 
-	var spMu, chMu sync.RWMutex
 	storeHandler, err := store.NewStoreHandler(
 		store.WithDB(db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
-		store.WithSpotPriceCache(nil, &spMu),
-		store.WithChartDataCache(nil, time.Second*1, &chMu),
+		store.WithSpotPriceCache(nil),
+		store.WithChartDataCache(nil, time.Second*1),
 	)
 	if err != nil {
 		return nil, err

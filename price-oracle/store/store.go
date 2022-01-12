@@ -116,10 +116,8 @@ func WithConfig(cfg *config.Config) func(*Handler) error {
 	}
 }
 
-func WithSpotPriceCache(cache *TokenAndFiatCache, mu *sync.RWMutex) func(*Handler) error {
+func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
-		mu.RLock()
-		mu.RUnlock()
 		if cache == nil {
 			// mu.Lock()
 			cache = &TokenAndFiatCache{
@@ -152,10 +150,8 @@ func WithSpotPriceCache(cache *TokenAndFiatCache, mu *sync.RWMutex) func(*Handle
 	}
 }
 
-func WithChartDataCache(cache *ChartDataCache, refresh time.Duration, mu *sync.RWMutex) func(*Handler) error {
+func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Handler) error {
 	return func(handler *Handler) error {
-		mu.RLock()
-		mu.RUnlock()
 		if cache == nil {
 			// mu.Lock()
 			cache = &ChartDataCache{
