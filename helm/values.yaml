@@ -8,10 +8,10 @@ nodeSelector: {}
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 1Gi
   limits:
     cpu: 100m
-    memory: 128Mi
+    memory: 4Gi
 
 
 databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
