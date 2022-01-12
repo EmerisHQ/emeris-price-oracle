@@ -106,7 +106,7 @@ func TestRest(t *testing.T) {
 			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
-			body, err = ioutil.ReadAll(resp.Body)
+			body, err := ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			err = resp.Body.Close()
@@ -158,7 +158,7 @@ func TestRest(t *testing.T) {
 			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBytes))
 			require.NoError(t, err)
 
-			body, err = ioutil.ReadAll(resp.Body)
+			body, err := ioutil.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			err = resp.Body.Close()

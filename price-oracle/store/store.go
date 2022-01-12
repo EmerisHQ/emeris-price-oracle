@@ -59,7 +59,7 @@ type TokenAndFiatCache struct {
 	FiatPrices            map[string]types.FiatPrice
 
 	RefreshInterval time.Duration
-	Mu              sync.Mutex
+	Mu              sync.RWMutex
 }
 
 // ChartDataCache is holder of chart data in a map and evacuating the cache
@@ -83,7 +83,7 @@ type TokenAndFiatCache struct {
 // GetChartData function.
 type ChartDataCache struct {
 	Data            map[string]map[string]*geckoTypes.CoinsIDMarketChart
-	Mu              sync.Mutex
+	Mu              sync.RWMutex
 	RefreshInterval time.Duration
 }
 
@@ -127,7 +127,7 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 				TokenPriceAndSupplies: nil,
 				FiatPrices:            nil,
 				RefreshInterval:       time.Second * 5,
-				Mu:                    sync.Mutex{},
+				Mu:                    sync.RWMutex{},
 			}
 		}
 		handler.SpotCache = cache
@@ -156,7 +156,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 		if cache == nil {
 			cache = &ChartDataCache{
 				Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{},
-				Mu:              sync.Mutex{},
+				Mu:              sync.RWMutex{},
 				RefreshInterval: refresh,
 			}
 		}
@@ -183,7 +183,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 					cache.Mu.Unlock()
 				}
 			}
-		}(cache)
+		}(handler.ChartCache)
 		return nil
 	}
 }
@@ -238,16 +238,25 @@ func (h *Handler) GetGeckoIdForToken(names []string) ([]string, error) {
 // It first checks the in-memory cache.
 // If cache is nil, it fetches and updates the cache.
 func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
-	if h.SpotCache.Whitelist == nil {
-		whitelists, err := h.Store.GetTokenNames()
-		if err != nil {
-			return nil, err
-		}
-		h.SpotCache.Mu.Lock()
-		h.SpotCache.Whitelist = whitelists
-		h.SpotCache.Mu.Unlock()
+	var tokens []string
+	h.SpotCache.Mu.RLock()
+	if h.SpotCache.Whitelist != nil {
+		tokens = append([]string(nil), h.SpotCache.Whitelist...)
 	}
-	return h.SpotCache.Whitelist, nil
+	h.SpotCache.Mu.RUnlock()
+	if len(tokens) != 0 {
+		return tokens, nil
+	}
+
+	names, err := h.Store.GetTokenNames()
+	if err != nil {
+		return nil, err
+	}
+	h.SpotCache.Mu.Lock()
+	h.SpotCache.Whitelist = append([]string(nil), names...)
+	h.SpotCache.Mu.Unlock()
+
+	return names, nil
 }
 
 func (h *Handler) CNSPriceIdQuery() ([]string, error) {
@@ -262,10 +271,12 @@ func (h *Handler) CNSPriceIdQuery() ([]string, error) {
 // checks if in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
+	h.SpotCache.Mu.RLock()
 	cachedTokens := make([]string, 0, len(h.SpotCache.TokenPriceAndSupplies))
 	for t := range h.SpotCache.TokenPriceAndSupplies {
 		cachedTokens = append(cachedTokens, t)
 	}
+	h.SpotCache.Mu.RUnlock()
 
 	if h.SpotCache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
 		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
@@ -273,10 +284,10 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 			return nil, err
 		}
 
+		h.SpotCache.Mu.Lock()
 		if h.SpotCache.TokenPriceAndSupplies == nil {
 			h.SpotCache.TokenPriceAndSupplies = make(map[string]types.TokenPriceAndSupply, len(tokensDetails))
 		}
-		h.SpotCache.Mu.Lock()
 		for _, t := range tokensDetails {
 			h.SpotCache.TokenPriceAndSupplies[t.Symbol] = t
 		}
@@ -284,10 +295,12 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 		return tokensDetails, err
 	}
 
+	h.SpotCache.Mu.RLock()
 	tokenDetails := make([]types.TokenPriceAndSupply, 0, len(tokens))
 	for _, t := range tokens {
 		tokenDetails = append(tokenDetails, h.SpotCache.TokenPriceAndSupplies[t])
 	}
+	h.SpotCache.Mu.RUnlock()
 	return tokenDetails, nil
 }
 
@@ -296,30 +309,34 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	cachedFiats := make([]string, 0, len(h.SpotCache.FiatPrices))
+	h.SpotCache.Mu.RLock()
 	for f := range h.SpotCache.FiatPrices {
 		cachedFiats = append(cachedFiats, f)
 	}
+	h.SpotCache.Mu.RUnlock()
 
-	if h.SpotCache.FiatPrices == nil || !isSubset(fiats, cachedFiats) {
+	if len(cachedFiats) == 0 || !isSubset(fiats, cachedFiats) {
 		fiatPrices, err := h.Store.GetFiatPrices(fiats)
 		if err != nil {
 			return nil, err
 		}
 
+		h.SpotCache.Mu.Lock()
 		if h.SpotCache.FiatPrices == nil {
 			h.SpotCache.FiatPrices = make(map[string]types.FiatPrice, len(fiatPrices))
 		}
-		h.SpotCache.Mu.Lock()
 		for _, f := range fiatPrices {
 			h.SpotCache.FiatPrices[f.Symbol] = f
 		}
 		h.SpotCache.Mu.Unlock()
 		return fiatPrices, nil
 	}
+	h.SpotCache.Mu.RLock()
 	fiatPrices := make([]types.FiatPrice, 0, len(fiats))
 	for _, f := range fiats {
 		fiatPrices = append(fiatPrices, h.SpotCache.FiatPrices[f])
 	}
+	h.SpotCache.Mu.RUnlock()
 	return fiatPrices, nil
 }
 
@@ -433,11 +450,13 @@ func (h *Handler) PriceTokenAggregator() error {
 	for token := range whitelist {
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
-			return fmt.Errorf("Store.PriceTokenAggregator: %w", err)
+			h.Logger.Errorw("PriceTokenAggregator", "Err:", err, "Token:", token)
+			continue // Best effort, update as much as we can.
 		}
 
 		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
-			return fmt.Errorf("Store.UpsertTokenPrice(%f,%s): %w", mean, token, err)
+			h.Logger.Errorw("PriceTokenAggregator", "UpsertPrice Err:", err, "Token:", token)
+			continue // Best effort, update as much as we can.
 		}
 	}
 	return nil
@@ -478,11 +497,13 @@ func (h *Handler) PriceFiatAggregator() error {
 	for fiat := range symbolKV {
 		mean, err := Averaging(symbolKV[fiat])
 		if err != nil {
-			return fmt.Errorf("Store.PriceFiatAggregator: %w", err)
+			h.Logger.Errorw("PriceFiatAggregator", "Err:", err, "Fiat:", fiat)
+			continue // Best effort, update as much as we can.
 		}
 
 		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
-			return fmt.Errorf("Store.UpsertFiatPrice(%f,%s): %w", mean, fiat, err)
+			h.Logger.Errorw("PriceFiatAggregator", "UpsertPrice Err:", err, "Token:", fiat)
+			continue // Best effort, update as much as we can.
 		}
 	}
 	return nil
