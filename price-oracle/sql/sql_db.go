@@ -230,11 +230,11 @@ func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64)
 	tx := m.db.MustBegin()
 	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 
-	updateresult, err := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
 	}
-	if updateresult == 0 {
+	if rowsAffected == 0 {
 		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
 	}
 
