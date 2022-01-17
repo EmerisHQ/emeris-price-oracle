@@ -144,8 +144,11 @@ func (api *Api) SubscriptionBinance() error {
 }
 
 func (api *Api) SubscriptionCoingecko() error {
-	// CNS actually don't collect price ids, so our defensive implementation fallbacks on tickers
-	// if price id is not found. So, for now priceIds is actually a list of tickers.
+	// CNS actually don't collect price ids, so our defensive
+	// implementation of StoreHandler.CNSPriceIdQuery() fallbacks
+	// on tickers (aka names) if price id is not found.
+	//
+	// So, for now priceIds is actually a list of tickers (aka names).
 	priceIds, err := api.StoreHandler.CNSPriceIdQuery()
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, CNSPriceIdQuery(): %w", err)
@@ -154,14 +157,19 @@ func (api *Api) SubscriptionCoingecko() error {
 		return fmt.Errorf("SubscriptionCoingecko: No whitelisted tokens")
 	}
 
-	var tickerToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network",
-		"cro": "crypto-com-chain", "dvpn": "sentinel", "ion": "ion", "iov": "starname", "iris": "iris-network",
-		"ngm": "e-money", "osmo": "osmosis", "regen": "regen", "xprt": "persistence",
+	tokenNameToID, err := api.StoreHandler.GetGeckoIdForToken(priceIds)
+	if err != nil {
+		api.StoreHandler.Logger.Errorw("SubscriptionCoingecko", "StoreHandler.GetGeckoIdForToken", err)
+		// If error occurs, serve the basic coins at least.
+		tokenNameToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network",
+			"cro": "crypto-com-chain", "dvpn": "sentinel", "ion": "ion", "iov": "starname", "iris": "iris-network",
+			"ngm": "e-money", "osmo": "osmosis", "regen": "regen", "xprt": "persistence",
+		}
 	}
 	// Update []ticker -> []id, required for coin-gecko.
 	for i, token := range priceIds {
 		tokenSymbol := strings.ToLower(token)
-		if id, ok := tickerToID[tokenSymbol]; ok {
+		if id, ok := tokenNameToID[tokenSymbol]; ok {
 			priceIds[i] = id
 		}
 	}

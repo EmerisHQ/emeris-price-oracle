@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStartAggregate(t *testing.T) {
-	ctx, cancel, storeHandler, tDown := setup(t)
+	ctx, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -72,7 +72,7 @@ func TestStartAggregate(t *testing.T) {
 }
 
 func TestAggregateManager_closes(t *testing.T) {
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -92,7 +92,7 @@ func TestAggregateManager_closes(t *testing.T) {
 }
 
 func TestAggregateManager_worker_restarts(t *testing.T) {
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 

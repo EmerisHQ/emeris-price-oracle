@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	gecko "github.com/superoo7/go-gecko/v3"
@@ -28,7 +29,8 @@ type Store interface {
 	UpsertPrice(to string, price float64, token string) error
 	UpsertToken(to string, symbol string, price float64, time int64) error
 	UpsertTokenSupply(to string, symbol string, supply float64) error
-	GetGeckoId(names []string, client *http.Client) (map[string]string, error)
+	UpsertGeckoId(to string, name string, id string) error
+	GetGeckoId(from string, names []string) (map[string]string, error)
 }
 
 const (
@@ -38,6 +40,7 @@ const (
 	TokensStore          = "oracle.tokens"
 	FiatsStore           = "oracle.fiats"
 	CoingeckoSupplyStore = "oracle.coingeckosupply"
+	PriceIDForGeckoStore = "oracle.priceidforgecko"
 
 	GranularityMinute = "5M"
 	GranularityHour   = "1H"
@@ -45,12 +48,14 @@ const (
 )
 
 type Handler struct {
-	Store        Store
-	Logger       *zap.SugaredLogger
-	Cfg          *config.Config
-	SpotCache    *TokenAndFiatCache
-	ChartCache   *ChartDataCache
-	GeckoIdCache sync.Map
+	Store      Store
+	Logger     *zap.SugaredLogger
+	Cfg        *config.Config
+	SpotCache  *TokenAndFiatCache
+	ChartCache *ChartDataCache
+
+	// token gecko symbol aka ticker aka name -> gecko id
+	GeckoIdCache *sync.Map
 }
 
 type TokenAndFiatCache struct {
@@ -95,7 +100,7 @@ func WithDB(store Store) func(*Handler) error {
 			return fmt.Errorf("received nil reference for SqlDB")
 		}
 		handler.Store = store
-		return nil
+		return handler.Store.Init() // Init the DB i.e. Run migrations.
 	}
 }
 
@@ -176,7 +181,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 						cache.Data[GranularityHour] = nil
 					}
 					// Hour returns an int in [0, 23]
-					// so, 0 means beginning of the day
+					// so, 0 means beginning of the day.
 					if tm.Hour() == 0 {
 						cache.Data[GranularityDay] = nil
 					}
@@ -188,6 +193,21 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 	}
 }
 
+// NewStoreHandler takes a list of options and builds the handler. Some
+// properties of the handler require validation and(or) error check, those
+// properties are coming via param: <options>.
+//
+// Simple properties are initialised inline. GeckoIdCache for example.
+//
+// Store        : Interface to query the DB + caches combo. Store is populated
+//                by WithDB(store) function which runs necessary DB migrations.
+// Logger       : We're using zap now. No plan to change in foreseeable future.
+// Cfg          : All configs. Important ones are Http timeout and conn string for DB.
+// SpotCache    : This is the cache sits in front the DB. Some functions of
+//                Store interface queries this caches first.
+// ChartCache   : Historical price data.
+// GeckoIdCache : Coin Gecko used coin id to query them. Others use coin ticker.
+//                So we cache coin ids.
 func NewStoreHandler(options ...option) (*Handler, error) {
 	handler := &Handler{
 		Store:      nil,
@@ -195,43 +215,112 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 		Cfg:        nil,
 		SpotCache:  nil,
 		ChartCache: nil,
+		// Don't need error check or validation. So inline init is enough.
+		GeckoIdCache: &sync.Map{},
 	}
 	for _, opt := range options {
 		if err := opt(handler); err != nil {
 			return nil, fmt.Errorf("option failed: %w", err)
 		}
 	}
-	if err := handler.Store.Init(); err != nil {
-		return nil, err
-	}
 	return handler, nil
 }
 
-func (h *Handler) GetGeckoIdForToken(names []string) ([]string, error) {
+// GetGeckoIdForToken takes a list to token names (symbol in coin-gecko's definition)
+// and returns a map (name -> id). This id is used to query coin gecko api.
+//
+// If nothing found on the DB, we query the API and get all the name-id-symbol relation
+// from coin gecko. Cache and store them. This process of calling api for all name-id-symbol
+// is one time process and this baked into this function.
+func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) {
+	var err error
+	// If no names passed, we return id(s) for all whitelisted tokens.
+	if len(names) == 0 {
+		names, err = h.GetCNSWhitelistedTokens()
+		if err != nil {
+			return nil, err
+		}
+		for i, n := range names {
+			names[i] = strings.ToLower(n)
+		}
+	}
+
+	// Find which ones are not in cache.
 	var notCached []string
 	for _, name := range names {
 		if _, ok := h.GeckoIdCache.Load(name); !ok {
 			notCached = append(notCached, name)
 		}
 	}
-	geckoIds, err := h.Store.GetGeckoId(notCached, &http.Client{Timeout: h.Cfg.HttpClientTimeout})
+	geckoIds, err := h.Store.GetGeckoId(PriceIDForGeckoStore, notCached)
 	if err != nil {
 		return nil, err
 	}
-	for name, geckoId := range geckoIds {
-		h.GeckoIdCache.Store(name, geckoId)
+
+	var notAvailable []string
+	for _, n := range names {
+		if _, ok := geckoIds[n]; !ok {
+			notAvailable = append(notAvailable, n)
+		}
+	}
+	// Nothing in the DB, fetch from API and store in the DB.
+	if len(notAvailable) != 0 {
+		client := &http.Client{Timeout: h.Cfg.HttpClientTimeout}
+		geckoIds, err = GetGeckoIdFromAPI(client)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, name := range notAvailable {
+			var geckoId string
+			var ok bool
+			if geckoId, ok = geckoIds[name]; !ok {
+				h.Logger.Errorw("GetGeckoIdForToken", "GeckoId not found for", name)
+				continue
+			}
+			err = h.Store.UpsertGeckoId(PriceIDForGeckoStore, name, geckoId)
+			if err != nil {
+				h.Logger.Errorw("GetGeckoIdForToken", "Store.UpsertGeckoId", err)
+				continue
+			}
+		}
 	}
 
-	var ret []string
-	for _, name := range names {
-		id, ok := h.GeckoIdCache.Load(name)
-		if !ok {
-			h.Logger.Errorw("GetGeckoIdForToken", "GeckoId not found for token:", name)
+	// Update the in memory cache.
+	for _, n := range names {
+		var id string
+		var ok bool
+		if id, ok = geckoIds[n]; !ok {
+			h.Logger.Errorw("GetGeckoIdForToken: Update cache", "GeckoId not found for token:", n)
 			continue
 		}
-		ret = append(ret, fmt.Sprintf("%s", id))
+		h.GeckoIdCache.Store(n, id)
+	}
+
+	ret := make(map[string]string)
+	for _, name := range names {
+		id, ok := h.GeckoIdCache.Load(name)
+		// Best effort! Serve what we can and log the errors!
+		if !ok {
+			h.Logger.Errorw("GetGeckoIdForToken: Build response", "GeckoId not found for token:", name)
+			continue
+		}
+		ret[name] = fmt.Sprintf("%s", id)
 	}
 	return ret, nil
+}
+
+func GetGeckoIdFromAPI(client *http.Client) (map[string]string, error) {
+	list, err := gecko.NewClient(client).CoinsList()
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]string)
+	for _, l := range *list {
+		// Coin gecko calls it "symbol", we call it "name".
+		ret[l.Symbol] = l.ID
+	}
+	return ret, err
 }
 
 // GetCNSWhitelistedTokens returns the whitelisted tokens.
