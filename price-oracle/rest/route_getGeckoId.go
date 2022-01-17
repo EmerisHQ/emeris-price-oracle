@@ -1,9 +1,10 @@
 package rest
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 const getGeckoId = "/geckoid"
