@@ -244,9 +244,10 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 		if err != nil {
 			return nil, err
 		}
-		for i, n := range names {
-			names[i] = strings.ToLower(n)
-		}
+	}
+
+	for i, n := range names {
+		names[i] = strings.ToLower(n)
 	}
 
 	// Find which ones are not in cache.
