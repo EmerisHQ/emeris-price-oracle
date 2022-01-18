@@ -183,7 +183,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	connStr := tServer.PGURL().String()
 	require.NotNil(t, connStr)
 
-	cfg := &config.Config{ // config.Read() is not working. Fixing is not in scope of this task. That comes later.
+	cfg := &config.Config{
 		LogPath:               "",
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
@@ -199,10 +199,6 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	})
 
 	storeHandler, err := getStoreHandler(t, tServer, logger, cfg)
-	require.NoError(t, err)
-
-	// migrations
-	err = storeHandler.Store.Init()
 	require.NoError(t, err)
 
 	// Put dummy data in cns DB
