@@ -536,7 +536,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 					if i > 1 {
 						break
 					}
-					require.Contains(t, tt.wantLog[i], oLog.ContextMap()["GeckoId not found for"])
+					require.Contains(t, strings.ToLower(tt.wantLog[i]), oLog.ContextMap()["GeckoId not found for"])
 				}
 			}
 		})
