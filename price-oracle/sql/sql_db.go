@@ -32,7 +32,7 @@ func (m *SqlDB) GetConnectionString() string {
 func (m *SqlDB) Init() error {
 	q, err := m.Query("SHOW TABLES FROM oracle")
 	if err != nil {
-		if err = m.runMigrations(); err != nil {
+		if err = m.createDatabase(); err != nil {
 			return err
 		}
 	}
@@ -42,19 +42,24 @@ func (m *SqlDB) Init() error {
 		}
 	}
 
-	// interim measures
-	q, err = m.Query("SELECT * FROM oracle.coingecko")
-	if err != nil {
-		if err = m.runMigrationsCoingecko(); err != nil {
-			return err
-		}
+	if err = m.runMigrations(); err != nil {
+		return err
 	}
-	if q != nil {
-		if err = q.Close(); err != nil {
-			return err
-		}
-	}
+
 	return nil
+
+	// interim measures
+	// q, err = m.Query("SELECT * FROM oracle.coingecko")
+	// if err != nil {
+	// 	if err = m.runMigrationsCoingecko(); err != nil {
+	// 		return err
+	// 	}
+	// }
+	// if q != nil {
+	// 	if err = q.Close(); err != nil {
+	// 		return err
+	// 	}
+	// }
 }
 
 func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {

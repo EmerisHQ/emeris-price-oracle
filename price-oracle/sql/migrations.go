@@ -32,7 +32,6 @@ const createTableFiats = `CREATE TABLE IF NOT EXISTS oracle.fiats (symbol STRING
 const createTableGeckoPriceId = `CREATE TABLE IF NOT EXISTS oracle.priceidforgecko (name VARCHAR ( 255 ) UNIQUE NOT NULL, geckoid VARCHAR ( 255 ) UNIQUE NOT NULL);`
 
 var migrationList = []string{
-	createDatabase,
 	createTableBinance,
 	createTableCoinmarketcap,
 	createTableCoinmarketcapSupply,
@@ -40,9 +39,6 @@ var migrationList = []string{
 	createTableTokens,
 	createTableFiats,
 	createTableGeckoPriceId,
-}
-
-var migrationCoingecko = []string{
 	createTableCoingecko,
 	createTableCoingeckoSupply,
 }
@@ -54,11 +50,17 @@ func (m *SqlDB) runMigrations() error {
 	return nil
 }
 
-func (m *SqlDB) runMigrationsCoingecko() error {
-	if err := m.RunMigrations(migrationCoingecko); err != nil {
+func (m *SqlDB) createDatabase() error {
+	m, err := NewDB(m.connString)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	if _, err := m.db.Exec(createDatabase); err != nil {
+		return fmt.Errorf("error while creating database : %w", err)
+	}
+
+	return m.db.Close()
 }
 
 func (m *SqlDB) RunMigrations(migrations []string) error {

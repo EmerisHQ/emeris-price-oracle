@@ -161,10 +161,12 @@ func (api *Api) SubscriptionCoingecko() error {
 	if err != nil {
 		api.StoreHandler.Logger.Errorw("SubscriptionCoingecko", "StoreHandler.GetGeckoIdForToken", err)
 		// If error occurs, serve the basic coins at least.
-		tokenNameToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network",
-			"cro": "crypto-com-chain", "dvpn": "sentinel", "ion": "ion", "iov": "starname", "iris": "iris-network",
-			"ngm": "e-money", "osmo": "osmosis", "regen": "regen", "xprt": "persistence",
-		}
+		// tokenNameToID = map[string]string{"atom": "cosmos", "luna": "terra-luna", "akt": "akash-network",
+		// 	"cro": "crypto-com-chain", "dvpn": "sentinel", "ion": "ion", "iov": "starname", "iris": "iris-network",
+		// 	"ngm": "e-money", "osmo": "osmosis", "regen": "regen", "xprt": "persistence",
+		// }
+
+		return fmt.Errorf("SubscriptionCoingecko: Failed to get GeckoIdForToken :  %w", err)
 	}
 	// Update []ticker -> []id, required for coin-gecko.
 	for i, token := range priceIds {

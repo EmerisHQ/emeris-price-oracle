@@ -83,12 +83,6 @@ func TestInit(t *testing.T) {
 	err = rows.Close()
 	require.NoError(t, err)
 
-	for _, migrationQueryCoingecko := range migrationCoingecko {
-		if strings.HasPrefix(strings.TrimPrefix(migrationQueryCoingecko, "\n"), "CREATE TABLE") {
-			tableCountMigration++
-		}
-	}
-
 	require.Equal(t, tableCountMigration, tableCountDB)
 }
 
