@@ -10,7 +10,6 @@ import (
 )
 
 func TestGeckoIdHandler(t *testing.T) {
-	t.Parallel()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
@@ -45,7 +44,6 @@ func TestGeckoIdHandler(t *testing.T) {
 }
 
 func TestGeckoIdHandler_noParameter(t *testing.T) {
-	t.Parallel()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
