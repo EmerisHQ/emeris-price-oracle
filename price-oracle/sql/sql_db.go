@@ -210,7 +210,7 @@ func (m *SqlDB) GetGeckoId(from string, names []string) (map[string]string, erro
 	query := fmt.Sprintf("SELECT * FROM %s", from)
 	var args []interface{}
 	if len(names) != 0 {
-		query = query + " WHERE name IN (?)"
+		query = fmt.Sprintf("%s WHERE name IN (?)", query)
 		for i, name := range names {
 			names[i] = strings.ToLower(name)
 		}
