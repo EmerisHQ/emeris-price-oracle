@@ -10,6 +10,7 @@ import (
 )
 
 func TestGeckoIdHandler(t *testing.T) {
+	t.SkipNow()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
@@ -44,6 +45,7 @@ func TestGeckoIdHandler(t *testing.T) {
 }
 
 func TestGeckoIdHandler_noParameter(t *testing.T) {
+	t.SkipNow()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
