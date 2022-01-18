@@ -16,11 +16,6 @@ func (r *router) geckoIdHandler(ctx *gin.Context) {
 		names = strings.Split(namesAsString, ",")
 	}
 
-	// Make lowercase
-	for i, name := range names {
-		names[i] = strings.ToLower(name)
-	}
-
 	geckoNameToId, err := r.s.sh.GetGeckoIdForToken(names)
 	if err != nil {
 		r.s.l.Errorw("Store.GetGeckoIdForToken()", "Error", err)
