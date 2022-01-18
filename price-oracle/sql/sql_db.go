@@ -206,6 +206,63 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	return prices, nil
 }
 
+func (m *SqlDB) GetGeckoId(from string, names []string) (map[string]string, error) {
+	query := fmt.Sprintf("SELECT * FROM %s", from)
+	var args []interface{}
+	if len(names) != 0 {
+		query = fmt.Sprintf("%s WHERE name IN (?)", query)
+		for i, name := range names {
+			names[i] = strings.ToLower(name)
+		}
+
+		var qErr error
+		query, args, qErr = sqlx.In(query, names)
+		if qErr != nil {
+			return nil, fmt.Errorf("cannot build names query, %w", qErr)
+		}
+
+		query = m.db.Rebind(query)
+	}
+
+	rows, err := m.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	nameAndId := make(map[string]string)
+	for rows.Next() {
+		var name, geckoId string
+		if err := rows.Scan(&name, &geckoId); err != nil {
+			return nil, fmt.Errorf("err while scanning result %w", err)
+		}
+		nameAndId[name] = geckoId
+	}
+	if err = rows.Close(); err != nil {
+		return nil, err
+	}
+	return nameAndId, err
+}
+
+func (m *SqlDB) UpsertGeckoId(to string, name string, id string) error {
+	// Always lower case in DB.
+	id, name = strings.ToLower(id), strings.ToLower(name)
+	tx := m.db.MustBegin()
+	result := tx.MustExec("UPDATE "+to+" SET geckoid = ($1) WHERE name = ($2)", id, name)
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("DB update: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", name, id)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("DB commit: %w", err)
+	}
+	return nil
+}
+
 func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
 	tx := m.db.MustBegin()
 

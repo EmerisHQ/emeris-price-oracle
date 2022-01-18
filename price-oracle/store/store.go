@@ -3,7 +3,9 @@ package store
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	gecko "github.com/superoo7/go-gecko/v3"
@@ -27,6 +29,8 @@ type Store interface {
 	UpsertPrice(to string, price float64, token string) error
 	UpsertToken(to string, symbol string, price float64, time int64) error
 	UpsertTokenSupply(to string, symbol string, supply float64) error
+	UpsertGeckoId(to string, name string, id string) error
+	GetGeckoId(from string, names []string) (map[string]string, error)
 }
 
 const (
@@ -36,6 +40,7 @@ const (
 	TokensStore          = "oracle.tokens"
 	FiatsStore           = "oracle.fiats"
 	CoingeckoSupplyStore = "oracle.coingeckosupply"
+	PriceIDForGeckoStore = "oracle.priceidforgecko"
 
 	GranularityMinute = "5M"
 	GranularityHour   = "1H"
@@ -43,11 +48,14 @@ const (
 )
 
 type Handler struct {
-	Store  Store
-	Logger *zap.SugaredLogger
-	Cfg    *config.Config
-	Cache  *TokenAndFiatCache
-	Chart  *ChartDataCache
+	Store      Store
+	Logger     *zap.SugaredLogger
+	Cfg        *config.Config
+	SpotCache  *TokenAndFiatCache
+	ChartCache *ChartDataCache
+
+	// token gecko symbol aka ticker aka name -> gecko id
+	GeckoIdCache *sync.Map
 }
 
 type TokenAndFiatCache struct {
@@ -92,7 +100,7 @@ func WithDB(store Store) func(*Handler) error {
 			return fmt.Errorf("received nil reference for SqlDB")
 		}
 		handler.Store = store
-		return nil
+		return handler.Store.Init() // Init the DB i.e. Run migrations.
 	}
 }
 
@@ -119,7 +127,6 @@ func WithConfig(cfg *config.Config) func(*Handler) error {
 func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
 		if cache == nil {
-			// mu.Lock()
 			cache = &TokenAndFiatCache{
 				Whitelist:             nil,
 				TokenPriceAndSupplies: nil,
@@ -127,9 +134,8 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 				RefreshInterval:       time.Second * 5,
 				Mu:                    sync.RWMutex{},
 			}
-			// mu.Unlock()
 		}
-		handler.Cache = cache
+		handler.SpotCache = cache
 		// Invalidate in-memory cache after RefreshInterval
 		go func(cache *TokenAndFiatCache) {
 			randomInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int63n(5) + 5 //nolint:gosec
@@ -145,7 +151,7 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 					cache.Mu.Unlock()
 				}
 			}
-		}(handler.Cache)
+		}(handler.SpotCache)
 		return nil
 	}
 }
@@ -153,15 +159,13 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Handler) error {
 	return func(handler *Handler) error {
 		if cache == nil {
-			// mu.Lock()
 			cache = &ChartDataCache{
 				Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{},
 				Mu:              sync.RWMutex{},
 				RefreshInterval: refresh,
 			}
-			// mu.Unlock()
 		}
-		handler.Chart = cache
+		handler.ChartCache = cache
 
 		// Invalidate in-memory cache for chart data after RefreshInterval
 		go func(cache *ChartDataCache) {
@@ -177,35 +181,150 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 						cache.Data[GranularityHour] = nil
 					}
 					// Hour returns an int in [0, 23]
-					// so, 0 means beginning of the day
+					// so, 0 means beginning of the day.
 					if tm.Hour() == 0 {
 						cache.Data[GranularityDay] = nil
 					}
 					cache.Mu.Unlock()
 				}
 			}
-		}(handler.Chart)
+		}(handler.ChartCache)
 		return nil
 	}
 }
 
+// NewStoreHandler takes a list of options and builds the handler. Some
+// properties of the handler require validation and(or) error check, those
+// properties are coming via param: <options>.
+//
+// Simple properties are initialised inline. GeckoIdCache for example.
+//
+// Store        : Interface to query the DB + caches combo. Store is populated
+//                by WithDB(store) function which runs necessary DB migrations.
+// Logger       : We're using zap now. No plan to change in foreseeable future.
+// Cfg          : All configs. Important ones are Http timeout and conn string for DB.
+// SpotCache    : This is the cache sits in front the DB. Some functions of
+//                Store interface queries this caches first.
+// ChartCache   : Historical price data.
+// GeckoIdCache : Coin Gecko used coin id to query them. Others use coin ticker.
+//                So we cache coin ids.
 func NewStoreHandler(options ...option) (*Handler, error) {
 	handler := &Handler{
-		Store:  nil,
-		Logger: nil,
-		Cfg:    nil,
-		Cache:  nil,
-		Chart:  nil,
+		Store:      nil,
+		Logger:     nil,
+		Cfg:        nil,
+		SpotCache:  nil,
+		ChartCache: nil,
+		// Don't need error check or validation. So inline init is enough.
+		GeckoIdCache: &sync.Map{},
 	}
 	for _, opt := range options {
 		if err := opt(handler); err != nil {
 			return nil, fmt.Errorf("option failed: %w", err)
 		}
 	}
-	if err := handler.Store.Init(); err != nil {
+	return handler, nil
+}
+
+// GetGeckoIdForToken takes a list of token names ("symbol" in coin-gecko's definition)
+// and returns a map (name -> gecko id). This id is used to query coin gecko api. As
+// coin gecko takes id as api query param. (Most other platforms take name aka symbol.)
+//
+// If nothing found on the DB, we query the gecko API and get the list []CoinsListItem.
+// Where, CoinsListItem is a struct holding name, id and symbol for coins.
+// Then we cache and store them.
+//
+// This process of calling gecko api to get the list of name-id-symbol
+// is a one time process and thus baked into this function.
+func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) {
+	var err error
+	// If no names passed, we return id(s) for all whitelisted tokens.
+	if len(names) == 0 {
+		names, err = h.GetCNSWhitelistedTokens()
+		if err != nil {
+			return nil, err
+		}
+		for i, n := range names {
+			names[i] = strings.ToLower(n)
+		}
+	}
+
+	// Find which ones are not in cache.
+	var notCached []string
+	for _, name := range names {
+		if _, ok := h.GeckoIdCache.Load(name); !ok {
+			notCached = append(notCached, name)
+		}
+	}
+	geckoIds, err := h.Store.GetGeckoId(PriceIDForGeckoStore, notCached)
+	if err != nil {
 		return nil, err
 	}
-	return handler, nil
+
+	var notAvailable []string
+	for _, n := range names {
+		if _, ok := geckoIds[n]; !ok {
+			notAvailable = append(notAvailable, n)
+		}
+	}
+	// Nothing in the DB, fetch from API and store in the DB.
+	if len(notAvailable) != 0 {
+		client := &http.Client{Timeout: h.Cfg.HttpClientTimeout}
+		geckoIds, err = GetGeckoIdFromAPI(client)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, name := range notAvailable {
+			var geckoId string
+			var ok bool
+			if geckoId, ok = geckoIds[name]; !ok {
+				h.Logger.Errorw("GetGeckoIdForToken", "GeckoId not found for", name)
+				continue
+			}
+			err = h.Store.UpsertGeckoId(PriceIDForGeckoStore, name, geckoId)
+			if err != nil {
+				h.Logger.Errorw("GetGeckoIdForToken", "Store.UpsertGeckoId", err)
+				continue
+			}
+		}
+	}
+
+	// Update the in memory cache.
+	for _, n := range names {
+		var id string
+		var ok bool
+		if id, ok = geckoIds[n]; !ok {
+			h.Logger.Errorw("GetGeckoIdForToken: Update cache", "GeckoId not found for token:", n)
+			continue
+		}
+		h.GeckoIdCache.Store(n, id)
+	}
+
+	ret := make(map[string]string)
+	for _, name := range names {
+		id, ok := h.GeckoIdCache.Load(name)
+		// Best effort! Serve what we can and log the errors!
+		if !ok {
+			h.Logger.Errorw("GetGeckoIdForToken: Build response", "GeckoId not found for token:", name)
+			continue
+		}
+		ret[name] = fmt.Sprintf("%s", id)
+	}
+	return ret, nil
+}
+
+func GetGeckoIdFromAPI(client *http.Client) (map[string]string, error) {
+	list, err := gecko.NewClient(client).CoinsList()
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]string)
+	for _, l := range *list {
+		// Coin gecko calls it "symbol", we call it "name".
+		ret[l.Symbol] = l.ID
+	}
+	return ret, err
 }
 
 // GetCNSWhitelistedTokens returns the whitelisted tokens.
@@ -213,11 +332,11 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 // If cache is nil, it fetches and updates the cache.
 func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	var tokens []string
-	h.Cache.Mu.RLock()
-	if h.Cache.Whitelist != nil {
-		tokens = append([]string(nil), h.Cache.Whitelist...)
+	h.SpotCache.Mu.RLock()
+	if h.SpotCache.Whitelist != nil {
+		tokens = append([]string(nil), h.SpotCache.Whitelist...)
 	}
-	h.Cache.Mu.RUnlock()
+	h.SpotCache.Mu.RUnlock()
 	if len(tokens) != 0 {
 		return tokens, nil
 	}
@@ -226,9 +345,9 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	h.Cache.Mu.Lock()
-	h.Cache.Whitelist = append([]string(nil), names...)
-	h.Cache.Mu.Unlock()
+	h.SpotCache.Mu.Lock()
+	h.SpotCache.Whitelist = append([]string(nil), names...)
+	h.SpotCache.Mu.Unlock()
 
 	return names, nil
 }
@@ -245,36 +364,36 @@ func (h *Handler) CNSPriceIdQuery() ([]string, error) {
 // checks if in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
-	h.Cache.Mu.RLock()
-	cachedTokens := make([]string, 0, len(h.Cache.TokenPriceAndSupplies))
-	for t := range h.Cache.TokenPriceAndSupplies {
+	h.SpotCache.Mu.RLock()
+	cachedTokens := make([]string, 0, len(h.SpotCache.TokenPriceAndSupplies))
+	for t := range h.SpotCache.TokenPriceAndSupplies {
 		cachedTokens = append(cachedTokens, t)
 	}
-	h.Cache.Mu.RUnlock()
+	h.SpotCache.Mu.RUnlock()
 
-	if h.Cache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
+	if h.SpotCache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
 		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
 		if err != nil {
 			return nil, err
 		}
 
-		h.Cache.Mu.Lock()
-		if h.Cache.TokenPriceAndSupplies == nil {
-			h.Cache.TokenPriceAndSupplies = make(map[string]types.TokenPriceAndSupply, len(tokensDetails))
+		h.SpotCache.Mu.Lock()
+		if h.SpotCache.TokenPriceAndSupplies == nil {
+			h.SpotCache.TokenPriceAndSupplies = make(map[string]types.TokenPriceAndSupply, len(tokensDetails))
 		}
 		for _, t := range tokensDetails {
-			h.Cache.TokenPriceAndSupplies[t.Symbol] = t
+			h.SpotCache.TokenPriceAndSupplies[t.Symbol] = t
 		}
-		h.Cache.Mu.Unlock()
+		h.SpotCache.Mu.Unlock()
 		return tokensDetails, err
 	}
 
-	h.Cache.Mu.RLock()
+	h.SpotCache.Mu.RLock()
 	tokenDetails := make([]types.TokenPriceAndSupply, 0, len(tokens))
 	for _, t := range tokens {
-		tokenDetails = append(tokenDetails, h.Cache.TokenPriceAndSupplies[t])
+		tokenDetails = append(tokenDetails, h.SpotCache.TokenPriceAndSupplies[t])
 	}
-	h.Cache.Mu.RUnlock()
+	h.SpotCache.Mu.RUnlock()
 	return tokenDetails, nil
 }
 
@@ -282,12 +401,12 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 // in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
-	cachedFiats := make([]string, 0, len(h.Cache.FiatPrices))
-	h.Cache.Mu.RLock()
-	for f := range h.Cache.FiatPrices {
+	cachedFiats := make([]string, 0, len(h.SpotCache.FiatPrices))
+	h.SpotCache.Mu.RLock()
+	for f := range h.SpotCache.FiatPrices {
 		cachedFiats = append(cachedFiats, f)
 	}
-	h.Cache.Mu.RUnlock()
+	h.SpotCache.Mu.RUnlock()
 
 	if len(cachedFiats) == 0 || !isSubset(fiats, cachedFiats) {
 		fiatPrices, err := h.Store.GetFiatPrices(fiats)
@@ -295,22 +414,22 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 			return nil, err
 		}
 
-		h.Cache.Mu.Lock()
-		if h.Cache.FiatPrices == nil {
-			h.Cache.FiatPrices = make(map[string]types.FiatPrice, len(fiatPrices))
+		h.SpotCache.Mu.Lock()
+		if h.SpotCache.FiatPrices == nil {
+			h.SpotCache.FiatPrices = make(map[string]types.FiatPrice, len(fiatPrices))
 		}
 		for _, f := range fiatPrices {
-			h.Cache.FiatPrices[f.Symbol] = f
+			h.SpotCache.FiatPrices[f.Symbol] = f
 		}
-		h.Cache.Mu.Unlock()
+		h.SpotCache.Mu.Unlock()
 		return fiatPrices, nil
 	}
-	h.Cache.Mu.RLock()
+	h.SpotCache.Mu.RLock()
 	fiatPrices := make([]types.FiatPrice, 0, len(fiats))
 	for _, f := range fiats {
-		fiatPrices = append(fiatPrices, h.Cache.FiatPrices[f])
+		fiatPrices = append(fiatPrices, h.SpotCache.FiatPrices[f])
 	}
-	h.Cache.Mu.RUnlock()
+	h.SpotCache.Mu.RUnlock()
 	return fiatPrices, nil
 }
 
@@ -335,20 +454,20 @@ func (h *Handler) GetChartData(
 
 	var err error
 	coinIDCurrency := fmt.Sprintf("%s-%s", coinId, currency)
-	h.Chart.Mu.Lock()
-	chartData, ok := h.Chart.Data[granularity][coinIDCurrency]
+	h.ChartCache.Mu.Lock()
+	chartData, ok := h.ChartCache.Data[granularity][coinIDCurrency]
 	if !ok {
 		chartData, err = geckoClient.CoinsIDMarketChart(coinId, currency, maxFetchDays)
 		if err != nil {
-			h.Chart.Mu.Unlock() // unlock mutex
+			h.ChartCache.Mu.Unlock() // unlock mutex
 			return nil, err
 		}
-		if h.Chart.Data[granularity] == nil {
-			h.Chart.Data[granularity] = map[string]*geckoTypes.CoinsIDMarketChart{}
+		if h.ChartCache.Data[granularity] == nil {
+			h.ChartCache.Data[granularity] = map[string]*geckoTypes.CoinsIDMarketChart{}
 		}
-		h.Chart.Data[granularity][coinIDCurrency] = chartData
+		h.ChartCache.Data[granularity][coinIDCurrency] = chartData
 	}
-	h.Chart.Mu.Unlock() // unlock mutex
+	h.ChartCache.Mu.Unlock() // unlock mutex
 
 	if days == "1" || days == "max" {
 		return chartData, nil

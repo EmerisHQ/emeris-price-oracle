@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"go.uber.org/zap/zaptest/observer"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/allinbits/emeris-utils/logging"
 	"go.uber.org/zap"
 
 	models "github.com/allinbits/demeris-backend-models/cns"
@@ -29,27 +29,27 @@ import (
 
 func TestNewStoreHandler(t *testing.T) {
 	t.Parallel()
-	_, _, storeHandler, tDown := setup(t)
+	_, _, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
 
-	storeHandler.Cache.Mu.RLock()
-	require.Nil(t, storeHandler.Cache.Whitelist)
-	require.Nil(t, storeHandler.Cache.FiatPrices)
-	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.FiatPrices)
+	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	_, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.Whitelist)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	require.Eventually(t, func() bool {
-		storeHandler.Cache.Mu.RLock()
-		isNil := storeHandler.Cache.Whitelist == nil
-		storeHandler.Cache.Mu.RUnlock()
+		storeHandler.SpotCache.Mu.RLock()
+		isNil := storeHandler.SpotCache.Whitelist == nil
+		storeHandler.SpotCache.Mu.RUnlock()
 		return isNil
 	}, 10*time.Second, 1*time.Second)
 
@@ -59,14 +59,14 @@ func TestNewStoreHandler(t *testing.T) {
 	_, err = storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.FiatPrices)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	require.Eventually(t, func() bool {
-		storeHandler.Cache.Mu.RLock()
-		isNil := storeHandler.Cache.FiatPrices == nil
-		storeHandler.Cache.Mu.RUnlock()
+		storeHandler.SpotCache.Mu.RLock()
+		isNil := storeHandler.SpotCache.FiatPrices == nil
+		storeHandler.SpotCache.Mu.RUnlock()
 		return isNil
 	}, 10*time.Second, 1*time.Second)
 
@@ -76,14 +76,14 @@ func TestNewStoreHandler(t *testing.T) {
 	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	require.Eventually(t, func() bool {
-		storeHandler.Cache.Mu.RLock()
-		isNil := storeHandler.Cache.TokenPriceAndSupplies == nil
-		storeHandler.Cache.Mu.RUnlock()
+		storeHandler.SpotCache.Mu.RLock()
+		isNil := storeHandler.SpotCache.TokenPriceAndSupplies == nil
+		storeHandler.SpotCache.Mu.RUnlock()
 		return isNil
 	}, 10*time.Second, 1*time.Second)
 
@@ -91,36 +91,34 @@ func TestNewStoreHandler(t *testing.T) {
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
 	whiteList := []string{"ATOM", "LUNA"}
 
-	storeHandler.Cache.Mu.RLock()
-	require.Nil(t, storeHandler.Cache.Whitelist)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromStore)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.Whitelist)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock() // todo: remove this
 	require.Equal(t, whiteList, whiteListFromCache)
-	storeHandler.Cache.Mu.RUnlock()
 }
 
 func TestCnsPriceIdQuery(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -133,7 +131,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 
 func TestPriceTokenAggregator(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -161,7 +159,7 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 func TestPriceFiatAggregator(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -190,25 +188,25 @@ func TestPriceFiatAggregator(t *testing.T) {
 
 func TestGetTokenPriceAndSupplies(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
 	upsertedTokens, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
 
-	storeHandler.Cache.Mu.RLock()
-	require.Nil(t, storeHandler.Cache.TokenPriceAndSupplies)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromStore)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.TokenPriceAndSupplies)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
 	require.NoError(t, err)
@@ -218,13 +216,13 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 
 func TestGetFiatPrices(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
-	storeHandler.Cache.Mu.RLock()
-	require.Nil(t, storeHandler.Cache.FiatPrices)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.Nil(t, storeHandler.SpotCache.FiatPrices)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	upsertedFiats, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
@@ -234,9 +232,9 @@ func TestGetFiatPrices(t *testing.T) {
 
 	require.Equal(t, upsertedFiats, fiatsFromStore)
 
-	storeHandler.Cache.Mu.RLock()
-	require.NotNil(t, storeHandler.Cache.FiatPrices)
-	storeHandler.Cache.Mu.RUnlock()
+	storeHandler.SpotCache.Mu.RLock()
+	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
+	storeHandler.SpotCache.Mu.RUnlock()
 
 	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
 	require.NoError(t, err)
@@ -259,13 +257,13 @@ func newTestClient(fn roundTripFunc, timeout time.Duration) *http.Client {
 
 func TestGetChartData_CorrectDataReturned(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
-	storeHandler.Chart.Mu.RLock()
-	require.NotNil(t, storeHandler.Chart.Data)
-	storeHandler.Chart.Mu.RUnlock()
+	storeHandler.ChartCache.Mu.RLock()
+	require.NotNil(t, storeHandler.ChartCache.Data)
+	storeHandler.ChartCache.Mu.RUnlock()
 
 	nowUnix := float32(time.Now().Unix())
 
@@ -309,13 +307,13 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 
 func TestGetChartData_CacheHit(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
-	storeHandler.Chart.Mu.RLock()
-	require.NotNil(t, storeHandler.Chart.Data)
-	storeHandler.Chart.Mu.RUnlock()
+	storeHandler.ChartCache.Mu.RLock()
+	require.NotNil(t, storeHandler.ChartCache.Data)
+	storeHandler.ChartCache.Mu.RUnlock()
 
 	nowUnix := float32(time.Now().Unix())
 	var clientInvoked int
@@ -333,7 +331,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	}, time.Second)
 	geckoClient := gecko.NewClient(client)
 
-	// Test: Cache hit!
+	// Test: SpotCache hit!
 	clientInvoked = 0
 	resp, err := storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
 	require.NoError(t, err)
@@ -350,14 +348,14 @@ func TestGetChartData_CacheHit(t *testing.T) {
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
 	nowUnix := float32(time.Now().Unix())
 	dataBTC := generateChartData(2, nowUnix)
 
-	// Test: Cache is set and emptied correctly.
+	// Test: SpotCache is set and emptied correctly.
 	for _, tt := range []struct {
 		name             string
 		days             string
@@ -383,18 +381,18 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, resp, dataBTC)
-			storeHandler.Chart.Mu.RLock()
-			require.Equal(t, storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
-			storeHandler.Chart.Mu.RUnlock()
+			storeHandler.ChartCache.Mu.RLock()
+			require.Equal(t, storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"], dataBTC)
+			storeHandler.ChartCache.Mu.RUnlock()
 
 			time.Sleep(time.Second * 2)
 
 			// We can only ensure that after the refresh interval (1 sec for test setup), the 5M
 			// cache is evicted. Others are dependent on os clock, thus hard to test.
 			if tt.days == "1" {
-				storeHandler.Chart.Mu.RLock()
-				require.Nil(t, storeHandler.Chart.Data[tt.cacheGranularity])
-				storeHandler.Chart.Mu.RUnlock()
+				storeHandler.ChartCache.Mu.RLock()
+				require.Nil(t, storeHandler.ChartCache.Data[tt.cacheGranularity])
+				storeHandler.ChartCache.Mu.RUnlock()
 			}
 		})
 	}
@@ -402,7 +400,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 
 func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, tDown := setup(t)
+	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
 
@@ -473,10 +471,111 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			geckoClient := gecko.NewClient(client)
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
-			storeHandler.Chart.Mu.RLock()
+			storeHandler.ChartCache.Mu.RLock()
 			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
-			require.Equal(t, tt.maxDataCount, len(*storeHandler.Chart.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
-			storeHandler.Chart.Mu.RUnlock()
+			require.Equal(t, tt.maxDataCount, len(*storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
+			storeHandler.ChartCache.Mu.RUnlock()
+		})
+	}
+}
+
+func TestHandler_GetGeckoIdForToken(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, observedLogs, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	// Insert token ids
+	sqlDb, err := sql.NewDB(storeHandler.Cfg.DatabaseConnectionURL)
+	require.NoError(t, err)
+
+	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "atom", "cosmos")
+	require.NoError(t, err)
+	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "btc", "bitcoin")
+	require.NoError(t, err)
+	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "luna", "terra-luna")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		expected   map[string]string
+		tokenNames []string
+		checkLog   bool
+		wantLog    []string
+	}{
+		{
+			name:       "Coins not found",
+			expected:   map[string]string{},
+			tokenNames: []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
+			checkLog:   true,
+			wantLog:    []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
+		},
+		{
+			name:       "No names -> Returns all whitelisted",
+			expected:   map[string]string{"atom": "cosmos", "luna": "terra-luna"},
+			tokenNames: nil,
+			checkLog:   false,
+			wantLog:    nil,
+		},
+		{
+			name:       "Returned id only for valid coins",
+			expected:   map[string]string{"atom": "cosmos"},
+			tokenNames: []string{"UNREALISTIC_TOKEN_1", "atom"},
+			checkLog:   false,
+			wantLog:    nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			//t.Parallel()
+			got, err := storeHandler.GetGeckoIdForToken(tt.tokenNames)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, got)
+			if tt.checkLog {
+				for i, oLog := range observedLogs.All() {
+					if i > 1 {
+						break
+					}
+					require.Contains(t, tt.wantLog[i], oLog.ContextMap()["GeckoId not found for"])
+				}
+			}
+		})
+	}
+}
+
+func TestGetGeckoIdFromAPI(t *testing.T) {
+	t.Parallel()
+	_, cancel, storeHandler, _, tDown := setup(t)
+	defer tDown()
+	defer cancel()
+
+	type args struct {
+		client *http.Client
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name: "Should Success",
+			args: args{
+				client: &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
+			},
+			want:    nil,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := store.GetGeckoIdFromAPI(tt.args.client)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetGeckoIdFromAPI() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.NotNil(t, got)
+			require.Greater(t, len(got), 10)
 		})
 	}
 }
@@ -505,7 +604,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(db), // This call rums the migrations.
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
@@ -518,7 +617,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	return storeHandler, nil
 }
 
-func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
+func setup(t *testing.T) (context.Context, func(), *store.Handler, *observer.ObservedLogs, func()) {
 	t.Helper()
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -536,17 +635,15 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, func()) {
 		WorkerPulse:           3 * time.Second,
 	}
 
-	logger := logging.New(logging.LoggingConfig{
-		LogPath: cfg.LogPath,
-		Debug:   cfg.Debug,
-	})
+	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+	observedLogger := zap.New(observedZapCore)
 
-	handler, err := getStoreHandler(t, ts, logger, cfg)
+	handler, err := getStoreHandler(t, ts, observedLogger.Sugar(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, cancel, handler, func() { ts.Stop() }
+	return ctx, cancel, handler, observedLogs, func() { ts.Stop() }
 }
 
 func insertToken(t *testing.T, connStr string) {

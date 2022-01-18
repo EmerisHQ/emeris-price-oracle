@@ -396,6 +396,49 @@ func TestUpsertTokenSupply(t *testing.T) {
 	require.Equal(t, price, prices[0])
 }
 
+func TestGetGeckoId(t *testing.T) {
+	testServer := setup(t)
+	defer tearDown(testServer)
+
+	connStr := testServer.PGURL().String()
+	require.NotNil(t, connStr)
+
+	mDB, err := NewDB(connStr)
+	require.NoError(t, err)
+	require.Equal(t, mDB.GetConnectionString(), connStr)
+	defer func() {
+		err = mDB.Close()
+		require.NoError(t, err)
+	}()
+
+	err = mDB.Init()
+	require.NoError(t, err)
+
+	ids, err := mDB.GetGeckoId(store.PriceIDForGeckoStore, []string{"ATOM", "LUNA"})
+	require.NoError(t, err)
+	require.Empty(t, ids)
+
+	err = mDB.UpsertGeckoId(store.PriceIDForGeckoStore, "ATOM", "cosmos")
+	require.NoError(t, err)
+	err = mDB.UpsertGeckoId(store.PriceIDForGeckoStore, "LUNA", "terra-luna")
+	require.NoError(t, err)
+
+	ids, err = mDB.GetGeckoId(store.PriceIDForGeckoStore, []string{"ATOM", "LUNA"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"atom": "cosmos", "luna": "terra-luna"}, ids)
+
+	// Get all back when passed an empty slice
+	ids, err = mDB.GetGeckoId(store.PriceIDForGeckoStore, nil)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"atom": "cosmos", "luna": "terra-luna"}, ids)
+
+	// Small case should also work.
+	ids, err = mDB.GetGeckoId(store.PriceIDForGeckoStore, []string{"atom"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"atom": "cosmos"}, ids)
+
+}
+
 func setup(t *testing.T) testserver.TestServer {
 	t.Helper()
 	ts, err := testserver.NewTestServer()
