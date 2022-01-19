@@ -49,4 +49,4 @@ jobs:
           token: ${{ secrets.TENDERBOT_GIT_TOKEN }}
           repository: allinbits/demeris-backend
           event-type: dev-push-price-oracle-server
-          client-payload: '{"repo_name":"emeris-price-oracle","branch_name":"hotfix","image_name":"emeris-price-oracle","image_sha":"${{ github.sha }}","service_name":"price-oracle"}'
+          client-payload: '{"repo_name":"emeris-price-oracle","branch_name":"main","image_name":"emeris-price-oracle","image_sha":"${{ github.sha }}","service_name":"price-oracle"}'
