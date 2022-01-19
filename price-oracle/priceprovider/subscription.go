@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,7 +37,16 @@ type Api struct {
 
 func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 	api := Api{
-		Client:       &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
+		Client: &http.Client{
+			Timeout: storeHandler.Cfg.HttpClientTimeout,
+			Transport: &http.Transport{
+				IdleConnTimeout: storeHandler.Cfg.HttpClientTimeout * 2,
+				DialContext: (&net.Dialer{
+					Timeout:   storeHandler.Cfg.HttpClientTimeout,
+					KeepAlive: storeHandler.Cfg.HttpClientTimeout * 2,
+				}).DialContext,
+			},
+		},
 		StoreHandler: storeHandler,
 	}
 
@@ -97,7 +107,9 @@ func (api *Api) SubscriptionBinance() error {
 		req.Header.Set("Accepts", "application/json")
 		req.URL.RawQuery = q.Encode()
 
-		resp, err := api.Client.Do(req)
+		client := http.Client{Timeout: api.StoreHandler.Cfg.HttpClientTimeout}
+		resp, err := client.Do(req)
+		//resp, err := api.client.Do(req)
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 		}

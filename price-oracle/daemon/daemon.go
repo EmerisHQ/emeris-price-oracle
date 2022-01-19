@@ -91,9 +91,13 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			defer close(heartbeat)
 			defer close(errCh)
 
-			var workerDone chan struct{}
-			var workerHeartbeat <-chan interface{}
-			var workerFatalErr <-chan error
+			var (
+				workerDone      chan struct{}
+				workerHeartbeat <-chan interface{}
+				workerFatalErr  <-chan error
+			)
+			// initialised in the past, so the first heartbeat log is never skipped.
+			prevHbLogTime := time.Now().Add(-(61 * time.Second))
 
 			startWorker := func() {
 				logger.Infow("Daemon", "starts function:", GetFunctionName(fn))
@@ -132,11 +136,17 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 						// TODO: Send useful metric in future. Or metrics should be handled by
 						// the worker? Revisit here later when implement monitoring for price-oracle.
 						//
-						// Until we figure what to do with the heartbeat, we just log it.
-						logger.Infow("Daemon", "heartbeat received:", beat)
+						// Until we figure what to do with the heartbeat, we just log one heartbeat
+						// every 60 seconds. Because logging every heartbeat creates a lot of log on
+						// kubernetes.
+						if time.Since(prevHbLogTime) > (60 * time.Second) {
+							logger.Infow("Daemon", "heartbeat received:", beat)
+							prevHbLogTime = time.Now()
+						}
 						continue monitorLoop
 					case err := <-workerFatalErr:
-						logger.Infow("Daemon", "received fatal error from worker:", err)
+						logger.Infow("Daemon", "received fatal error from worker:", err,
+							"Remaining recover count", recoverCount)
 						if recoverCount == 0 {
 							logger.Errorw("Daemon", "Terminating", "Max recovery limit reached:")
 							return
