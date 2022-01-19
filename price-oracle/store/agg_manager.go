@@ -30,7 +30,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 	for _, properties := range workers {
 		wg.Add(1)
 		heartbeatCh, errCh := runAsDaemon(properties.doneCh, storeHandler.Cfg.WorkerPulse, storeHandler.Logger, storeHandler.Cfg, properties.worker)
-		go func(ctx context.Context, done chan struct{}, workerName string) {
+		go func(ctx context.Context, done chan struct{}, workerName string, lastLogTime time.Time) {
 			defer close(done)
 			defer wg.Done()
 			for {
@@ -38,7 +38,11 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 				case <-ctx.Done():
 					return
 				case heartbeat := <-heartbeatCh:
-					storeHandler.Logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
+					// Reduce number of logs on std out. Without this we have a very busy std out.
+					if time.Since(lastLogTime) > 60*time.Second {
+						storeHandler.Logger.Infof("Heartbeat received: %v: %v", workerName, heartbeat)
+						lastLogTime = time.Now()
+					}
 				case err, ok := <-errCh:
 					// errCh is closed. Daemon process returned.
 					if !ok {
@@ -47,7 +51,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 					storeHandler.Logger.Errorf("Error: %T : %v", workerName, err)
 				}
 			}
-		}(ctx, properties.doneCh, daemon.GetFunctionName(properties.worker))
+		}(ctx, properties.doneCh, daemon.GetFunctionName(properties.worker), time.Now().Add(-60*time.Second))
 	}
 	// TODO: Handle signal. Start/stop worker.
 	wg.Wait()

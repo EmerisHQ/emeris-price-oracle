@@ -40,7 +40,8 @@ func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 		Client: &http.Client{
 			Timeout: storeHandler.Cfg.HttpClientTimeout,
 			Transport: &http.Transport{
-				IdleConnTimeout: storeHandler.Cfg.HttpClientTimeout * 2,
+				IdleConnTimeout:       storeHandler.Cfg.HttpClientTimeout * 2,
+				ResponseHeaderTimeout: storeHandler.Cfg.HttpClientTimeout,
 				DialContext: (&net.Dialer{
 					Timeout:   storeHandler.Cfg.HttpClientTimeout,
 					KeepAlive: storeHandler.Cfg.HttpClientTimeout * 2,
@@ -107,9 +108,7 @@ func (api *Api) SubscriptionBinance() error {
 		req.Header.Set("Accepts", "application/json")
 		req.URL.RawQuery = q.Encode()
 
-		client := http.Client{Timeout: api.StoreHandler.Cfg.HttpClientTimeout}
-		resp, err := client.Do(req)
-		//resp, err := api.client.Do(req)
+		resp, err := api.Client.Do(req)
 		if err != nil {
 			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 		}
@@ -127,10 +126,6 @@ func (api *Api) SubscriptionBinance() error {
 				continue
 			}
 			return fmt.Errorf("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
-		}
-
-		if err := resp.Body.Close(); err != nil {
-			return err
 		}
 
 		bp := types.Binance{}
