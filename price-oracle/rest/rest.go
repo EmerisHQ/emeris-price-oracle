@@ -50,6 +50,7 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 
 	g.GET(r.getAllPrices())
 	g.GET(r.getChartData())
+	g.GET(r.getGeckoId())
 	g.POST(r.getTokensPriceAndSupplies())
 	g.POST(r.getFiatsPrices())
 

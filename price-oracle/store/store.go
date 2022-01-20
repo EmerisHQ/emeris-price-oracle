@@ -226,12 +226,16 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 	return handler, nil
 }
 
-// GetGeckoIdForToken takes a list to token names (symbol in coin-gecko's definition)
-// and returns a map (name -> id). This id is used to query coin gecko api.
+// GetGeckoIdForToken takes a list of token names ("symbol" in coin-gecko's definition)
+// and returns a map (name -> gecko id). This id is used to query coin gecko api. As
+// coin gecko takes id as api query param. (Most other platforms take name aka symbol.)
 //
-// If nothing found on the DB, we query the API and get all the name-id-symbol relation
-// from coin gecko. Cache and store them. This process of calling api for all name-id-symbol
-// is one time process and this baked into this function.
+// If nothing found on the DB, we query the gecko API and get the list []CoinsListItem.
+// Where, CoinsListItem is a struct holding name, id and symbol for coins.
+// Then we cache and store them.
+//
+// This process of calling gecko api to get the list of name-id-symbol
+// is a one time process and thus baked into this function.
 func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) {
 	var err error
 	// If no names passed, we return id(s) for all whitelisted tokens.
@@ -240,9 +244,10 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 		if err != nil {
 			return nil, err
 		}
-		for i, n := range names {
-			names[i] = strings.ToLower(n)
-		}
+	}
+
+	for i, n := range names {
+		names[i] = strings.ToLower(n)
 	}
 
 	// Find which ones are not in cache.

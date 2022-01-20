@@ -204,18 +204,28 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 }
 
 func (m *SqlDB) GetGeckoId(from string, names []string) (map[string]string, error) {
-	whereClause := ""
+	query := fmt.Sprintf("SELECT * FROM %s", from)
+	var args []interface{}
 	if len(names) != 0 {
+		query = fmt.Sprintf("%s WHERE name IN (?)", query)
 		for i, name := range names {
-			names[i] = fmt.Sprintf("'%s'", strings.ToLower(name))
+			names[i] = strings.ToLower(name)
 		}
-		whereClause = fmt.Sprintf("WHERE name IN (%s)", strings.Join(names, ","))
+
+		var qErr error
+		query, args, qErr = sqlx.In(query, names)
+		if qErr != nil {
+			return nil, fmt.Errorf("cannot build names query, %w", qErr)
+		}
+
+		query = m.db.Rebind(query)
 	}
 
-	rows, err := m.Query(fmt.Sprintf("SELECT * FROM %s %s", from, whereClause))
+	rows, err := m.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
+
 	nameAndId := make(map[string]string)
 	for rows.Next() {
 		var name, geckoId string

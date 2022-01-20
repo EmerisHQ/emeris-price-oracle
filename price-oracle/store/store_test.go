@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"go.uber.org/zap/zaptest/observer"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zaptest/observer"
 
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
@@ -536,7 +537,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 					if i > 1 {
 						break
 					}
-					require.Contains(t, tt.wantLog[i], oLog.ContextMap()["GeckoId not found for"])
+					require.Contains(t, strings.ToLower(tt.wantLog[i]), oLog.ContextMap()["GeckoId not found for"])
 				}
 			}
 		})
