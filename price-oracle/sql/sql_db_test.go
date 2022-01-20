@@ -32,6 +32,100 @@ func TestStore(t *testing.T) {
 	store.TestStore(t, mDB)
 }
 
+func TestMigrations(t *testing.T) {
+	testServer := setup(t)
+	defer tearDown(testServer)
+
+	connStr := testServer.PGURL().String()
+	require.NotNil(t, connStr)
+
+	mDB, err := NewDB(connStr)
+	require.NoError(t, err)
+	require.Equal(t, mDB.GetConnectionString(), connStr)
+	defer func() {
+		err = mDB.Close()
+		require.NoError(t, err)
+	}()
+
+	// check for DB
+	_, err = mDB.Query("SHOW TABLES FROM oracle")
+	require.Error(t, err)
+
+	// create DB
+	err = mDB.createDatabase()
+	require.NoError(t, err)
+
+	// check for tables
+	tables, err := mDB.Query("SHOW TABLES FROM oracle")
+	require.NoError(t, err)
+
+	tableCountDB := 0
+	for tables.Next() {
+		tableCountDB++
+	}
+
+	err = tables.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, 0, tableCountDB)
+
+	// create tables
+	err = mDB.runMigrations()
+	require.NoError(t, err)
+
+	// check for tables
+	tables, err = mDB.Query("SHOW TABLES FROM oracle")
+	require.NoError(t, err)
+
+	tableCountDB = 0
+	for tables.Next() {
+		tableCountDB++
+	}
+
+	err = tables.Close()
+	require.NoError(t, err)
+
+	var tableCountMigration int
+	for _, migrationQuery := range migrationList {
+		if strings.HasPrefix(strings.TrimPrefix(migrationQuery, "\n"), "CREATE TABLE") {
+			tableCountMigration++
+		}
+	}
+
+	require.Equal(t, tableCountMigration, tableCountDB)
+
+	// drop a table
+	_, err = mDB.db.Exec("DROP TABLE oracle.coingecko")
+	require.NoError(t, err)
+
+	// count tables
+	tables, err = mDB.Query("SHOW TABLES FROM oracle")
+	require.NoError(t, err)
+
+	tableCountDB = 0
+	for tables.Next() {
+		tableCountDB++
+	}
+
+	require.Equal(t, tableCountMigration-1, tableCountDB)
+
+	// create tables
+	err = mDB.runMigrations()
+	require.NoError(t, err)
+
+	// check for tables
+	tables, err = mDB.Query("SHOW TABLES FROM oracle")
+	require.NoError(t, err)
+
+	tableCountDB = 0
+	for tables.Next() {
+		tableCountDB++
+	}
+
+	require.Equal(t, tableCountMigration, tableCountDB)
+
+}
+
 func TestInit(t *testing.T) {
 	testServer := setup(t)
 	defer tearDown(testServer)
@@ -70,18 +164,6 @@ func TestInit(t *testing.T) {
 			tableCountMigration++
 		}
 	}
-
-	rows, _ = mDB.Query("SELECT * FROM oracle.coingecko")
-	require.NotNil(t, rows)
-
-	for rows.Next() {
-		tableCountDB++
-	}
-	err = rows.Err()
-	require.NoError(t, err)
-
-	err = rows.Close()
-	require.NoError(t, err)
 
 	require.Equal(t, tableCountMigration, tableCountDB)
 }
