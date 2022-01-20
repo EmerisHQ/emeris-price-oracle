@@ -49,7 +49,7 @@ func TestMigrations(t *testing.T) {
 
 	// check for DB
 	_, err = mDB.Query("SHOW TABLES FROM oracle")
-	require.Error(t, err)
+	require.Contains(t, err.Error(), "target database or schema does not exist")
 
 	// create DB
 	err = mDB.createDatabase()
