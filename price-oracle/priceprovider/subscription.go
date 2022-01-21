@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,7 +37,17 @@ type Api struct {
 
 func StartSubscription(ctx context.Context, storeHandler *store.Handler) {
 	api := Api{
-		Client:       &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
+		Client: &http.Client{
+			Timeout: storeHandler.Cfg.HttpClientTimeout,
+			Transport: &http.Transport{
+				IdleConnTimeout:       storeHandler.Cfg.HttpClientTimeout * 2,
+				ResponseHeaderTimeout: storeHandler.Cfg.HttpClientTimeout,
+				DialContext: (&net.Dialer{
+					Timeout:   storeHandler.Cfg.HttpClientTimeout,
+					KeepAlive: storeHandler.Cfg.HttpClientTimeout * 2,
+				}).DialContext,
+			},
+		},
 		StoreHandler: storeHandler,
 	}
 
@@ -115,10 +126,6 @@ func (api *Api) SubscriptionBinance() error {
 				continue
 			}
 			return fmt.Errorf("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
-		}
-
-		if err := resp.Body.Close(); err != nil {
-			return err
 		}
 
 		bp := types.Binance{}
