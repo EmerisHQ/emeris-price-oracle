@@ -529,7 +529,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//t.Parallel()
-			got, err := storeHandler.GetGeckoIdForToken(tt.tokenNames)
+			got, err := storeHandler.GetGeckoIdForTokenNames(tt.tokenNames)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, got)
 			if tt.checkLog {

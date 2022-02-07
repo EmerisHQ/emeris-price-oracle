@@ -16,9 +16,9 @@ func (r *router) geckoIdHandler(ctx *gin.Context) {
 		names = strings.Split(namesAsString, ",")
 	}
 
-	geckoNameToId, err := r.s.sh.GetGeckoIdForToken(names)
+	geckoNameToId, err := r.s.sh.GetGeckoIdForTokenNames(names)
 	if err != nil {
-		r.s.l.Errorw("Store.GetGeckoIdForToken()", "Error", err)
+		r.s.l.Errorw("Store.GetGeckoIdForTokenNames()", "Error", err)
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}

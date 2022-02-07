@@ -226,7 +226,7 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 	return handler, nil
 }
 
-// GetGeckoIdForToken takes a list of token names ("symbol" in coin-gecko's definition)
+// GetGeckoIdForTokenNames takes a list of token names ("symbol" in coin-gecko's definition)
 // and returns a map (name -> gecko id). This id is used to query coin gecko api. As
 // coin gecko takes id as api query param. (Most other platforms take name aka symbol.)
 //
@@ -236,7 +236,7 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 //
 // This process of calling gecko api to get the list of name-id-symbol
 // is a one time process and thus baked into this function.
-func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) {
+func (h *Handler) GetGeckoIdForTokenNames(names []string) (map[string]string, error) {
 	var err error
 	// If no names passed, we return id(s) for all whitelisted tokens.
 	if len(names) == 0 {
@@ -268,7 +268,7 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 			notAvailable = append(notAvailable, n)
 		}
 	}
-	// Nothing in the DB, fetch from API and store in the DB.
+	// Some (or all) names are not in the DB, fetch from API and store in the DB.
 	if len(notAvailable) != 0 {
 		client := &http.Client{Timeout: h.Cfg.HttpClientTimeout}
 		geckoIds, err = GetGeckoIdFromAPI(client)
@@ -280,12 +280,12 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 			var geckoId string
 			var ok bool
 			if geckoId, ok = geckoIds[name]; !ok {
-				h.Logger.Errorw("GetGeckoIdForToken", "GeckoId not found for", name)
+				h.Logger.Errorw("GetGeckoIdForTokenNames", "GeckoId not found for", name)
 				continue
 			}
 			err = h.Store.UpsertGeckoId(PriceIDForGeckoStore, name, geckoId)
 			if err != nil {
-				h.Logger.Errorw("GetGeckoIdForToken", "Store.UpsertGeckoId", err)
+				h.Logger.Errorw("GetGeckoIdForTokenNames", "Store.UpsertGeckoId", err)
 				continue
 			}
 		}
@@ -296,7 +296,7 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 		var id string
 		var ok bool
 		if id, ok = geckoIds[n]; !ok {
-			h.Logger.Errorw("GetGeckoIdForToken: Update cache", "GeckoId not found for token:", n)
+			h.Logger.Errorw("GetGeckoIdForTokenNames: Update cache", "GeckoId not found for token:", n)
 			continue
 		}
 		h.GeckoIdCache.Store(n, id)
@@ -307,7 +307,7 @@ func (h *Handler) GetGeckoIdForToken(names []string) (map[string]string, error) 
 		id, ok := h.GeckoIdCache.Load(name)
 		// Best effort! Serve what we can and log the errors!
 		if !ok {
-			h.Logger.Errorw("GetGeckoIdForToken: Build response", "GeckoId not found for token:", name)
+			h.Logger.Errorw("GetGeckoIdForTokenNames: Build response", "GeckoId not found for token:", name)
 			continue
 		}
 		ret[name] = fmt.Sprintf("%s", id)
@@ -325,6 +325,8 @@ func GetGeckoIdFromAPI(client *http.Client) (map[string]string, error) {
 		// Coin gecko calls it "symbol", we call it "name".
 		ret[l.Symbol] = l.ID
 	}
+	// TODO: Decide what to do if gecko has multiple ids for one symbol. Hacks for now!
+	ret["ion"] = "ion"
 	return ret, err
 }
 
