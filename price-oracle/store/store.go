@@ -176,8 +176,11 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 					cache.Mu.Lock()
 					cache.Data[GranularityMinute] = nil
 					// Minute return an int value in [0, 59]
-					// so, 0 means it's the beginning of the hour.
-					if tm.Minute() == 0 {
+					// Ticker is 5 minutes, let's say we start at minute 33
+					// Tick cycle will be:
+					// 38, 43, 48, 53, 58, 3, 8, 13, 18, 23, 28, 33, 38 ...
+					// so, <5 means it's the beginning of the hour.
+					if tm.Minute() < 5 {
 						cache.Data[GranularityHour] = nil
 					}
 					// Hour returns an int in [0, 23]
@@ -490,12 +493,15 @@ func (h *Handler) GetChartData(
 	// response with what we have.
 	//
 	// This should not occur in real life. Only for test.
-	if sliceLimit > len(*(chartData.Prices)) {
-		sliceLimit = len(*(chartData.Prices))
+	n := len(*(chartData.Prices))
+	if sliceLimit > n {
+		sliceLimit = n
 	}
-	prices := (*chartData.Prices)[:sliceLimit]
-	marketCap := (*chartData.MarketCaps)[:sliceLimit]
-	volume := (*chartData.TotalVolumes)[:sliceLimit]
+	// Coin gecko return data as ascending order of timestamp
+	// i.e. the latest data are at the end of the list.
+	prices := (*chartData.Prices)[n-sliceLimit:]
+	marketCap := (*chartData.MarketCaps)[n-sliceLimit:]
+	volume := (*chartData.TotalVolumes)[n-sliceLimit:]
 
 	return &geckoTypes.CoinsIDMarketChart{
 		Prices:       &prices,

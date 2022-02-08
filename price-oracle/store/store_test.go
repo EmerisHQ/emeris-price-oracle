@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
@@ -268,8 +267,9 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 
 	nowUnix := float32(time.Now().Unix())
 
-	dataBTC := generateChartData(2, nowUnix)
-	dataATOM := generateChartData(2, nowUnix)
+	// Whatever the increment, should reflect in the response.
+	dataBTC := generateChartData(2, nowUnix, 0)    // Returned data should all have the same TStamp.
+	dataATOM := generateChartData(2, nowUnix, 110) // increment 110 should also match with the returned data.
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		data := dataATOM
@@ -319,7 +319,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	nowUnix := float32(time.Now().Unix())
 	var clientInvoked int
 
-	dataBTC := generateChartData(2, nowUnix)
+	dataBTC := generateChartData(2, nowUnix, 0)
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		clientInvoked++
@@ -339,12 +339,11 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	require.Equal(t, dataBTC, resp)
 	require.Equal(t, 1, clientInvoked)
 
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
+	// Call 20 times. Client should not be invoked.
+	for i := 0; i < 20; i++ {
+		_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+		require.Equal(t, 1, clientInvoked)
+	}
 }
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
@@ -354,7 +353,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 	defer cancel()
 
 	nowUnix := float32(time.Now().Unix())
-	dataBTC := generateChartData(2, nowUnix)
+	dataBTC := generateChartData(2, nowUnix, 0)
 
 	// Test: SpotCache is set and emptied correctly.
 	for _, tt := range []struct {
@@ -410,15 +409,15 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 	hoursInNinetyDays := 24 * 90
 	numberOfFiveMinutesOneDay := 24 * (60 / 5)
 
-	maxData := generateChartData(daysInSevenYears, nowUnix)
-	ninetyDayData := generateChartData(hoursInNinetyDays, nowUnix)
-	oneDayData := generateChartData(numberOfFiveMinutesOneDay, nowUnix)
+	maxData := generateChartData(daysInSevenYears, nowUnix, 24*3600 /*seconds in one day*/)
+	ninetyDayData := generateChartData(hoursInNinetyDays, nowUnix, 24*3600)
+	oneDayData := generateChartData(numberOfFiveMinutesOneDay, nowUnix, 5*60)
 
 	// Test: Fetched max per granularity from coinGecko, bet returned proper amount.
 	for _, tt := range []struct {
 		name              string
-		maxDataCount      int
-		expectedDataCount int
+		inCacheDataCount  int
+		returnedDataCount int
 		cacheGranularity  string
 		fetchedData       *geckoTypes.CoinsIDMarketChart
 	}{
@@ -473,9 +472,25 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
 			storeHandler.ChartCache.Mu.RLock()
-			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
-			require.Equal(t, tt.maxDataCount, len(*storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
+			pricesFromCache := *storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices
 			storeHandler.ChartCache.Mu.RUnlock()
+			require.Equal(t, tt.returnedDataCount, len(*resp.Prices))
+			require.Equal(t, tt.inCacheDataCount, len(pricesFromCache))
+
+			// Check if the value returned are correct!
+			var priceCreatedManually = make([]float32, 0, tt.inCacheDataCount)
+			var priceGotFromCache = make([]float32, 0, tt.inCacheDataCount)
+			for i := 0; i < tt.inCacheDataCount; i++ {
+				priceCreatedManually = append(priceCreatedManually, float32(i))
+				priceGotFromCache = append(priceGotFromCache, pricesFromCache[i][1])
+			}
+			require.Equal(t, priceCreatedManually, priceGotFromCache)
+
+			var pricesReturned = make([]float32, 0, tt.returnedDataCount)
+			for i := 0; i < tt.returnedDataCount; i++ {
+				pricesReturned = append(pricesReturned, (*resp.Prices)[i][1])
+			}
+			require.Equal(t, priceCreatedManually[tt.inCacheDataCount-tt.returnedDataCount:], pricesReturned)
 		})
 	}
 }
@@ -581,18 +596,19 @@ func TestGetGeckoIdFromAPI(t *testing.T) {
 	}
 }
 
-func generateChartData(n int, tm float32) *geckoTypes.CoinsIDMarketChart {
+func generateChartData(n int, tm float32, increment float32) *geckoTypes.CoinsIDMarketChart {
 	return &geckoTypes.CoinsIDMarketChart{
-		Prices:       generateChartItems(n, tm),
-		MarketCaps:   generateChartItems(n, tm),
-		TotalVolumes: generateChartItems(n, tm),
+		Prices:       generateChartItems(n, tm, increment),
+		MarketCaps:   generateChartItems(n, tm, increment),
+		TotalVolumes: generateChartItems(n, tm, increment),
 	}
 }
 
-func generateChartItems(n int, timestamp float32) *[]geckoTypes.ChartItem {
+func generateChartItems(n int, timestamp float32, increment float32) *[]geckoTypes.ChartItem {
 	ret := make([]geckoTypes.ChartItem, 0, n)
 	for i := 0; i < n; i++ {
-		ret = append(ret, geckoTypes.ChartItem{timestamp, rand.Float32()})
+		ret = append(ret, geckoTypes.ChartItem{timestamp, float32(i)})
+		timestamp += increment
 	}
 	return &ret
 }
