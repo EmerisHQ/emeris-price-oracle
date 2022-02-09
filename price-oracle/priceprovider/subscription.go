@@ -151,46 +151,30 @@ func (api *Api) SubscriptionBinance() error {
 }
 
 func (api *Api) SubscriptionCoingecko() error {
-	// CNS actually don't collect price ids for all symbols, and sometimes price id
-	// is not correct. So our defensive implementation get the token names (symbols)
-	// and use those names (symbols) to get coin gecko ids.
-	//
-	// So, for now priceIds is actually a list of symbols (aka names).
-	//
-	// When CNS fixes the missing ids and wrong ids, we should replace
-	// api.StoreHandler.GetCNSWhitelistedTokens() with api.StoreHandler.CNSPriceIdQuery()
-	names, err := api.StoreHandler.GetCNSWhitelistedTokens()
+	pidToTickers, err := api.StoreHandler.GetCNSPriceIdsToTicker()
 	if err != nil {
-		return fmt.Errorf("SubscriptionCoingecko, CNSPriceIdQuery(): %w", err)
+		return fmt.Errorf("SubscriptionCoingecko, GetCNSPriceIdsToTicker(): %w", err)
 	}
-	if len(names) == 0 {
+	if len(pidToTickers) == 0 {
 		return fmt.Errorf("SubscriptionCoingecko: No whitelisted tokens")
 	}
 
-	tokenNameToID, err := api.StoreHandler.GetGeckoIdForTokenNames(names)
-	if err != nil {
-		api.StoreHandler.Logger.Errorw("SubscriptionCoingecko", "StoreHandler.GetGeckoIdForTokenNames", err)
-		return fmt.Errorf("SubscriptionCoingecko: Failed to get GeckoIdForToken :  %w", err)
+	priceIds := make([]string, len(pidToTickers))
+	for p := range pidToTickers {
+		priceIds = append(priceIds, p)
 	}
-	// Update []ticker -> []id, required for coin-gecko.
-	for i, token := range names {
-		tokenSymbol := strings.ToLower(token)
-		if id, ok := tokenNameToID[tokenSymbol]; ok {
-			names[i] = id
-		}
-	}
+
 	cg := gecko.NewClient(api.Client)
 	pcp := geckoTypes.PriceChangePercentageObject
 	priceChangePercentage := []string{pcp.PCP1h}
 	order := geckoTypes.OrderTypeObject.MarketCapDesc
-	market, err := cg.CoinsMarket(types.USD, names, order, 1, 1, false, priceChangePercentage)
+	market, err := cg.CoinsMarket(types.USD, priceIds, order, 1, 1, false, priceChangePercentage)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, cg.CoinsMarket(): %w", err)
 	}
 
 	for _, token := range *market {
 		tokenSymbol := strings.ToUpper(token.Symbol) + types.USDT
-
 		now := time.Now()
 
 		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix()); err != nil {

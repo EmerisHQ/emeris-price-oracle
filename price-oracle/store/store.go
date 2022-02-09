@@ -24,13 +24,11 @@ type Store interface {
 	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error)
 	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)
 	GetTokenNames() ([]string, error)
-	GetPriceIDs() ([]string, error)
+	GetPriceIDToTicker() (map[string]string, error)
 	GetPrices(from string) ([]types.Prices, error)
 	UpsertPrice(to string, price float64, token string) error
 	UpsertToken(to string, symbol string, price float64, time int64) error
 	UpsertTokenSupply(to string, symbol string, supply float64) error
-	UpsertGeckoId(to string, name string, id string) error
-	GetGeckoId(from string, names []string) (map[string]string, error)
 }
 
 const (
@@ -40,7 +38,6 @@ const (
 	TokensStore          = "oracle.tokens"
 	FiatsStore           = "oracle.fiats"
 	CoingeckoSupplyStore = "oracle.coingeckosupply"
-	PriceIDForGeckoStore = "oracle.priceidforgecko"
 
 	GranularityMinute = "5M"
 	GranularityHour   = "1H"
@@ -59,7 +56,9 @@ type Handler struct {
 }
 
 type TokenAndFiatCache struct {
-	Whitelist             []string
+	// cosmos -> atom; osmosis -> osmo ...
+	PriceIDtoTicker       map[string]string
+	WhitelistedTickers    []string
 	TokenPriceAndSupplies map[string]types.TokenPriceAndSupply
 	FiatPrices            map[string]types.FiatPrice
 
@@ -128,7 +127,8 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 	return func(handler *Handler) error {
 		if cache == nil {
 			cache = &TokenAndFiatCache{
-				Whitelist:             nil,
+				PriceIDtoTicker:       nil,
+				WhitelistedTickers:    nil,
 				TokenPriceAndSupplies: nil,
 				FiatPrices:            nil,
 				RefreshInterval:       time.Second * 5,
@@ -145,7 +145,8 @@ func WithSpotPriceCache(cache *TokenAndFiatCache) func(*Handler) error {
 				select {
 				case <-time.Tick(d):
 					cache.Mu.Lock()
-					cache.Whitelist = nil
+					cache.PriceIDtoTicker = nil
+					cache.WhitelistedTickers = nil
 					cache.FiatPrices = nil
 					cache.TokenPriceAndSupplies = nil
 					cache.Mu.Unlock()
@@ -229,91 +230,40 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 	return handler, nil
 }
 
-// GetGeckoIdForTokenNames takes a list of token names ("symbol" in coin-gecko's definition)
-// and returns a map (name -> gecko id). This id is used to query coin gecko api. As
-// coin gecko takes id as api query param. (Most other platforms take name aka symbol.)
+// GetGeckoIdForTokenNames takes a list of token names/ticker ("symbol" in coin-gecko's definition)
+// and returns a map (name AKA ticker -> gecko id). This id is used to query coin gecko api. As
+// coin gecko takes id as api query param. (Most other platforms take name aka ticker.)
 //
-// If nothing found on the DB, we query the gecko API and get the list []CoinsListItem.
-// Where, CoinsListItem is a struct holding name, id and symbol for coins.
-// Then we cache and store them.
+// CNS DB must be updated with correct price_id -> ticker relations. If not fix it on CNS.
+// We fetch those relations, inverse those relations and serve with the best effort. If we
+// don't have some name present in the CNS DB, log and continue.
 //
-// This process of calling gecko api to get the list of name-id-symbol
-// is a one time process and thus baked into this function.
+// If the (param<name>) is empty, return all.
 func (h *Handler) GetGeckoIdForTokenNames(names []string) (map[string]string, error) {
-	var err error
-	// If no names passed, we return id(s) for all whitelisted tokens.
-	if len(names) == 0 {
-		names, err = h.GetCNSWhitelistedTokens()
-		if err != nil {
-			return nil, err
-		}
+	pidToTicker, err := h.GetCNSPriceIdsToTicker()
+	if err != nil {
+		return nil, err
+	}
+	// pidToTicker is price_id -> ticker AKA name AKA symbol
+	// Example: cosmos -> atom, osmosis -> osmo, terra-luna -> luna
+	//
+	// But we want the opposite: luna -> terra-luna; osmo -> osmosis ...
+	tickerToPid := make(map[string]string, len(pidToTicker))
+	for p, t := range pidToTicker {
+		tickerToPid[t] = p
+	}
+
+	if len(names) == 0 { // return all
+		return tickerToPid, nil
 	}
 
 	for i, n := range names {
 		names[i] = strings.ToLower(n)
 	}
 
-	// Find which ones are not in cache.
-	var notCached []string
-	for _, name := range names {
-		if _, ok := h.GeckoIdCache.Load(name); !ok {
-			notCached = append(notCached, name)
-		}
-	}
-	geckoIds, err := h.Store.GetGeckoId(PriceIDForGeckoStore, notCached)
-	if err != nil {
-		return nil, err
-	}
-
-	var notAvailable []string
-	for _, n := range names {
-		if _, ok := geckoIds[n]; !ok {
-			notAvailable = append(notAvailable, n)
-		}
-	}
-	// Some (or all) names are not in the DB, fetch from API and store in the DB.
-	if len(notAvailable) != 0 {
-		client := &http.Client{Timeout: h.Cfg.HttpClientTimeout}
-		geckoIds, err = GetGeckoIdFromAPI(client)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, name := range notAvailable {
-			var geckoId string
-			var ok bool
-			if geckoId, ok = geckoIds[name]; !ok {
-				h.Logger.Errorw("GetGeckoIdForTokenNames", "GeckoId not found for", name)
-				continue
-			}
-			err = h.Store.UpsertGeckoId(PriceIDForGeckoStore, name, geckoId)
-			if err != nil {
-				h.Logger.Errorw("GetGeckoIdForTokenNames", "Store.UpsertGeckoId", err)
-				continue
-			}
-		}
-	}
-
-	// Update the in memory cache.
-	for _, n := range names {
-		var id string
-		var ok bool
-		if id, ok = geckoIds[n]; !ok {
-			h.Logger.Errorw("GetGeckoIdForTokenNames: Update cache", "GeckoId not found for token:", n)
-			continue
-		}
-		h.GeckoIdCache.Store(n, id)
-	}
-
 	ret := make(map[string]string)
-	for _, name := range names {
-		id, ok := h.GeckoIdCache.Load(name)
-		// Best effort! Serve what we can and log the errors!
-		if !ok {
-			h.Logger.Errorw("GetGeckoIdForTokenNames: Build response", "GeckoId not found for token:", name)
-			continue
-		}
-		ret[name] = fmt.Sprintf("%s", id)
+	for _, n := range names {
+		ret[n] = tickerToPid[n]
 	}
 	return ret, nil
 }
@@ -339,8 +289,8 @@ func GetGeckoIdFromAPI(client *http.Client) (map[string]string, error) {
 func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	var tokens []string
 	h.SpotCache.Mu.RLock()
-	if h.SpotCache.Whitelist != nil {
-		tokens = append([]string(nil), h.SpotCache.Whitelist...)
+	if h.SpotCache.WhitelistedTickers != nil {
+		tokens = append([]string(nil), h.SpotCache.WhitelistedTickers...)
 	}
 	h.SpotCache.Mu.RUnlock()
 	if len(tokens) != 0 {
@@ -352,18 +302,34 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 		return nil, err
 	}
 	h.SpotCache.Mu.Lock()
-	h.SpotCache.Whitelist = append([]string(nil), names...)
+	h.SpotCache.WhitelistedTickers = append([]string(nil), names...)
 	h.SpotCache.Mu.Unlock()
 
 	return names, nil
 }
 
-func (h *Handler) CNSPriceIdQuery() ([]string, error) {
-	whitelists, err := h.Store.GetPriceIDs()
+func (h *Handler) GetCNSPriceIdsToTicker() (map[string]string, error) {
+	h.SpotCache.Mu.RLock()
+	pidToTkr := make(map[string]string, len(h.SpotCache.PriceIDtoTicker))
+	if h.SpotCache.PriceIDtoTicker != nil {
+		for p, t := range h.SpotCache.PriceIDtoTicker {
+			pidToTkr[p] = t
+		}
+	}
+	h.SpotCache.Mu.RUnlock()
+	if len(pidToTkr) != 0 {
+		return pidToTkr, nil
+	}
+
+	idsToTicker, err := h.Store.GetPriceIDToTicker()
 	if err != nil {
 		return nil, err
 	}
-	return whitelists, nil
+	h.SpotCache.Mu.Lock()
+	h.SpotCache.PriceIDtoTicker = idsToTicker
+	h.SpotCache.Mu.Unlock()
+
+	return idsToTicker, nil
 }
 
 // GetTokenPriceAndSupplies returns a list of TokenPriceAndSupply. It first

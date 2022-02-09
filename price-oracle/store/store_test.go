@@ -34,7 +34,7 @@ func TestNewStoreHandler(t *testing.T) {
 	require.NotNil(t, storeHandler)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	require.Nil(t, storeHandler.SpotCache.FiatPrices)
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
@@ -43,12 +43,12 @@ func TestNewStoreHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	require.Eventually(t, func() bool {
 		storeHandler.SpotCache.Mu.RLock()
-		isNil := storeHandler.SpotCache.Whitelist == nil
+		isNil := storeHandler.SpotCache.WhitelistedTickers == nil
 		storeHandler.SpotCache.Mu.RUnlock()
 		return isNil
 	}, 10*time.Second, 1*time.Second)
@@ -98,7 +98,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	whiteList := []string{"ATOM", "LUNA"}
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
@@ -107,7 +107,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.Equal(t, whiteList, whiteListFromStore)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
@@ -122,11 +122,11 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	whiteList, err := storeHandler.CNSPriceIdQuery()
+	whiteList, err := storeHandler.GetCNSPriceIdsToTicker()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
-	require.Equal(t, []string{"cosmos", "terra-luna"}, whiteList)
+	require.Equal(t, map[string]string{"cosmos": "atom", "terra-luna": "luna"}, whiteList)
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
@@ -501,17 +501,6 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	// Insert token ids
-	sqlDb, err := sql.NewDB(storeHandler.Cfg.DatabaseConnectionURL)
-	require.NoError(t, err)
-
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "atom", "cosmos")
-	require.NoError(t, err)
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "btc", "bitcoin")
-	require.NoError(t, err)
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "luna", "terra-luna")
-	require.NoError(t, err)
-
 	tests := []struct {
 		name       string
 		expected   map[string]string
@@ -521,7 +510,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	}{
 		{
 			name:       "Coins not found",
-			expected:   map[string]string{},
+			expected:   map[string]string{"unrealistic_token_1": "", "unrealistic_token_2": ""},
 			tokenNames: []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
 			checkLog:   true,
 			wantLog:    []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
@@ -535,7 +524,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 		},
 		{
 			name:       "Returned id only for valid coins",
-			expected:   map[string]string{"atom": "cosmos"},
+			expected:   map[string]string{"atom": "cosmos", "unrealistic_token_1": ""},
 			tokenNames: []string{"UNREALISTIC_TOKEN_1", "atom"},
 			checkLog:   false,
 			wantLog:    nil,
