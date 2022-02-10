@@ -3,7 +3,6 @@ package store
 import (
 	"fmt"
 	"math/rand"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,21 +267,6 @@ func (h *Handler) GetGeckoIdForTokenNames(names []string) (map[string]string, er
 	return ret, nil
 }
 
-func GetGeckoIdFromAPI(client *http.Client) (map[string]string, error) {
-	list, err := gecko.NewClient(client).CoinsList()
-	if err != nil {
-		return nil, err
-	}
-	ret := make(map[string]string)
-	for _, l := range *list {
-		// Coin gecko calls it "symbol", we call it "name".
-		ret[l.Symbol] = l.ID
-	}
-	// TODO: Decide what to do if gecko has multiple ids for one symbol. Hacks for now!
-	ret["ion"] = "ion"
-	return ret, err
-}
-
 // GetCNSWhitelistedTokens returns the whitelisted tokens.
 // It first checks the in-memory cache.
 // If cache is nil, it fetches and updates the cache.
@@ -373,8 +357,8 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 // in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
 func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
-	cachedFiats := make([]string, 0, len(h.SpotCache.FiatPrices))
 	h.SpotCache.Mu.RLock()
+	cachedFiats := make([]string, 0, len(h.SpotCache.FiatPrices))
 	for f := range h.SpotCache.FiatPrices {
 		cachedFiats = append(cachedFiats, f)
 	}

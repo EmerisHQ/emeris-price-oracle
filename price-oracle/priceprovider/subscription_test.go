@@ -185,7 +185,7 @@ func setupSubscription(t *testing.T) (context.Context, func(), *store.Handler, *
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
-		HttpClientTimeout:     2 * time.Second,
+		HttpClientTimeout:     200 * time.Millisecond,
 	}
 
 	observedZapCore, observedLogs := observer.New(zap.InfoLevel)

@@ -90,7 +90,6 @@ func TestNewStoreHandler(t *testing.T) {
 }
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
-	t.Parallel()
 	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -544,43 +543,6 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 					require.Contains(t, strings.ToLower(tt.wantLog[i]), oLog.ContextMap()["GeckoId not found for"])
 				}
 			}
-		})
-	}
-}
-
-func TestGetGeckoIdFromAPI(t *testing.T) {
-	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
-	defer tDown()
-	defer cancel()
-
-	type args struct {
-		client *http.Client
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    map[string]string
-		wantErr bool
-	}{
-		{
-			name: "Should Success",
-			args: args{
-				client: &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
-			},
-			want:    nil,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := store.GetGeckoIdFromAPI(tt.args.client)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetGeckoIdFromAPI() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			require.NotNil(t, got)
-			require.Greater(t, len(got), 10)
 		})
 	}
 }
