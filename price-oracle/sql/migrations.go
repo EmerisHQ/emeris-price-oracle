@@ -29,8 +29,6 @@ const createTableTokens = `CREATE TABLE IF NOT EXISTS oracle.tokens (symbol STRI
 
 const createTableFiats = `CREATE TABLE IF NOT EXISTS oracle.fiats (symbol STRING PRIMARY KEY, price FLOAT);`
 
-const createTableGeckoPriceId = `CREATE TABLE IF NOT EXISTS oracle.priceidforgecko (name VARCHAR ( 255 ) UNIQUE NOT NULL, geckoid VARCHAR ( 255 ) UNIQUE NOT NULL);`
-
 var migrationList = []string{
 	createTableBinance,
 	createTableCoinmarketcap,
@@ -38,7 +36,6 @@ var migrationList = []string{
 	createTableFixer,
 	createTableTokens,
 	createTableFiats,
-	createTableGeckoPriceId,
 	createTableCoingecko,
 	createTableCoingeckoSupply,
 }

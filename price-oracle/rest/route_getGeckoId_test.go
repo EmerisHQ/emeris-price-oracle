@@ -10,7 +10,7 @@ import (
 )
 
 func TestGeckoIdHandler(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
@@ -41,11 +41,11 @@ func TestGeckoIdHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, got.Data)
-	require.Equal(t, map[string]string{"atom": "cosmos", "btc": "bitcoin"}, got.Data)
+	require.Equal(t, map[string]string{"atom": "cosmos", "btc": ""}, got.Data)
 }
 
 func TestGeckoIdHandler_noParameter(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	router, _, _, tDown := setup(t)
 	defer tDown()
 
@@ -76,5 +76,5 @@ func TestGeckoIdHandler_noParameter(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, got.Data)
-	require.Equal(t, map[string]string{"atom": "cosmos", "luna": "wrapped-terra"}, got.Data)
+	require.Equal(t, map[string]string{"atom": "cosmos", "luna": "terra-luna"}, got.Data)
 }

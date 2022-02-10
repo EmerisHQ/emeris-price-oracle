@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ func TestNewStoreHandler(t *testing.T) {
 	require.NotNil(t, storeHandler)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	require.Nil(t, storeHandler.SpotCache.FiatPrices)
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
@@ -44,12 +43,12 @@ func TestNewStoreHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	require.Eventually(t, func() bool {
 		storeHandler.SpotCache.Mu.RLock()
-		isNil := storeHandler.SpotCache.Whitelist == nil
+		isNil := storeHandler.SpotCache.WhitelistedTickers == nil
 		storeHandler.SpotCache.Mu.RUnlock()
 		return isNil
 	}, 10*time.Second, 1*time.Second)
@@ -91,7 +90,6 @@ func TestNewStoreHandler(t *testing.T) {
 }
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
-	t.Parallel()
 	_, cancel, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	defer cancel()
@@ -99,7 +97,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	whiteList := []string{"ATOM", "LUNA"}
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.Nil(t, storeHandler.SpotCache.Whitelist)
+	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
@@ -108,7 +106,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.Equal(t, whiteList, whiteListFromStore)
 
 	storeHandler.SpotCache.Mu.RLock()
-	require.NotNil(t, storeHandler.SpotCache.Whitelist)
+	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
 	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
@@ -123,11 +121,11 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	whiteList, err := storeHandler.CNSPriceIdQuery()
+	whiteList, err := storeHandler.GetCNSPriceIdsToTicker()
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
-	require.Equal(t, []string{"cosmos", "terra-luna"}, whiteList)
+	require.Equal(t, map[string]string{"cosmos": "atom", "terra-luna": "luna"}, whiteList)
 }
 
 func TestPriceTokenAggregator(t *testing.T) {
@@ -268,8 +266,9 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 
 	nowUnix := float32(time.Now().Unix())
 
-	dataBTC := generateChartData(2, nowUnix)
-	dataATOM := generateChartData(2, nowUnix)
+	// Whatever the increment, should reflect in the response.
+	dataBTC := generateChartData(2, nowUnix, 0)    // Returned data should all have the same TStamp.
+	dataATOM := generateChartData(2, nowUnix, 110) // increment 110 should also match with the returned data.
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		data := dataATOM
@@ -319,7 +318,7 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	nowUnix := float32(time.Now().Unix())
 	var clientInvoked int
 
-	dataBTC := generateChartData(2, nowUnix)
+	dataBTC := generateChartData(2, nowUnix, 0)
 
 	client := newTestClient(func(req *http.Request) *http.Response {
 		clientInvoked++
@@ -339,12 +338,11 @@ func TestGetChartData_CacheHit(t *testing.T) {
 	require.Equal(t, dataBTC, resp)
 	require.Equal(t, 1, clientInvoked)
 
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
-	_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
-	require.Equal(t, 1, clientInvoked)
+	// Call 20 times. Client should not be invoked.
+	for i := 0; i < 20; i++ {
+		_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+		require.Equal(t, 1, clientInvoked)
+	}
 }
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
@@ -354,7 +352,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 	defer cancel()
 
 	nowUnix := float32(time.Now().Unix())
-	dataBTC := generateChartData(2, nowUnix)
+	dataBTC := generateChartData(2, nowUnix, 0)
 
 	// Test: SpotCache is set and emptied correctly.
 	for _, tt := range []struct {
@@ -410,15 +408,15 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 	hoursInNinetyDays := 24 * 90
 	numberOfFiveMinutesOneDay := 24 * (60 / 5)
 
-	maxData := generateChartData(daysInSevenYears, nowUnix)
-	ninetyDayData := generateChartData(hoursInNinetyDays, nowUnix)
-	oneDayData := generateChartData(numberOfFiveMinutesOneDay, nowUnix)
+	maxData := generateChartData(daysInSevenYears, nowUnix, 24*3600 /*seconds in one day*/)
+	ninetyDayData := generateChartData(hoursInNinetyDays, nowUnix, 24*3600)
+	oneDayData := generateChartData(numberOfFiveMinutesOneDay, nowUnix, 5*60)
 
 	// Test: Fetched max per granularity from coinGecko, bet returned proper amount.
 	for _, tt := range []struct {
 		name              string
-		maxDataCount      int
-		expectedDataCount int
+		inCacheDataCount  int
+		returnedDataCount int
 		cacheGranularity  string
 		fetchedData       *geckoTypes.CoinsIDMarketChart
 	}{
@@ -473,9 +471,25 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
 			storeHandler.ChartCache.Mu.RLock()
-			require.Equal(t, tt.expectedDataCount, len(*resp.Prices))
-			require.Equal(t, tt.maxDataCount, len(*storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices))
+			pricesFromCache := *storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices
 			storeHandler.ChartCache.Mu.RUnlock()
+			require.Equal(t, tt.returnedDataCount, len(*resp.Prices))
+			require.Equal(t, tt.inCacheDataCount, len(pricesFromCache))
+
+			// Check if the value returned are correct!
+			var priceCreatedManually = make([]float32, 0, tt.inCacheDataCount)
+			var priceGotFromCache = make([]float32, 0, tt.inCacheDataCount)
+			for i := 0; i < tt.inCacheDataCount; i++ {
+				priceCreatedManually = append(priceCreatedManually, float32(i))
+				priceGotFromCache = append(priceGotFromCache, pricesFromCache[i][1])
+			}
+			require.Equal(t, priceCreatedManually, priceGotFromCache)
+
+			var pricesReturned = make([]float32, 0, tt.returnedDataCount)
+			for i := 0; i < tt.returnedDataCount; i++ {
+				pricesReturned = append(pricesReturned, (*resp.Prices)[i][1])
+			}
+			require.Equal(t, priceCreatedManually[tt.inCacheDataCount-tt.returnedDataCount:], pricesReturned)
 		})
 	}
 }
@@ -486,17 +500,6 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	// Insert token ids
-	sqlDb, err := sql.NewDB(storeHandler.Cfg.DatabaseConnectionURL)
-	require.NoError(t, err)
-
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "atom", "cosmos")
-	require.NoError(t, err)
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "btc", "bitcoin")
-	require.NoError(t, err)
-	err = sqlDb.UpsertGeckoId(store.PriceIDForGeckoStore, "luna", "terra-luna")
-	require.NoError(t, err)
-
 	tests := []struct {
 		name       string
 		expected   map[string]string
@@ -506,7 +509,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	}{
 		{
 			name:       "Coins not found",
-			expected:   map[string]string{},
+			expected:   map[string]string{"unrealistic_token_1": "", "unrealistic_token_2": ""},
 			tokenNames: []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
 			checkLog:   true,
 			wantLog:    []string{"UNREALISTIC_TOKEN_1", "UNREALISTIC_TOKEN_2"},
@@ -520,7 +523,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 		},
 		{
 			name:       "Returned id only for valid coins",
-			expected:   map[string]string{"atom": "cosmos"},
+			expected:   map[string]string{"atom": "cosmos", "unrealistic_token_1": ""},
 			tokenNames: []string{"UNREALISTIC_TOKEN_1", "atom"},
 			checkLog:   false,
 			wantLog:    nil,
@@ -529,7 +532,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//t.Parallel()
-			got, err := storeHandler.GetGeckoIdForToken(tt.tokenNames)
+			got, err := storeHandler.GetGeckoIdForTokenNames(tt.tokenNames)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, got)
 			if tt.checkLog {
@@ -544,55 +547,19 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	}
 }
 
-func TestGetGeckoIdFromAPI(t *testing.T) {
-	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
-	defer tDown()
-	defer cancel()
-
-	type args struct {
-		client *http.Client
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    map[string]string
-		wantErr bool
-	}{
-		{
-			name: "Should Success",
-			args: args{
-				client: &http.Client{Timeout: storeHandler.Cfg.HttpClientTimeout},
-			},
-			want:    nil,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := store.GetGeckoIdFromAPI(tt.args.client)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetGeckoIdFromAPI() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			require.NotNil(t, got)
-			require.Greater(t, len(got), 10)
-		})
-	}
-}
-
-func generateChartData(n int, tm float32) *geckoTypes.CoinsIDMarketChart {
+func generateChartData(n int, tm float32, increment float32) *geckoTypes.CoinsIDMarketChart {
 	return &geckoTypes.CoinsIDMarketChart{
-		Prices:       generateChartItems(n, tm),
-		MarketCaps:   generateChartItems(n, tm),
-		TotalVolumes: generateChartItems(n, tm),
+		Prices:       generateChartItems(n, tm, increment),
+		MarketCaps:   generateChartItems(n, tm, increment),
+		TotalVolumes: generateChartItems(n, tm, increment),
 	}
 }
 
-func generateChartItems(n int, timestamp float32) *[]geckoTypes.ChartItem {
+func generateChartItems(n int, timestamp float32, increment float32) *[]geckoTypes.ChartItem {
 	ret := make([]geckoTypes.ChartItem, 0, n)
 	for i := 0; i < n; i++ {
-		ret = append(ret, geckoTypes.ChartItem{timestamp, rand.Float32()})
+		ret = append(ret, geckoTypes.ChartItem{timestamp, float32(i)})
+		timestamp += increment
 	}
 	return &ret
 }

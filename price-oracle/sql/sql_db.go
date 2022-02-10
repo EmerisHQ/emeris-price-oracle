@@ -156,31 +156,43 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 	return whitelists, nil
 }
 
-func (m *SqlDB) GetPriceIDs() ([]string, error) {
-	whitelists := make([]string, 0)
-	q, err := m.Query("SELECT  y.x->'price_id',y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
+// GetPriceIDToTicker returns all not null price_ids with their ticker
+// Returns map price_id -> ticker; Ex: cosmos -> atom; osmosis -> osmo
+func (m *SqlDB) GetPriceIDToTicker() (map[string]string, error) {
+	priceIDtoTicker := make(map[string]string)
+	seen := make(map[string]bool)
+	q, err := m.Query("SELECT  y.x->'ticker',y.x->'price_id' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
 		return nil, err
 	}
 	for q.Next() {
 		var priceId sql.NullString
-		var ticker string
-		var fetchPrice bool
-
-		if err := q.Scan(&priceId, &ticker, &fetchPrice); err != nil {
+		var ticker sql.NullString
+		if err := q.Scan(&ticker, &priceId); err != nil {
 			return nil, err
 		}
-		if !fetchPrice {
+
+		// If price_id is null; skip.
+		if !priceId.Valid {
 			continue
 		}
-		tokenIdOrTicker := strings.Trim(ticker, "\"")
-		// If price_id is not null use that.
-		if priceId.Valid {
-			tokenIdOrTicker = strings.Trim(priceId.String, "\"")
+		pid := strings.ToLower(strings.Trim(priceId.String, "\"")) // Better safe than sorry
+		// CNS DB can have the same price_id multiple time.
+		// It's not ideal from CNS, but can happen, so we write defencive code anyway.
+		// If multiple occurrences of same price_id is found, only take the first one.
+		if _, ok := seen[pid]; ok {
+			continue
 		}
-		whitelists = append(whitelists, tokenIdOrTicker)
+		seen[pid] = true
+
+		// However, if ticker is null, just have an empty placeholder.
+		if !ticker.Valid {
+			ticker.String = ""
+		}
+		tkr := strings.ToLower(strings.Trim(ticker.String, "\""))
+		priceIDtoTicker[pid] = tkr
 	}
-	return whitelists, nil
+	return priceIDtoTicker, nil
 }
 
 func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
@@ -201,63 +213,6 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 		return nil, err
 	}
 	return prices, nil
-}
-
-func (m *SqlDB) GetGeckoId(from string, names []string) (map[string]string, error) {
-	query := fmt.Sprintf("SELECT * FROM %s", from)
-	var args []interface{}
-	if len(names) != 0 {
-		query = fmt.Sprintf("%s WHERE name IN (?)", query)
-		for i, name := range names {
-			names[i] = strings.ToLower(name)
-		}
-
-		var qErr error
-		query, args, qErr = sqlx.In(query, names)
-		if qErr != nil {
-			return nil, fmt.Errorf("cannot build names query, %w", qErr)
-		}
-
-		query = m.db.Rebind(query)
-	}
-
-	rows, err := m.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	nameAndId := make(map[string]string)
-	for rows.Next() {
-		var name, geckoId string
-		if err := rows.Scan(&name, &geckoId); err != nil {
-			return nil, fmt.Errorf("err while scanning result %w", err)
-		}
-		nameAndId[name] = geckoId
-	}
-	if err = rows.Close(); err != nil {
-		return nil, err
-	}
-	return nameAndId, err
-}
-
-func (m *SqlDB) UpsertGeckoId(to string, name string, id string) error {
-	// Always lower case in DB.
-	id, name = strings.ToLower(id), strings.ToLower(name)
-	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE "+to+" SET geckoid = ($1) WHERE name = ($2)", id, name)
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("DB update: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", name, id)
-	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("DB commit: %w", err)
-	}
-	return nil
 }
 
 func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
