@@ -185,7 +185,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 					}
 					// Hour returns an int in [0, 23]
 					// so, 0 means beginning of the day.
-					if tm.Hour() == 0 {
+					if tm.Hour() == 0 && tm.Minute() < 5 {
 						cache.Data[GranularityDay] = nil
 					}
 					cache.Mu.Unlock()
