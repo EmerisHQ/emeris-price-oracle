@@ -185,7 +185,7 @@ func WithChartDataCache(cache *ChartDataCache, refresh time.Duration) func(*Hand
 					}
 					// Hour returns an int in [0, 23]
 					// so, 0 means beginning of the day.
-					if tm.Hour() == 0 {
+					if tm.Hour() == 0 && tm.Minute() < 5 {
 						cache.Data[GranularityDay] = nil
 					}
 					cache.Mu.Unlock()
@@ -500,6 +500,10 @@ func (h *Handler) PriceTokenAggregator() error {
 	}
 
 	for token := range whitelist {
+		if len(symbolKV[token]) == 0 {
+			h.Logger.Infow("PriceTokenAggregator", "Price not found for", token)
+			continue
+		}
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
 			h.Logger.Errorw("PriceTokenAggregator", "Err:", err, "Token:", token)
@@ -547,6 +551,10 @@ func (h *Handler) PriceFiatAggregator() error {
 		}
 	}
 	for fiat := range symbolKV {
+		if len(symbolKV[fiat]) == 0 {
+			h.Logger.Infow("PriceFiatAggregator", "Price not found for", fiat)
+			continue
+		}
 		mean, err := Averaging(symbolKV[fiat])
 		if err != nil {
 			h.Logger.Errorw("PriceFiatAggregator", "Err:", err, "Fiat:", fiat)
