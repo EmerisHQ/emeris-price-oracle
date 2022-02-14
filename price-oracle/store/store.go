@@ -500,6 +500,10 @@ func (h *Handler) PriceTokenAggregator() error {
 	}
 
 	for token := range whitelist {
+		if len(symbolKV[token]) == 0 {
+			h.Logger.Errorw("PriceTokenAggregator", "Price not found for", token)
+			continue
+		}
 		mean, err := Averaging(symbolKV[token])
 		if err != nil {
 			h.Logger.Errorw("PriceTokenAggregator", "Err:", err, "Token:", token)
