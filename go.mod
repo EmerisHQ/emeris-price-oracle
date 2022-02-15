@@ -13,14 +13,14 @@ require (
 	github.com/allinbits/emeris-cns-server v0.0.0-20211021152447-99e15c2c0714
 	github.com/allinbits/emeris-utils v0.0.0-20220104112240-0cadfeac11ca
 	github.com/cockroachdb/cockroach-go/v2 v2.2.8
-	github.com/gin-contrib/zap v0.0.1
-	github.com/gin-gonic/gin v1.7.4
+	github.com/gin-contrib/zap v0.0.2
+	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/jmoiron/sqlx v1.3.3
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	github.com/superoo7/go-gecko v1.0.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.19.1
 )
 
 require (
