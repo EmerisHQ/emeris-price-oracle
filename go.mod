@@ -15,7 +15,7 @@ require (
 	github.com/cockroachdb/cockroach-go/v2 v2.2.8
 	github.com/gin-contrib/zap v0.0.1
 	github.com/gin-gonic/gin v1.7.4
-	github.com/go-playground/validator/v10 v10.9.0
+	github.com/go-playground/validator/v10 v10.10.0
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/jmoiron/sqlx v1.3.3
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
