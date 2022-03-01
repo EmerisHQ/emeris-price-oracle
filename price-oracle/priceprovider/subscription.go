@@ -96,56 +96,62 @@ func (api *Api) SubscriptionBinance() error {
 	if len(whitelistedTokens) == 0 {
 		return fmt.Errorf("SubscriptionBinance: No whitelisted tokens")
 	}
-	for _, token := range whitelistedTokens {
-		tokenSymbol := token + types.USDT
-		req, err := http.NewRequest("GET", BinanceURL, nil)
+
+	req, err := http.NewRequest("GET", BinanceURL, nil)
+	if err != nil {
+		return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
+	}
+	req.Header.Set("Accepts", "application/json")
+
+	resp, err := api.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("SubscriptionBinance: read body: %w", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("SubscriptionBinance %s Status: %s", body, resp.Status)
+	}
+	var resList []types.Binance
+	if err = json.Unmarshal(body, &resList); err != nil {
+		return fmt.Errorf("SubscriptionBinance: unmarshal body: %w", err)
+	}
+
+	// Binance response: [{"symbol":"ETHUSDT","price":"4021.067276"},{"symbol":"LTCUSDT","price":"200.00250"},...]
+	// Convert it to: { "ETHUSDT": 4021.067276, "LTCUSDT": 200.00250 }
+	symbolPriceMap := make(map[string]float64)
+	for _, b := range resList {
+		val, err := strconv.ParseFloat(b.Price, 64)
 		if err != nil {
-			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
-		}
-
-		q := url.Values{}
-		q.Add("symbol", tokenSymbol)
-		req.Header.Set("Accepts", "application/json")
-		req.URL.RawQuery = q.Encode()
-
-		resp, err := api.Client.Do(req)
-		if err != nil {
-			return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
-		}
-
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("SubscriptionBinance: read body: %w", err)
-		}
-		if err := resp.Body.Close(); err != nil {
-			return err
-		}
-		if resp.StatusCode != http.StatusOK {
-			if resp.StatusCode == http.StatusBadRequest {
-				api.StoreHandler.Logger.Infof("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
-				continue
-			}
-			return fmt.Errorf("SubscriptionBinance: %s, Status: %s, Symbol: %s", body, resp.Status, tokenSymbol)
-		}
-
-		bp := types.Binance{}
-		if err = json.Unmarshal(body, &bp); err != nil {
-			return fmt.Errorf("SubscriptionBinance: unmarshal body: %w", err)
-		}
-
-		strToFloat, err := strconv.ParseFloat(bp.Price, 64)
-		if err != nil {
-			return fmt.Errorf("SubscriptionBinance: convert price to float: %w", err)
-		}
-		if strToFloat == float64(0) {
+			api.StoreHandler.Logger.Errorw("SubscriptionBinance", "ParseFloat", err)
 			continue
 		}
+		symbolPriceMap[strings.ToUpper(b.Symbol)] = val // Force Upper, better safe than sorry!
+	}
 
+	var missingTokens []string
+	for _, token := range whitelistedTokens {
+		tokenSymbol := strings.ToUpper(token + types.USDT) // Force upper, better safe than sorry!
+		var price float64
+		var ok bool
+		if price, ok = symbolPriceMap[tokenSymbol]; !ok {
+			missingTokens = append(missingTokens, tokenSymbol)
+			continue
+		}
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, bp.Symbol, strToFloat, now.Unix()); err != nil {
-			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, bp.Symbol, strToFloat, err)
+		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, tokenSymbol, price, now.Unix()); err != nil {
+			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, tokenSymbol, price, err)
 		}
 		time.Sleep(1 * time.Second)
+	}
+	if len(missingTokens) > 0 {
+		api.StoreHandler.Logger.Infow("SubscriptionBinance", "MissingTokens", strings.Join(missingTokens, ", "))
 	}
 	return nil
 }
@@ -163,6 +169,7 @@ func (api *Api) SubscriptionCoingecko() error {
 	for p := range pidToTickers {
 		priceIds = append(priceIds, p)
 	}
+	api.StoreHandler.Logger.Infow("SubscriptionCoingecko", "Calling Price Ids", strings.Join(priceIds, ", "))
 
 	cg := gecko.NewClient(api.Client)
 	pcp := geckoTypes.PriceChangePercentageObject
@@ -173,9 +180,11 @@ func (api *Api) SubscriptionCoingecko() error {
 		return fmt.Errorf("SubscriptionCoingecko, cg.CoinsMarket(): %w", err)
 	}
 
+	respTokenSymbols := make([]string, 0, len(*market)) // For logging.
 	for _, token := range *market {
 		tokenSymbol := strings.ToUpper(token.Symbol) + types.USDT
-		now := time.Now()
+		respTokenSymbols = append(respTokenSymbols, fmt.Sprintf("(ID: %s Symbol: %s)", token.ID, token.Symbol))
+		now := time.Now().Round(0)
 
 		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", store.CoingeckoStore, tokenSymbol, token.CurrentPrice, err)
@@ -186,6 +195,7 @@ func (api *Api) SubscriptionCoingecko() error {
 		}
 		time.Sleep(1 * time.Second)
 	}
+	api.StoreHandler.Logger.Infow("SubscriptionCoingecko", "Received Price Ids", strings.Join(respTokenSymbols, ", "))
 	return nil
 }
 
