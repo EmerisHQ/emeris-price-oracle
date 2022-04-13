@@ -26,6 +26,8 @@ func TestChartData(t *testing.T) {
 	}()
 	<-ch // Wait for the goroutine to start. Still hack!!
 
+	// Caution: we only have 1 day bitcoin-eur data in cache. If you want to change it to other coins/days/currency
+	// test will break.
 	resp, err := http.Get(fmt.Sprintf("http://%s/chart/bitcoin?vs_currency=eur&days=1", router.s.c.ListenAddr))
 	require.NoError(t, err)
 
@@ -38,8 +40,10 @@ func TestChartData(t *testing.T) {
 	var got struct {
 		Data *geckoTypes.CoinsIDMarketChart `json:"data"`
 	}
+
 	err = json.Unmarshal(body, &got)
 	require.NoError(t, err)
 
 	require.NotNil(t, got.Data.Prices)
+	require.Equal(t, got.Data, generateChartData(12*24, 0, 0))
 }

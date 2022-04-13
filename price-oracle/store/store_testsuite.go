@@ -35,7 +35,7 @@ func TestStore(t *testing.T, store Store) {
 	// 	require.NoError(t, err)
 	// 	require.Contains(t, tokenNames, "ATOM")
 
-	// 	priceIds, err := store.GetPriceIDs()
+	// 	priceIds, err := store.GetPriceIDToTicker()
 	// 	require.NoError(t, err)
 	// 	require.Contains(t, priceIds, "cosmos")
 	// })
