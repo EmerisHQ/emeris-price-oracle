@@ -20,7 +20,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.3
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	github.com/superoo7/go-gecko v1.0.0
-	go.uber.org/zap v1.19.1
+	go.uber.org/zap v1.21.0
 )
 
 require (
