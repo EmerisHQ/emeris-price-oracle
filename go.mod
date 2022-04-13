@@ -12,15 +12,15 @@ require (
 	github.com/allinbits/demeris-backend-models v0.0.0-20211022115747-df6f5881eb00
 	github.com/allinbits/emeris-cns-server v0.0.0-20211021152447-99e15c2c0714
 	github.com/allinbits/emeris-utils v0.0.0-20220104112240-0cadfeac11ca
-	github.com/cockroachdb/cockroach-go/v2 v2.1.1
-	github.com/gin-contrib/zap v0.0.1
-	github.com/gin-gonic/gin v1.7.4
-	github.com/go-playground/validator/v10 v10.9.0
+	github.com/cockroachdb/cockroach-go/v2 v2.2.8
+	github.com/gin-contrib/zap v0.0.2
+	github.com/gin-gonic/gin v1.7.7
+	github.com/go-playground/validator/v10 v10.10.0
 	github.com/jackc/pgx/v4 v4.15.0
 	github.com/jmoiron/sqlx v1.3.3
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	github.com/superoo7/go-gecko v1.0.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.21.0
 )
 
 require (
@@ -31,6 +31,7 @@ require (
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/iamolegga/enviper v1.2.1 // indirect
@@ -63,7 +64,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
-	golang.org/x/sys v0.0.0-20210816183151-1e6c022a8912 // indirect
+	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect

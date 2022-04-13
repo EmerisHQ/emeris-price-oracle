@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
+
+	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
 	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
 
@@ -183,14 +187,18 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 	connStr := tServer.PGURL().String()
 	require.NotNil(t, connStr)
 
+	fp, err := getFreePort()
+	require.NoError(t, err)
+
 	cfg := &config.Config{
 		LogPath:               "",
 		Debug:                 true,
 		DatabaseConnectionURL: connStr,
 		Interval:              "10s",
 		WhitelistedFiats:      []string{"EUR", "KRW", "CHF"},
-		ListenAddr:            "127.0.0.1:9898",
+		ListenAddr:            fmt.Sprintf("127.0.0.1:%d", fp),
 		MaxAssetsReq:          10,
+		HttpClientTimeout:     1 * time.Second,
 	}
 
 	logger := logging.New(logging.LoggingConfig{
@@ -198,7 +206,14 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 		Debug:   cfg.Debug,
 	})
 
-	storeHandler, err := getStoreHandler(t, tServer, logger, cfg)
+	// Cache 1 day chart data for bitcoin-eur combo. Used in route_chartData_test.go
+	chartData := generateChartData(12*24, 0, 0)
+	chartDataCache := store.ChartDataCache{
+		Data:            map[string]map[string]*geckoTypes.CoinsIDMarketChart{"5M": {"bitcoin-eur": chartData}},
+		Mu:              sync.RWMutex{},
+		RefreshInterval: 3 * time.Minute,
+	}
+	storeHandler, err := getStoreHandler(t, tServer, logger, cfg, &chartDataCache)
 	require.NoError(t, err)
 
 	// Put dummy data in cns DB
@@ -223,7 +238,7 @@ func getDB(t *testing.T, ts testserver.TestServer) (*sql.SqlDB, error) {
 	return sql.NewDB(connStr)
 }
 
-func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config) (*store.Handler, error) {
+func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.SugaredLogger, cfg *config.Config, chart *store.ChartDataCache) (*store.Handler, error) {
 	db, err := getDB(t, ts)
 	if err != nil {
 		return nil, err
@@ -234,7 +249,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
-		store.WithChartDataCache(nil, time.Second*1),
+		store.WithChartDataCache(chart, chart.RefreshInterval /*not used in this case as chart is not nil*/),
 	)
 	if err != nil {
 		return nil, err
@@ -306,4 +321,35 @@ func insertWantData(r router, wantData types.AllPriceResponse) error {
 	}
 
 	return nil
+}
+
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = l.Close() }()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func generateChartData(n int, tm float32, increment float32) *geckoTypes.CoinsIDMarketChart {
+	return &geckoTypes.CoinsIDMarketChart{
+		Prices:       generateChartItems(n, tm, increment),
+		MarketCaps:   generateChartItems(n, tm, increment),
+		TotalVolumes: generateChartItems(n, tm, increment),
+	}
+}
+
+func generateChartItems(n int, timestamp float32, increment float32) *[]geckoTypes.ChartItem {
+	ret := make([]geckoTypes.ChartItem, 0, n)
+	for i := 0; i < n; i++ {
+		ret = append(ret, geckoTypes.ChartItem{timestamp, float32(i)})
+		timestamp += increment
+	}
+	return &ret
 }
