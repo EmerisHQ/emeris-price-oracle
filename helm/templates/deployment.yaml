@@ -40,11 +40,13 @@ spec:
               value: "EUR,USD"
             - name: EMERIS-PRICE-ORACLE_MAXASSETSREQ
               value: "{{ .Values.maxAssetsReq }}"
+            {{- if .Values.fixerKey }}
             - name: EMERIS-PRICE-ORACLE_FIXERAPIKEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}
                   key: fixerKey
+            {{- end }}
             - name: EMERIS-PRICE-ORACLE_RECOVERCOUNT
               value: "{{ .Values.recoverCount }}"
             - name: EMERIS-PRICE-ORACLE_WORKERPULSE
