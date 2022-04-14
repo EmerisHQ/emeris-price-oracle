@@ -2,14 +2,10 @@ name: Lint
 on:
   workflow_dispatch:
   pull_request:
-  push:
-    branches:
-      - main
-      - develop
 permissions:
   contents: read
 env:
-  GOPRIVATE: "github.com/allinbits/*"
+  GOPRIVATE: "github.com/emerishq,github.com/allinbits"
 
 jobs:
   golangci:
