@@ -1,8 +1,14 @@
 module github.com/emerishq/emeris-price-oracle
 
-go 1.17
+go 1.18
 
 replace (
+	// NOTE(tb): fix error when running go mod tidy
+	// For details see https://github.com/btcsuite/btcd/issues/1839
+	// This should be fixed in a future release of btcstuite, then we can remove
+	// that line.
+	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.16
+
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/jmoiron/sqlx => github.com/abraithwaite/sqlx v1.3.2-0.20210331022513-df9bf9884350
 	k8s.io/client-go => k8s.io/client-go v0.21.1
@@ -24,9 +30,8 @@ require (
 )
 
 require (
-	github.com/btcsuite/btcd/btcec/v2 v2.1.2 // indirect
+	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
