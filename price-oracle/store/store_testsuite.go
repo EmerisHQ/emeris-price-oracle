@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,10 +12,10 @@ func TestStore(t *testing.T, store Store) {
 	t.Run("Upsert and Get Tokens", func(t *testing.T) {
 		tokenList := []string{"ATOM"}
 
-		err := store.UpsertPrice(TokensStore, -100, "ATOM")
+		err := store.UpsertPrice(context.Background(), TokensStore, -100, "ATOM")
 		require.NoError(t, err)
 
-		tokens, err := store.GetTokenPriceAndSupplies(tokenList)
+		tokens, err := store.GetTokenPriceAndSupplies(context.Background(), tokenList)
 		require.NoError(t, err)
 		require.Equal(t, tokenList[0], tokens[0].Symbol)
 	})
@@ -22,10 +23,10 @@ func TestStore(t *testing.T, store Store) {
 	t.Run("Upsert and Get Fiats", func(t *testing.T) {
 		priceList := []string{"EUR"}
 
-		err := store.UpsertPrice(FiatsStore, -100, "EUR")
+		err := store.UpsertPrice(context.Background(), FiatsStore, -100, "EUR")
 		require.NoError(t, err)
 
-		prices, err := store.GetFiatPrices(priceList)
+		prices, err := store.GetFiatPrices(context.Background(), priceList)
 		require.NoError(t, err)
 		require.Equal(t, priceList[0], prices[0].Symbol)
 	})
@@ -42,10 +43,10 @@ func TestStore(t *testing.T, store Store) {
 
 	t.Run("Upsert token and Get prices", func(t *testing.T) {
 		now := time.Now()
-		err := store.UpsertToken(BinanceStore, "Test", -10, now.Unix())
+		err := store.UpsertToken(context.Background(), BinanceStore, "Test", -10, now.Unix())
 		require.NoError(t, err)
 
-		prices, err := store.GetPrices(BinanceStore)
+		prices, err := store.GetPrices(context.Background(), BinanceStore)
 		require.NoError(t, err)
 		require.Equal(t, float64(-10), prices[0].Price)
 		require.Equal(t, "Test", prices[0].Symbol)
@@ -53,14 +54,14 @@ func TestStore(t *testing.T, store Store) {
 	})
 
 	t.Run("Upsert token supply and Get Tokens", func(t *testing.T) {
-		err := store.UpsertPrice(TokensStore, -100, "ATOM")
+		err := store.UpsertPrice(context.Background(), TokensStore, -100, "ATOM")
 		require.NoError(t, err)
 
-		err = store.UpsertTokenSupply(CoingeckoSupplyStore, "ATOM", -23425)
+		err = store.UpsertTokenSupply(context.Background(), CoingeckoSupplyStore, "ATOM", -23425)
 		require.NoError(t, err)
 
 		tokenList := []string{"ATOM"}
-		prices, err := store.GetTokenPriceAndSupplies(tokenList)
+		prices, err := store.GetTokenPriceAndSupplies(context.Background(), tokenList)
 		require.NoError(t, err)
 		require.Equal(t, "ATOM", prices[0].Symbol)
 		require.Equal(t, float64(-23425), prices[0].Supply)

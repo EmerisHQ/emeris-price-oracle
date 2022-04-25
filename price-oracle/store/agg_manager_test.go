@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -41,15 +42,15 @@ func TestStartAggregate(t *testing.T) {
 	}
 	stores := []string{store.BinanceStore, store.CoingeckoStore}
 	for _, token := range tokens {
-		err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol)
+		err := storeHandler.Store.UpsertPrice(context.Background(), store.TokensStore, token.Price, token.Symbol)
 		require.NoError(t, err)
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, token.Symbol, token.Price+float64(i+1), time.Now().Unix())
+			err := storeHandler.Store.UpsertToken(context.Background(), s, token.Symbol, token.Price+float64(i+1), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
 
-	prices, err := storeHandler.Store.GetTokenPriceAndSupplies([]string{"ATOMUSDT", "LUNAUSDT"})
+	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(context.Background(), []string{"ATOMUSDT", "LUNAUSDT"})
 	require.NoError(t, err)
 
 	for i, price := range prices {
@@ -61,7 +62,7 @@ func TestStartAggregate(t *testing.T) {
 
 	// Validate data updated on DB ..
 	require.Eventually(t, func() bool {
-		prices, err := storeHandler.Store.GetTokenPriceAndSupplies([]string{"ATOMUSDT", "LUNAUSDT"})
+		prices, err := storeHandler.Store.GetTokenPriceAndSupplies(context.Background(), []string{"ATOMUSDT", "LUNAUSDT"})
 		require.NoError(t, err)
 
 		atomPrice := prices[0].Price
@@ -78,7 +79,7 @@ func TestAggregateManager_closes(t *testing.T) {
 
 	runAsDaemon := daemon.MakeDaemon(10*time.Second, 2, store.AggregateManager)
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 100*time.Millisecond, storeHandler.Logger, storeHandler.Cfg, storeHandler.PriceFiatAggregator)
+	hbCh, errCh := runAsDaemon(context.Background(), done, 100*time.Millisecond, storeHandler.Logger, storeHandler.Cfg, storeHandler.PriceFiatAggregator)
 
 	// Collect 5 heartbeats and then close
 	for i := 0; i < 5; i++ {
@@ -99,7 +100,7 @@ func TestAggregateManager_worker_restarts(t *testing.T) {
 	numRecover := 2
 	runAsDaemon := daemon.MakeDaemon(10*time.Second, numRecover, store.AggregateManager)
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 6*time.Second, storeHandler.Logger, storeHandler.Cfg, storeHandler.PriceFiatAggregator)
+	hbCh, errCh := runAsDaemon(context.Background(), done, 6*time.Second, storeHandler.Logger, storeHandler.Cfg, storeHandler.PriceFiatAggregator)
 
 	// Wait for the process to start
 	<-hbCh

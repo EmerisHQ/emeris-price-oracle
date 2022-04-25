@@ -39,7 +39,7 @@ func TestNewStoreHandler(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	_, err := storeHandler.GetCNSWhitelistedTokens()
+	_, err := storeHandler.GetCNSWhitelistedTokens(context.Background())
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -56,7 +56,7 @@ func TestNewStoreHandler(t *testing.T) {
 	_, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
 
-	_, err = storeHandler.GetFiatPrices(fiats)
+	_, err = storeHandler.GetFiatPrices(context.Background(), fiats)
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -73,7 +73,7 @@ func TestNewStoreHandler(t *testing.T) {
 	_, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
 
-	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
+	_, err = storeHandler.GetTokenPriceAndSupplies(context.Background(), tokens)
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -100,7 +100,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
+	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens(context.Background())
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromStore)
@@ -109,7 +109,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
+	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens(context.Background())
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromCache)
@@ -121,7 +121,7 @@ func TestCnsPriceIdQuery(t *testing.T) {
 	defer tDown()
 	defer cancel()
 
-	whiteList, err := storeHandler.GetCNSPriceIdsToTicker()
+	whiteList, err := storeHandler.GetCNSPriceIdsToTicker(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
@@ -139,15 +139,15 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 	for _, tk := range tokens {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
+			err := storeHandler.Store.UpsertToken(context.Background(), s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceTokenAggregator()
+	err := storeHandler.PriceTokenAggregator(context.Background())
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(tokens)
+	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(context.Background(), tokens)
 	require.NoError(t, err)
 
 	for i, p := range prices {
@@ -167,15 +167,15 @@ func TestPriceFiatAggregator(t *testing.T) {
 
 	for _, tk := range fiats {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
+			err := storeHandler.Store.UpsertToken(context.Background(), s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceFiatAggregator()
+	err := storeHandler.PriceFiatAggregator(context.Background())
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetFiatPrices(fiats)
+	prices, err := storeHandler.Store.GetFiatPrices(context.Background(), fiats)
 	require.NoError(t, err)
 	require.NotNil(t, prices)
 
@@ -198,7 +198,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(context.Background(), tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromStore)
@@ -207,7 +207,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(context.Background(), tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromCache)
@@ -226,7 +226,7 @@ func TestGetFiatPrices(t *testing.T) {
 	upsertedFiats, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
 
-	fiatsFromStore, err := storeHandler.GetFiatPrices(fiats)
+	fiatsFromStore, err := storeHandler.GetFiatPrices(context.Background(), fiats)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedFiats, fiatsFromStore)
@@ -235,7 +235,7 @@ func TestGetFiatPrices(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
+	fiatsFromCache, err := storeHandler.GetFiatPrices(context.Background(), fiats)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedFiats, fiatsFromCache)
@@ -532,7 +532,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//t.Parallel()
-			got, err := storeHandler.GetGeckoIdForTokenNames(tt.tokenNames)
+			got, err := storeHandler.GetGeckoIdForTokenNames(context.Background(), tt.tokenNames)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, got)
 			if tt.checkLog {
@@ -572,7 +572,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db), // This call rums the migrations.
+		store.WithDB(context.Background(), db), // This call rums the migrations.
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
@@ -674,11 +674,11 @@ func upsertTokens(storeHandler *store.Handler) ([]types.TokenPriceAndSupply, []s
 
 	var tokens []string
 	for _, token := range upsertTokens {
-		if err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol); err != nil {
+		if err := storeHandler.Store.UpsertPrice(context.Background(), store.TokensStore, token.Price, token.Symbol); err != nil {
 			return nil, nil, err
 		}
 
-		if err := storeHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply); err != nil {
+		if err := storeHandler.Store.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, token.Symbol, token.Supply); err != nil {
 			return nil, nil, err
 		}
 
@@ -702,7 +702,7 @@ func upsertFiats(storeHandler *store.Handler) ([]types.FiatPrice, []string, erro
 
 	var fiats []string
 	for _, fiat := range upsertFiats {
-		if err := storeHandler.Store.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol); err != nil {
+		if err := storeHandler.Store.UpsertPrice(context.Background(), store.FiatsStore, fiat.Price, fiat.Symbol); err != nil {
 			return nil, nil, err
 		}
 

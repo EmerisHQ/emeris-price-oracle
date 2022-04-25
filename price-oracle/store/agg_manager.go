@@ -29,7 +29,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 	}
 	for _, properties := range workers {
 		wg.Add(1)
-		heartbeatCh, errCh := runAsDaemon(properties.doneCh, storeHandler.Cfg.WorkerPulse, storeHandler.Logger, storeHandler.Cfg, properties.worker)
+		heartbeatCh, errCh := runAsDaemon(ctx, properties.doneCh, storeHandler.Cfg.WorkerPulse, storeHandler.Logger, storeHandler.Cfg, properties.worker)
 		go func(ctx context.Context, done chan struct{}, workerName string, lastLogTime time.Time) {
 			defer close(done)
 			defer wg.Done()
@@ -58,6 +58,7 @@ func StartAggregate(ctx context.Context, storeHandler *Handler) {
 }
 
 func AggregateManager(
+	ctx context.Context,
 	done chan struct{},
 	pulseInterval time.Duration,
 	logger *zap.SugaredLogger,
@@ -84,7 +85,7 @@ func AggregateManager(
 			case <-done:
 				return
 			case <-ticker.C:
-				if err := fn(); err != nil {
+				if err := fn(ctx); err != nil {
 					logger.Errorw("AggregateManager", "Worker returned Err:", err)
 					errCh <- err
 				}

@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func TestStore(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	store.TestStore(t, mDB)
@@ -52,7 +53,7 @@ func TestMigrations(t *testing.T) {
 	require.Contains(t, err.Error(), "target database or schema does not exist")
 
 	// create DB
-	err = mDB.createDatabase()
+	err = mDB.createDatabase(context.Background())
 	require.NoError(t, err)
 
 	// check for tables
@@ -70,7 +71,7 @@ func TestMigrations(t *testing.T) {
 	require.Equal(t, 0, tableCountDB)
 
 	// create tables
-	err = mDB.runMigrations()
+	err = mDB.runMigrations(context.Background())
 	require.NoError(t, err)
 
 	// check for tables
@@ -110,7 +111,7 @@ func TestMigrations(t *testing.T) {
 	require.Equal(t, tableCountMigration-1, tableCountDB)
 
 	// create tables
-	err = mDB.runMigrations()
+	err = mDB.runMigrations(context.Background())
 	require.NoError(t, err)
 
 	// check for tables
@@ -141,7 +142,7 @@ func TestInit(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	rows, err := mDB.Query("SHOW TABLES FROM oracle")
@@ -183,7 +184,7 @@ func TestGetTokens(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	token := types.TokenPriceAndSupply{
@@ -192,13 +193,13 @@ func TestGetTokens(t *testing.T) {
 		Supply: -100000,
 	}
 
-	err = mDB.UpsertPrice(store.TokensStore, token.Price, token.Symbol)
+	err = mDB.UpsertPrice(context.Background(), store.TokensStore, token.Price, token.Symbol)
 	require.NoError(t, err)
 
-	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply)
+	err = mDB.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, token.Symbol, token.Supply)
 	require.NoError(t, err)
 
-	resp, err := mDB.GetTokenPriceAndSupplies([]string{"ATOM"})
+	resp, err := mDB.GetTokenPriceAndSupplies(context.Background(), []string{"ATOM"})
 	require.NoError(t, err)
 	require.Equal(t, token, resp[0])
 }
@@ -218,7 +219,7 @@ func TestGetFiats(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	fiat := types.FiatPrice{
@@ -226,10 +227,10 @@ func TestGetFiats(t *testing.T) {
 		Price:  -1,
 	}
 
-	err = mDB.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol)
+	err = mDB.UpsertPrice(context.Background(), store.FiatsStore, fiat.Price, fiat.Symbol)
 	require.NoError(t, err)
 
-	resp, err := mDB.GetFiatPrices([]string{"USD"})
+	resp, err := mDB.GetFiatPrices(context.Background(), []string{"USD"})
 	require.NoError(t, err)
 	require.Equal(t, fiat, resp[0])
 }
@@ -250,7 +251,7 @@ func TestGetTokenNames(t *testing.T) {
 	}()
 
 	//build mock cns.chains table
-	_, err = mDB.GetTokenNames()
+	_, err = mDB.GetTokenNames(context.Background())
 	require.Error(t, err)
 }
 
@@ -270,7 +271,7 @@ func TestGetPriceIDs(t *testing.T) {
 	}()
 
 	//build mock cns.chains table
-	_, err = mDB.GetPriceIDToTicker()
+	_, err = mDB.GetPriceIDToTicker(context.Background())
 	require.Error(t, err)
 }
 
@@ -289,7 +290,7 @@ func TestGetPrices(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	now := time.Now()
@@ -304,7 +305,7 @@ func TestGetPrices(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	prices, err := mDB.GetPrices(store.BinanceStore)
+	prices, err := mDB.GetPrices(context.Background(), store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, price, prices[0])
 }
@@ -324,7 +325,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	price := types.TokenPriceAndSupply{
@@ -332,7 +333,7 @@ func TestUpsertTokenPrice(t *testing.T) {
 		Price:  -100,
 	}
 
-	err = mDB.UpsertPrice(store.TokensStore, price.Price, price.Symbol)
+	err = mDB.UpsertPrice(context.Background(), store.TokensStore, price.Price, price.Symbol)
 	require.NoError(t, err)
 
 	rows, err := mDB.Query("SELECT * FROM " + store.TokensStore)
@@ -367,7 +368,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	price := types.FiatPrice{
@@ -375,7 +376,7 @@ func TestUpsertFiatPrice(t *testing.T) {
 		Price:  -1,
 	}
 
-	err = mDB.UpsertPrice(store.FiatsStore, price.Price, price.Symbol)
+	err = mDB.UpsertPrice(context.Background(), store.FiatsStore, price.Price, price.Symbol)
 	require.NoError(t, err)
 
 	rows, err := mDB.Query("SELECT * FROM " + store.FiatsStore)
@@ -410,7 +411,7 @@ func TestUpsertToken(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	now := time.Now()
@@ -420,10 +421,10 @@ func TestUpsertToken(t *testing.T) {
 		UpdatedAt: now.Unix(),
 	}
 
-	err = mDB.UpsertToken(store.BinanceStore, price.Symbol, price.Price, now.Unix())
+	err = mDB.UpsertToken(context.Background(), store.BinanceStore, price.Symbol, price.Price, now.Unix())
 	require.NoError(t, err)
 
-	prices, err := mDB.GetPrices(store.BinanceStore)
+	prices, err := mDB.GetPrices(context.Background(), store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, price, prices[0])
 }
@@ -443,7 +444,7 @@ func TestUpsertTokenSupply(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err = mDB.Init()
+	err = mDB.Init(context.Background())
 	require.NoError(t, err)
 
 	price := types.TokenPriceAndSupply{
@@ -451,7 +452,7 @@ func TestUpsertTokenSupply(t *testing.T) {
 		Supply: -200,
 	}
 
-	err = mDB.UpsertTokenSupply(store.CoingeckoSupplyStore, price.Symbol, price.Supply)
+	err = mDB.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, price.Symbol, price.Supply)
 	require.NoError(t, err)
 
 	rows, err := mDB.Query("SELECT * FROM " + store.CoingeckoSupplyStore)

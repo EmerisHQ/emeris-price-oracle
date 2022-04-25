@@ -1,6 +1,7 @@
 package daemon_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -22,7 +23,7 @@ func TestMakeDaemon(t *testing.T) {
 	require.IsType(t, runAsDaemon, dummyWorker)
 
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 300*time.Millisecond, logger, cfg, dummyAgg)
+	hbCh, errCh := runAsDaemon(context.Background(), done, 300*time.Millisecond, logger, cfg, dummyAgg)
 	errorList := make([]error, 0)
 	go func() {
 		defer close(done)
@@ -62,7 +63,7 @@ func TestDaemon_recoverCount(t *testing.T) {
 			t.Parallel()
 			runAsDaemon := daemon.MakeDaemon(expected.timeout, expected.numRecover, dummyWorker)
 			done := make(chan struct{})
-			hbCh, errCh := runAsDaemon(done, expected.pulse, logger, cfg, dummyAgg)
+			hbCh, errCh := runAsDaemon(context.Background(), done, expected.pulse, logger, cfg, dummyAgg)
 			errorList := make([]error, 0)
 			go func() {
 				defer close(done)
@@ -102,7 +103,7 @@ func TestDaemon_restart_non_responsive_worker(t *testing.T) {
 
 	runAsDaemon := daemon.MakeDaemon(daemonTimeout, 0, dummyWorker)
 	done := make(chan struct{})
-	_, errCh := runAsDaemon(done, workerPulse, logger, cfg, dummyAgg)
+	_, errCh := runAsDaemon(context.Background(), done, workerPulse, logger, cfg, dummyAgg)
 	require.Equal(t, <-errCh, daemon.ErrWorkerRestarted)
 	close(done)
 }
@@ -112,6 +113,7 @@ func TestDaemon_worker_not_responding_restart_twice(t *testing.T) {
 	_, dummyAgg, logger, _, cfg := setupTest(t)
 
 	dummyWorker := func(
+		ctx context.Context,
 		done chan struct{},
 		pulseInterval time.Duration,
 		logger *zap.SugaredLogger,
@@ -140,7 +142,7 @@ func TestDaemon_worker_not_responding_restart_twice(t *testing.T) {
 					plsCnt++
 				case <-callFn:
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(); err != nil {
+					if err := fn(context.Background()); err != nil {
 						errCh <- err
 					}
 				}
@@ -151,7 +153,7 @@ func TestDaemon_worker_not_responding_restart_twice(t *testing.T) {
 	runAsDaemon := daemon.MakeDaemon(500*time.Millisecond, -1, dummyWorker)
 
 	done := make(chan struct{})
-	hbCh, errCh := runAsDaemon(done, 200*time.Millisecond, logger, cfg, dummyAgg)
+	hbCh, errCh := runAsDaemon(context.Background(), done, 200*time.Millisecond, logger, cfg, dummyAgg)
 
 	heartBeats := make([]string, 0)
 	restartCnt := 0
@@ -192,10 +194,11 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 	observedZapCore, logs := observer.New(zap.InfoLevel)
 	logger := zap.New(observedZapCore).Sugar()
 
-	dummyAgg := func() error {
+	dummyAgg := func(context.Context) error {
 		return fmt.Errorf("not implemented")
 	}
 	dummyWorker := func(
+		ctx context.Context,
 		done chan struct{},
 		pulseInterval time.Duration,
 		logger *zap.SugaredLogger,
@@ -219,7 +222,7 @@ func setupTest(t *testing.T) (daemon.WorkerFunc, daemon.AggFunc, *zap.SugaredLog
 				case <-callFn:
 					logger.Infof("Worker: calling fn")
 					// XXX: Use a separate go routine to call this function?
-					if err := fn(); err != nil {
+					if err := fn(context.Background()); err != nil {
 						logger.Infof("Worker: found Error: %v", err)
 						errCh <- err
 					}

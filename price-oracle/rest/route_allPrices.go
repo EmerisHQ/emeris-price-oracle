@@ -11,7 +11,7 @@ import (
 const getAllPriceRoute = "/prices"
 
 func (r *router) allPricesHandler(ctx *gin.Context) {
-	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens()
+	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
 		r.s.l.Errorw("Store.GetCNSWhitelistedTokens()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
@@ -24,7 +24,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}
 
-	tokenPriceAndSupplies, err := r.s.sh.GetTokenPriceAndSupplies(whitelistedTokenSymbols)
+	tokenPriceAndSupplies, err := r.s.sh.GetTokenPriceAndSupplies(ctx, whitelistedTokenSymbols)
 	if err != nil {
 		r.s.l.Errorw("Store.GetTokenPriceAndSupplies()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
@@ -37,7 +37,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		whitelistedFiatSymbols = append(whitelistedFiatSymbols, types.USD+fiat)
 	}
 
-	fiatPrices, err := r.s.sh.GetFiatPrices(whitelistedFiatSymbols)
+	fiatPrices, err := r.s.sh.GetFiatPrices(ctx, whitelistedFiatSymbols)
 	if err != nil {
 		r.s.l.Errorw("Store.GetFiatPrices()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)

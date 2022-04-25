@@ -38,7 +38,7 @@ func main() {
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(context.Background(), db),
 		store.WithConfig(cfg),
 		store.WithLogger(logger),
 		store.WithSpotPriceCache(nil),
