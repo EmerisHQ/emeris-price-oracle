@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
 	"go.uber.org/zap"
 )
 

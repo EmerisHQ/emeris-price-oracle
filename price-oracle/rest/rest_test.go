@@ -14,15 +14,15 @@ import (
 
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/allinbits/emeris-utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
+	models "github.com/emerishq/demeris-backend-models/cns"
+	cnsDB "github.com/emerishq/emeris-cns-server/cns/database"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-utils/logging"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

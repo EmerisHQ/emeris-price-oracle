@@ -1,11 +1,11 @@
 # price-oracle
 
-![example workflow](https://github.com/allinbits/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
-[![Build docker images](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml/badge.svg)](https://github.com/allinbits/emeris-price-oracle/actions/workflows/docker-build.yml)
-[![codecov](https://codecov.io/gh/allinbits/emeris-price-oracle/branch/main/graph/badge.svg?token=MNF1SLOK6P)](https://codecov.io/gh/allinbits/emeris-price-oracle)
-[![Build status](https://github.com/allinbits/emeris-price-oracle/workflows/Build/badge.svg)](https://github.com/allinbits/emeris-price-oracle/commits/main)
-[![Tests status](https://github.com/allinbits/emeris-price-oracle/workflows/Tests/badge.svg)](https://github.com/allinbits/emeris-price-oracle/commits/main)
-[![Lint](https://github.com/allinbits/emeris-price-oracle/workflows/Lint/badge.svg?token)](https://github.com/allinbits/emeris-price-oracle/commits/main)
+![example workflow](https://github.com/emerishq/emeris-price-oracle/actions/workflows/ci.yml/badge.svg)
+[![Build docker images](https://github.com/emerishq/emeris-price-oracle/actions/workflows/docker-build.yml/badge.svg)](https://github.com/emerishq/emeris-price-oracle/actions/workflows/docker-build.yml)
+[![codecov](https://codecov.io/gh/emerishq/emeris-price-oracle/branch/main/graph/badge.svg?token=MNF1SLOK6P)](https://codecov.io/gh/emerishq/emeris-price-oracle)
+[![Build status](https://github.com/emerishq/emeris-price-oracle/workflows/Build/badge.svg)](https://github.com/emerishq/emeris-price-oracle/commits/main)
+[![Tests status](https://github.com/emerishq/emeris-price-oracle/workflows/Tests/badge.svg)](https://github.com/emerishq/emeris-price-oracle/commits/main)
+[![Lint](https://github.com/emerishq/emeris-price-oracle/workflows/Lint/badge.svg?token)](https://github.com/emerishq/emeris-price-oracle/commits/main)
 
 Aggregates and caches price data feeds from external data providers.
 
@@ -94,12 +94,12 @@ If you have multiple copy of in-memory cockroach db, it can happen that when you
 **Solution:** if this happens manually delete **ALL** instances of test server from your machine.
 
 ### Known issue
-When try to download some private module from `allinbits` you can get:
+When try to download some private module from `emerishq` you can get:
 `fatal: could not read Username for 'https://github.com': terminal prompts disabled`
 
 **Solution:** Set the goprivate env variable. 
 
-go env -w GOPRIVATE="github.com/allinbits/{module}"
+go env -w GOPRIVATE="github.com/emerishq/{module}"
 
 ## Dependencies & Licenses
 

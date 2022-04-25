@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-utils/logging"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/priceprovider"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/rest"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-utils/logging"
 )
 
 var Version = "not specified"
