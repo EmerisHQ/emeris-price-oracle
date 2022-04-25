@@ -1,6 +1,9 @@
 package sql
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 const createDatabase = `
 CREATE DATABASE oracle;
@@ -40,27 +43,27 @@ var migrationList = []string{
 	createTableCoingeckoSupply,
 }
 
-func (m *SqlDB) runMigrations() error {
-	if err := m.RunMigrations(migrationList); err != nil {
+func (m *SqlDB) runMigrations(ctx context.Context) error {
+	if err := m.RunMigrations(ctx, migrationList); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *SqlDB) createDatabase() error {
+func (m *SqlDB) createDatabase(ctx context.Context) error {
 	m, err := NewDB(m.connString)
 	if err != nil {
 		return err
 	}
 
-	if _, err := m.db.Exec(createDatabase); err != nil {
+	if _, err := m.db.ExecContext(ctx, createDatabase); err != nil {
 		return fmt.Errorf("error while creating database : %w", err)
 	}
 
 	return m.db.Close()
 }
 
-func (m *SqlDB) RunMigrations(migrations []string) error {
+func (m *SqlDB) RunMigrations(ctx context.Context, migrations []string) error {
 	m, err := NewDB(m.connString)
 	if err != nil {
 		return err
@@ -68,7 +71,7 @@ func (m *SqlDB) RunMigrations(migrations []string) error {
 
 	for i, migration := range migrations {
 
-		if _, err := m.db.Exec(migration); err != nil {
+		if _, err := m.db.ExecContext(ctx, migration); err != nil {
 			return fmt.Errorf("error while running migration #%d, %w", i, err)
 		}
 	}

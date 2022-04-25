@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -245,7 +246,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(context.Background(), db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
@@ -304,18 +305,18 @@ func insertToken(t *testing.T, connStr string) {
 func insertWantData(r router, wantData types.AllPriceResponse) error {
 	for _, f := range wantData.Fiats {
 
-		if err := r.s.sh.Store.UpsertPrice(store.FiatsStore, f.Price, f.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(context.Background(), store.FiatsStore, f.Price, f.Symbol); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
 
-		if err := r.s.sh.Store.UpsertPrice(store.TokensStore, t.Price, t.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(context.Background(), store.TokensStore, t.Price, t.Symbol); err != nil {
 			return err
 		}
 
-		if err := r.s.sh.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
 			return err
 		}
 	}
