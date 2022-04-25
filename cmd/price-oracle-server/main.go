@@ -14,6 +14,7 @@ import (
 	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 	"github.com/emerishq/emeris-utils/logging"
+	"github.com/getsentry/sentry-go"
 )
 
 var Version = "not specified"
@@ -45,6 +46,16 @@ func main() {
 	)
 	if err != nil {
 		logger.Fatal(err)
+	}
+
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              cfg.SentryDSN,
+		SampleRate:       cfg.SentrySampleRate,
+		TracesSampleRate: cfg.SentryTracesSampleRate,
+		Environment:      cfg.SentryEnvironment,
+		AttachStacktrace: true,
+	}); err != nil {
+		logger.Fatalf("Sentry initialization failed: %v\n", err)
 	}
 
 	var wg sync.WaitGroup

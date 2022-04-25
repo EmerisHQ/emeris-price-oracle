@@ -21,6 +21,11 @@ type Config struct {
 	WorkerPulse           time.Duration `validate:"required"`
 	HttpClientTimeout     time.Duration `validate:"required"`
 
+	SentryDSN              string
+	SentryEnvironment      string
+	SentrySampleRate       float64
+	SentryTracesSampleRate float64
+
 	// Not currently used, but may be used in the future
 	// CoinmarketcapapiKey string `validate:"required"`
 }
@@ -41,5 +46,9 @@ func (c Config) Validate() error {
 func Read() (*Config, error) {
 	var c Config
 
-	return &c, configuration.ReadConfig(&c, "emeris-price-oracle", map[string]string{})
+	return &c, configuration.ReadConfig(&c, "emeris-price-oracle", map[string]string{
+		"SentryEnvironment":      "notset",
+		"SentrySampleRate":       "1.0",
+		"SentryTracesSampleRate": "0.3",
+	})
 }

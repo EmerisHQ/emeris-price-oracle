@@ -19,7 +19,7 @@ require (
 	github.com/emerishq/demeris-backend-models v1.5.0
 	github.com/emerishq/emeris-cns-server v0.0.0-20220422070001-a18e063b6374
 	github.com/emerishq/emeris-utils v1.5.0
-	github.com/gin-contrib/zap v0.0.2
+	github.com/getsentry/sentry-go v0.13.0
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.1
 	github.com/jackc/pgx/v4 v4.15.0

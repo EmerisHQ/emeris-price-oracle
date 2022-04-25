@@ -53,6 +53,14 @@ spec:
               value: "{{ .Values.workerPulse }}"
             - name: EMERIS-PRICE-ORACLE_HTTPCLIENTTIMEOUT
               value: "{{ .Values.httpClientTimeout }}"
+            - name: EMERIS-PRICE-ORACLE_SENTRYDSN
+              value: "{{ .Values.sentryDSN }}"
+            - name: EMERIS-PRICE-ORACLE_SENTRYENVIRONMENT
+              value: "{{ .Values.sentryEnvironment }}"
+            - name: EMERIS-PRICE-ORACLE_SENTRYSAMPLERATE
+              value: "{{ .Values.sentrySampleRate }}"
+            - name: EMERIS-PRICE-ORACLE_SENTRYTRACESSAMPLERATE
+              value: "{{ .Values.sentryTracesSampleRate }}"
 
           resources:
 {{ toYaml .Values.resources | indent 12 }}

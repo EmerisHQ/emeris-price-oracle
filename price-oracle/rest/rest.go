@@ -3,15 +3,18 @@ package rest
 import (
 	"errors"
 	"net/http"
+	"net/http/httputil"
+	"runtime/debug"
 	"strconv"
+	"time"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
 	"github.com/go-playground/validator/v10"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-utils/ginsentry"
 	"github.com/emerishq/emeris-utils/logging"
-	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -46,7 +49,8 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	errAssetLimitExceed = errors.New("more than " + strconv.Itoa(sh.Cfg.MaxAssetsReq) + " asset not allowed")
 
 	g.Use(logging.LogRequest(l.Desugar()))
-	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
+	g.Use(ginsentry.Middleware)
+	g.Use(catchPanics(l.Desugar()))
 
 	g.GET(r.getAllPrices())
 	g.GET(r.getChartData())
@@ -116,4 +120,25 @@ func isSubset(subList []string, globalList []string) bool {
 		}
 	}
 	return true
+}
+
+// catchPanics returns a gin.HandlerFunc (middleware) that recovers from any
+// panics, logs and reports them to sentry.
+func catchPanics(logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				ginsentry.Recover(c, err)
+				httpRequest, _ := httputil.DumpRequest(c.Request, false)
+				logger.Error("[Recovery from panic]",
+					zap.Time("time", time.Now()),
+					zap.Any("error", err),
+					zap.String("request", string(httpRequest)),
+					zap.String("stack", string(debug.Stack())),
+				)
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+		}()
+		c.Next()
+	}
 }
