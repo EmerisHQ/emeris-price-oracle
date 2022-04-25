@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
 	"github.com/go-playground/validator/v10"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-utils/logging"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-utils/logging"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

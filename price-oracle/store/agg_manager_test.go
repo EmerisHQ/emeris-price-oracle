@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

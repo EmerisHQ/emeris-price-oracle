@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"go.uber.org/zap"

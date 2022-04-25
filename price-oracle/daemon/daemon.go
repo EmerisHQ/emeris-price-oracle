@@ -11,7 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 )
 
 type (

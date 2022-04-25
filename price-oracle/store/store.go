@@ -10,8 +10,8 @@ import (
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
 
 	"time"
@@ -80,7 +80,7 @@ type TokenAndFiatCache struct {
 // the zero index represent the unix timestamp and the first index is the value.
 //
 // Discussion can be found in this GH issue:
-// https://github.com/allinbits/demeris-backend/issues/109#issuecomment-993513347
+// https://github.com/emerishq/demeris-backend/issues/109#issuecomment-993513347
 //
 // RefreshInterval is always 5 minutes. To know why, follow the description of
 // GetChartData function.

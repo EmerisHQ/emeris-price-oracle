@@ -3,7 +3,7 @@ package rest
 import (
 	"net/http"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 )

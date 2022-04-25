@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 )
 
