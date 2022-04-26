@@ -215,69 +215,84 @@ func (m *SqlDB) GetPrices(ctx context.Context, from string) ([]types.Prices, err
 	return prices, nil
 }
 
-// TODO why panic here instead of returning error ?
 func (m *SqlDB) UpsertPrice(ctx context.Context, to string, price float64, token string) error {
-	tx := m.db.MustBegin()
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
-	result := tx.MustExec("UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
+	if err != nil {
+		return err
+	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("DB update: %w", err)
+		return err
 	}
 	// If you perform an update without a token column, it does not respond as an error; it responds with zero.
 	// So you have to insert a new one in the column.
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2));", token, price)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (m *SqlDB) UpsertToken(ctx context.Context, to string, symbol string, price float64, time int64) error {
-	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
+	if err != nil {
+		return err
+	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
+		return err
 	}
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("UpsertToken DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (m *SqlDB) UpsertTokenSupply(ctx context.Context, to string, symbol string, supply float64) error {
-	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+	if err != nil {
+		return err
+	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
+		return err
 	}
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("UpsertTokenSupply DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (m *SqlDB) Query(query string, args ...interface{}) (*sqlx.Rows, error) {
-	q, err := m.db.Queryx(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return q, nil
+	return m.db.Queryx(query, args...)
 }
 
 // NewDB returns an Instance connected to the database pointed by connString.
