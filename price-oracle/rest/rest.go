@@ -130,11 +130,11 @@ func catchPanics(logger *zap.Logger) gin.HandlerFunc {
 			if err := recover(); err != nil {
 				ginsentry.Recover(c, err)
 				httpRequest, _ := httputil.DumpRequest(c.Request, false)
-				logger.Error("[Recovery from panic]",
-					zap.Time("time", time.Now()),
-					zap.Any("error", err),
-					zap.String("request", string(httpRequest)),
-					zap.String("stack", string(debug.Stack())),
+				logger.Sugar().Errorw("[Recovery from panic]",
+					"time", time.Now(),
+					"error", err,
+					"request", string(httpRequest),
+					"stack", string(debug.Stack()),
 				)
 				c.AbortWithStatus(http.StatusInternalServerError)
 			}
