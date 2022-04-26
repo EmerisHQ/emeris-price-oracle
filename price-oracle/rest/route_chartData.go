@@ -55,7 +55,7 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		return
 	}
 	geckoClient := gecko.NewClient(&http.Client{Timeout: r.s.c.HttpClientTimeout})
-	chartData, err := r.s.sh.GetChartData(coinId, reqQueries.Days, reqQueries.Currency, geckoClient)
+	chartData, err := r.s.sh.GetChartData(ctx, coinId, reqQueries.Days, reqQueries.Currency, geckoClient)
 	if err != nil {
 		r.s.l.Errorw("Store.GetChartData()", err)
 		e(ctx, http.StatusInternalServerError, err)

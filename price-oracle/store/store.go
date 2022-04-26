@@ -391,6 +391,7 @@ func (h *Handler) GetFiatPrices(ctx context.Context, fiats []string) ([]types.Fi
 }
 
 func (h *Handler) GetChartData(
+	ctx context.Context,
 	coinId string,
 	days string,
 	currency string,
