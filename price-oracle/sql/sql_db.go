@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/getsentry/sentry-go"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
@@ -55,6 +56,8 @@ func (m *SqlDB) Init(ctx context.Context) error {
 }
 
 func (m *SqlDB) GetTokenPriceAndSupplies(ctx context.Context, tokens []string) ([]types.TokenPriceAndSupply, error) {
+	defer sentry.StartSpan(ctx, "db.GetTokenPriceAndSupplies").Finish()
+
 	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
 	for i := 2; i <= len(tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
@@ -105,6 +108,8 @@ func (m *SqlDB) GetTokenPriceAndSupplies(ctx context.Context, tokens []string) (
 }
 
 func (m *SqlDB) GetFiatPrices(ctx context.Context, fiats []string) ([]types.FiatPrice, error) {
+	defer sentry.StartSpan(ctx, "db.GetFiatPrices").Finish()
+
 	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
 	for i := 2; i <= len(fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
@@ -135,6 +140,8 @@ func (m *SqlDB) GetFiatPrices(ctx context.Context, fiats []string) ([]types.Fiat
 }
 
 func (m *SqlDB) GetTokenNames(ctx context.Context) ([]string, error) {
+	defer sentry.StartSpan(ctx, "db.GetTokenNames").Finish()
+
 	var whitelists []string
 	q, err := m.db.QueryxContext(ctx, "SELECT  y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
@@ -159,6 +166,8 @@ func (m *SqlDB) GetTokenNames(ctx context.Context) ([]string, error) {
 // GetPriceIDToTicker returns all not null price_ids with their ticker
 // Returns map price_id -> ticker; Ex: cosmos -> atom; osmosis -> osmo
 func (m *SqlDB) GetPriceIDToTicker(ctx context.Context) (map[string]string, error) {
+	defer sentry.StartSpan(ctx, "db.GetPriceIDToTicker").Finish()
+
 	priceIDtoTicker := make(map[string]string)
 	seen := make(map[string]bool)
 	q, err := m.db.QueryxContext(ctx, "SELECT  y.x->'ticker',y.x->'price_id' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
@@ -196,6 +205,8 @@ func (m *SqlDB) GetPriceIDToTicker(ctx context.Context) (map[string]string, erro
 }
 
 func (m *SqlDB) GetPrices(ctx context.Context, from string) ([]types.Prices, error) {
+	defer sentry.StartSpan(ctx, "db.GetPrices").Finish()
+
 	var prices []types.Prices //nolint:prealloc
 	var price types.Prices
 	rows, err := m.db.QueryxContext(ctx, "SELECT * FROM "+from)
@@ -216,6 +227,8 @@ func (m *SqlDB) GetPrices(ctx context.Context, from string) ([]types.Prices, err
 }
 
 func (m *SqlDB) UpsertPrice(ctx context.Context, to string, price float64, token string) error {
+	defer sentry.StartSpan(ctx, "db.UpsertPrice").Finish()
+
 	tx, err := m.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -242,6 +255,8 @@ func (m *SqlDB) UpsertPrice(ctx context.Context, to string, price float64, token
 }
 
 func (m *SqlDB) UpsertToken(ctx context.Context, to string, symbol string, price float64, time int64) error {
+	defer sentry.StartSpan(ctx, "db.UpsertToken").Finish()
+
 	tx, err := m.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -267,6 +282,8 @@ func (m *SqlDB) UpsertToken(ctx context.Context, to string, symbol string, price
 }
 
 func (m *SqlDB) UpsertTokenSupply(ctx context.Context, to string, symbol string, supply float64) error {
+	defer sentry.StartSpan(ctx, "db.UpsertTokenSupply").Finish()
+
 	tx, err := m.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err

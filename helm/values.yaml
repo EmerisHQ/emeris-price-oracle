@@ -16,7 +16,7 @@ resources:
 
 databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
 
-sentryDSN: https://3004717eb91e4730a33700a48a41320b@o1152630.ingest.sentry.io/6355662
+sentryDSN: #https://3004717eb91e4730a33700a48a41320b@o1152630.ingest.sentry.io/6355662
 sentryEnvironment: local
 sentrySampleRate: 1.0
 sentryTracesSampleRate: 1.0
