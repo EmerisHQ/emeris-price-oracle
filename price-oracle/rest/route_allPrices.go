@@ -11,7 +11,7 @@ import (
 const getAllPriceRoute = "/prices"
 
 func (r *router) allPricesHandler(ctx *gin.Context) {
-	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens(ctx)
+	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens(ctx.Request.Context())
 	if err != nil {
 		r.s.l.Errorw("Store.GetCNSWhitelistedTokens()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
