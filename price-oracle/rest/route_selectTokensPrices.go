@@ -60,7 +60,7 @@ func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 		return
 	}
 
-	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(ctx, tokens.Tokens, r.s.sh, r.s.l)
+	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(ctx.Request.Context(), tokens.Tokens, r.s.sh, r.s.l)
 	if err != nil {
 		e(ctx, httpStatus, err)
 		return

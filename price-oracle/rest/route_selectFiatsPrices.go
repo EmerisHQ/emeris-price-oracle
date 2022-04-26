@@ -56,7 +56,7 @@ func (r *router) fiatPriceHandler(ctx *gin.Context) {
 		return
 	}
 
-	fiatPrices, httpStatus, err := getFiatPrices(ctx, fiats.Fiats, r.s.c.WhitelistedFiats, r.s.sh, r.s.l)
+	fiatPrices, httpStatus, err := getFiatPrices(ctx.Request.Context(), fiats.Fiats, r.s.c.WhitelistedFiats, r.s.sh, r.s.l)
 	if err != nil {
 		e(ctx, httpStatus, err)
 		return
