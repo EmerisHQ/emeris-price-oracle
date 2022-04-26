@@ -222,6 +222,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 
 	w := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(w)
+	ctx.Request = httptest.NewRequest("", "/", nil)
 
 	server := &Server{
 		l:  logger,
