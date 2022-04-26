@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -48,6 +49,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	fmt.Println("SENTRY", cfg.SentryDSN)
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.SentryDSN,
 		SampleRate:       cfg.SentrySampleRate,

@@ -233,7 +233,7 @@ func (m *SqlDB) UpsertPrice(ctx context.Context, to string, price float64, token
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
 	if err != nil {
@@ -261,7 +261,7 @@ func (m *SqlDB) UpsertToken(ctx context.Context, to string, symbol string, price
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
 	if err != nil {
@@ -288,7 +288,7 @@ func (m *SqlDB) UpsertTokenSupply(ctx context.Context, to string, symbol string,
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
 	if err != nil {
