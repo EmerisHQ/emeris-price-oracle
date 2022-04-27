@@ -8,11 +8,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/getsentry/sentry-go"
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-utils/sentryx"
 	"go.uber.org/zap"
 
 	"time"
@@ -463,6 +465,9 @@ func (h *Handler) GetChartData(
 }
 
 func (h *Handler) PriceTokenAggregator(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "aggregator", sentry.TransactionName("PriceTokenAggregator"))
+	defer span.Finish()
+
 	// symbolKV[Symbol][Store]=price
 	symbolKV := make(map[string]map[string]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
@@ -521,6 +526,9 @@ func (h *Handler) PriceTokenAggregator(ctx context.Context) error {
 }
 
 func (h *Handler) PriceFiatAggregator(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "aggregator", sentry.TransactionName("PriceFiatAggregator"))
+	defer span.Finish()
+
 	// symbolKV[Symbol][Store]=price
 	symbolKV := make(map[string]map[string]float64)
 	stores := []string{FixerStore}

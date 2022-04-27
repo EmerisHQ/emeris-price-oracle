@@ -66,12 +66,10 @@ func main() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		defer sentry.StartSpan(ctx, "goroutine", sentry.TransactionName("aggregator")).Finish()
 		store.StartAggregate(ctx, storeHandler)
 	}()
 	go func() {
 		defer wg.Done()
-		defer sentry.StartSpan(ctx, "goroutine", sentry.TransactionName("price-subscriber")).Finish()
 		priceprovider.StartSubscription(ctx, storeHandler)
 	}()
 

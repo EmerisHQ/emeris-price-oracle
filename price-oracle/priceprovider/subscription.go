@@ -15,6 +15,8 @@ import (
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-utils/sentryx"
+	"github.com/getsentry/sentry-go"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
@@ -89,6 +91,9 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 }
 
 func (api *Api) SubscriptionBinance(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionBinance"))
+	defer span.Finish()
+
 	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance, GetCNSWhitelistedTokens(): %w", err)
@@ -97,7 +102,7 @@ func (api *Api) SubscriptionBinance(ctx context.Context) error {
 		return fmt.Errorf("SubscriptionBinance: No whitelisted tokens")
 	}
 
-	req, err := http.NewRequest("GET", BinanceURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", BinanceURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 	}
@@ -157,6 +162,9 @@ func (api *Api) SubscriptionBinance(ctx context.Context) error {
 }
 
 func (api *Api) SubscriptionCoingecko(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionCoingecko"))
+	defer span.Finish()
+
 	pidToTickers, err := api.StoreHandler.GetCNSPriceIdsToTicker(ctx)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, GetCNSPriceIdsToTicker(): %w", err)
@@ -200,7 +208,10 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context) error {
 }
 
 func (api *Api) SubscriptionFixer(ctx context.Context) error {
-	req, err := http.NewRequest("GET", FixerURL, nil)
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionFixer"))
+	defer span.Finish()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", FixerURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer: fetch Fixer: %w", err)
 	}
