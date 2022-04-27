@@ -367,6 +367,8 @@ github.com/emerishq/emeris-cns-server v0.0.0-20220422070001-a18e063b6374 h1:e+pW
 github.com/emerishq/emeris-cns-server v0.0.0-20220422070001-a18e063b6374/go.mod h1:BYciyChqW2Odw8LHvACNznByJtI3D9xOuKwQyyFz1rA=
 github.com/emerishq/emeris-utils v1.5.0 h1:LpTwFm8HJY8oimbZ9QSxS5PKKBzeqmbmwbysDCNykZI=
 github.com/emerishq/emeris-utils v1.5.0/go.mod h1:vz4EsGILTyrYZQrAIYKYBlskDxBTqbHARa6iD3oDawg=
+github.com/emerishq/emeris-utils v1.6.0 h1:aG79vTaR26mtTDymtIp9FHAUxAtpRDmvYj858Ziytos=
+github.com/emerishq/emeris-utils v1.6.0/go.mod h1:vz4EsGILTyrYZQrAIYKYBlskDxBTqbHARa6iD3oDawg=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
 github.com/emicklei/go-restful v2.9.5+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
 github.com/emicklei/proto v1.9.0/go.mod h1:rn1FgRS/FANiZdD2djyH7TMA9jdRDcYQ9IEN9yvjX0A=
