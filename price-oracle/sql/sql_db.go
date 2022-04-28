@@ -11,7 +11,6 @@ import (
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 	"github.com/getsentry/sentry-go"
 
-	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
@@ -343,34 +342,4 @@ func NewWithDriver(connString string, driver string) (*SqlDB, error) {
 // Close closes the connection held by m.
 func (m *SqlDB) Close() error {
 	return m.db.Close()
-}
-
-// Exec executes query with the given params.
-// If params is nil, query is assumed to be of the `SELECT` kind, and the resulting data will be written in dest.
-func (m *SqlDB) Exec(query string, params interface{}, dest interface{}) error {
-	return crdbsqlx.ExecuteTx(context.Background(), m.db, nil, func(tx *sqlx.Tx) error {
-		if dest != nil {
-			if params != nil {
-				return tx.Select(dest, query, params)
-			}
-
-			return tx.Select(dest, query)
-		}
-
-		res, err := tx.NamedExec(query, params)
-		if err != nil {
-			return fmt.Errorf("transaction named exec error, %w", err)
-		}
-
-		re, err := res.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("transaction named exec error, %w", err)
-		}
-
-		if re == 0 {
-			return fmt.Errorf("affected rows are zero")
-		}
-
-		return nil
-	})
 }
