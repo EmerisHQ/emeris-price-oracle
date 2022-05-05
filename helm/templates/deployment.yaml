@@ -54,13 +54,13 @@ spec:
             - name: EMERIS-PRICE-ORACLE_HTTPCLIENTTIMEOUT
               value: "{{ .Values.httpClientTimeout }}"
             - name: EMERIS-PRICE-ORACLE_SENTRYDSN
-              value: "{{ .Values.sentryDSN }}"
+              value: "{{ .Values.priceOracle.sentryDSN }}"
             - name: EMERIS-PRICE-ORACLE_SENTRYENVIRONMENT
-              value: "{{ .Values.sentryEnvironment }}"
+              value: "{{ .Values.priceOracle.sentryEnvironment }}"
             - name: EMERIS-PRICE-ORACLE_SENTRYSAMPLERATE
-              value: "{{ .Values.sentrySampleRate }}"
+              value: "{{ .Values.priceOracle.sentrySampleRate }}"
             - name: EMERIS-PRICE-ORACLE_SENTRYTRACESSAMPLERATE
-              value: "{{ .Values.sentryTracesSampleRate }}"
+              value: "{{ .Values.priceOracle.sentryTracesSampleRate }}"
 
           resources:
 {{ toYaml .Values.resources | indent 12 }}

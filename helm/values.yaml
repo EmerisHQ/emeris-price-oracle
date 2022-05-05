@@ -16,11 +16,12 @@ resources:
 
 databaseConnectionURL: postgres://root@cockroachdb:26257?sslmode=disable
 
-# no value means sentry is disabled
-sentryDSN:
-sentryEnvironment: local
-sentrySampleRate: 1.0
-sentryTracesSampleRate: 0.3
+priceOracle:
+  # no value means sentry is disabled
+  sentryDSN:
+  sentryEnvironment: local
+  sentrySampleRate: 1.0
+  sentryTracesSampleRate: 0.3
 
 ports:
   http: 8000
