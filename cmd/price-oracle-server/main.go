@@ -50,6 +50,7 @@ func main() {
 
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.SentryDSN,
+		Release:          Version,
 		SampleRate:       cfg.SentrySampleRate,
 		TracesSampleRate: cfg.SentryTracesSampleRate,
 		Environment:      cfg.SentryEnvironment,
@@ -57,6 +58,7 @@ func main() {
 	}); err != nil {
 		logger.Fatalf("Sentry initialization failed: %v\n", err)
 	}
+	defer sentry.Flush(2 * time.Second)
 
 	var wg sync.WaitGroup
 
