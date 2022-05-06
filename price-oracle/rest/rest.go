@@ -2,11 +2,14 @@ package rest
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"runtime/debug"
 	"strconv"
 	"time"
+
+	"github.com/getsentry/sentry-go"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 	"github.com/emerishq/emeris-utils/ginsentry"
 	"github.com/emerishq/emeris-utils/logging"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -49,7 +53,14 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	errAssetLimitExceed = errors.New("more than " + strconv.Itoa(sh.Cfg.MaxAssetsReq) + " asset not allowed")
 
 	g.Use(logging.LogRequest(l.Desugar()))
-	g.Use(ginsentry.Middleware)
+
+	// TODO: @tbruyelle chk
+	g.Use(sentrygin.New(sentrygin.Options{
+		Repanic:         true,
+		WaitForDelivery: false,
+		Timeout:         time.Second * 2,
+	}))
+	g.Use(span)
 	g.Use(catchPanics(l.Desugar()))
 
 	g.GET(r.getAllPrices())
@@ -86,8 +97,13 @@ var (
 
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
+	// TODO: @tbruyelle chk
+	hub := sentrygin.GetHubFromContext(c)
+	hub.WithScope(func(scope *sentry.Scope) {
+		scope.SetTag("error", "rest")
+		hub.CaptureException(err)
+	})
 	var jsonErr interface{}
-
 	jsonErr = restError{
 		Error: err.Error(),
 	}
@@ -141,4 +157,16 @@ func catchPanics(logger *zap.Logger) gin.HandlerFunc {
 		}()
 		c.Next()
 	}
+}
+
+// TODO: @tbruyelle chk
+func span(ctx *gin.Context) {
+	// start span for the request
+	span := sentry.StartSpan(ctx.Request.Context(), "http.server",
+		sentry.TransactionName(fmt.Sprintf("%s %s", ctx.Request.Method, ctx.Request.URL.Path)),
+		sentry.ContinueFromRequest(ctx.Request),
+	)
+	defer span.Finish()
+	ctx.Request = ctx.Request.WithContext(span.Context())
+	ctx.Next()
 }

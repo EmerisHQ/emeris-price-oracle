@@ -61,7 +61,10 @@ func main() {
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetLevel(sentry.LevelWarning)
 	})
-	defer sentry.Flush(2 * time.Second)
+	// TODO: @tbruyelle chk
+	defer func() {
+		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+	}()
 
 	var wg sync.WaitGroup
 
@@ -84,17 +87,16 @@ func main() {
 		fatalErr <- restServer.Serve(cfg.ListenAddr)
 	}()
 
+	// TODO: @tbruyelle chk
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case <-quit:
 		logger.Info("Shutting down server...")
 		cancel()
-		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
 		wg.Wait()
 	case err := <-fatalErr:
 		cancel()
-		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
 		wg.Wait()
 		logger.Panicw("rest http server error", "error", err)
 	}

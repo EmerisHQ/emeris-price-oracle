@@ -139,7 +139,9 @@ func (m *SqlDB) GetFiatPrices(ctx context.Context, fiats []string) ([]types.Fiat
 }
 
 func (m *SqlDB) GetTokenNames(ctx context.Context) ([]string, error) {
-	defer sentry.StartSpan(ctx, "db.GetTokenNames").Finish()
+	// TODO: @tbruyelle chk
+	span := sentry.StartSpan(ctx, "db.GetTokenNames")
+	defer span.Finish()
 
 	var whitelists []string
 	q, err := m.db.QueryxContext(ctx, "SELECT  y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
@@ -165,7 +167,9 @@ func (m *SqlDB) GetTokenNames(ctx context.Context) ([]string, error) {
 // GetPriceIDToTicker returns all not null price_ids with their ticker
 // Returns map price_id -> ticker; Ex: cosmos -> atom; osmosis -> osmo
 func (m *SqlDB) GetPriceIDToTicker(ctx context.Context) (map[string]string, error) {
-	defer sentry.StartSpan(ctx, "db.GetPriceIDToTicker").Finish()
+	// TODO: @tbruyelle chk
+	span := sentry.StartSpan(ctx, "db.GetPriceIDToTicker")
+	defer span.Finish()
 
 	priceIDtoTicker := make(map[string]string)
 	seen := make(map[string]bool)
