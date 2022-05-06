@@ -91,11 +91,11 @@ func main() {
 		logger.Info("Shutting down server...")
 		cancel()
 		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+		wg.Wait()
 	case err := <-fatalErr:
 		cancel()
 		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+		wg.Wait()
 		logger.Panicw("rest http server error", "error", err)
 	}
-	wg.Wait()
-	logger.Info("Shutting down server...")
 }
