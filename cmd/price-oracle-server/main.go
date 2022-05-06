@@ -50,10 +50,10 @@ func main() {
 
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.SentryDSN,
+		Release:          Version,
 		SampleRate:       cfg.SentrySampleRate,
 		TracesSampleRate: cfg.SentryTracesSampleRate,
 		Environment:      cfg.SentryEnvironment,
-		Release:          "please fill me",
 		AttachStacktrace: true,
 	}); err != nil {
 		logger.Fatalf("Sentry initialization failed: %v\n", err)
@@ -61,6 +61,7 @@ func main() {
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetLevel(sentry.LevelWarning)
 	})
+	defer sentry.Flush(2 * time.Second)
 
 	var wg sync.WaitGroup
 
@@ -96,4 +97,5 @@ func main() {
 		logger.Panicw("rest http server error", "error", err)
 	}
 	wg.Wait()
+	logger.Info("Shutting down server...")
 }
