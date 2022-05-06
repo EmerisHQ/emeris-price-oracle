@@ -365,8 +365,6 @@ github.com/emerishq/demeris-backend-models v1.5.0 h1:PBldMVGK+jswfmKrtHZB7K6HI0S
 github.com/emerishq/demeris-backend-models v1.5.0/go.mod h1:1+h5uREsxHEWUbfdowE10imcluyW/Z0IgCpnihDJTyQ=
 github.com/emerishq/emeris-cns-server v0.0.0-20220422070001-a18e063b6374 h1:e+pWkWBIi3NJLFBYWsMPq1yr1sbUMseSIO+Qr4fWRiE=
 github.com/emerishq/emeris-cns-server v0.0.0-20220422070001-a18e063b6374/go.mod h1:BYciyChqW2Odw8LHvACNznByJtI3D9xOuKwQyyFz1rA=
-github.com/emerishq/emeris-utils v1.5.0 h1:LpTwFm8HJY8oimbZ9QSxS5PKKBzeqmbmwbysDCNykZI=
-github.com/emerishq/emeris-utils v1.5.0/go.mod h1:vz4EsGILTyrYZQrAIYKYBlskDxBTqbHARa6iD3oDawg=
 github.com/emerishq/emeris-utils v1.6.0 h1:aG79vTaR26mtTDymtIp9FHAUxAtpRDmvYj858Ziytos=
 github.com/emerishq/emeris-utils v1.6.0/go.mod h1:vz4EsGILTyrYZQrAIYKYBlskDxBTqbHARa6iD3oDawg=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=

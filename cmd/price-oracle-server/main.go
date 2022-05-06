@@ -53,10 +53,14 @@ func main() {
 		SampleRate:       cfg.SentrySampleRate,
 		TracesSampleRate: cfg.SentryTracesSampleRate,
 		Environment:      cfg.SentryEnvironment,
+		Release:          "please fill me",
 		AttachStacktrace: true,
 	}); err != nil {
 		logger.Fatalf("Sentry initialization failed: %v\n", err)
 	}
+	sentry.ConfigureScope(func(scope *sentry.Scope) {
+		scope.SetLevel(sentry.LevelWarning)
+	})
 
 	var wg sync.WaitGroup
 
@@ -74,16 +78,22 @@ func main() {
 	}()
 
 	restServer := rest.NewServer(storeHandler, logger, cfg)
+	fatalErr := make(chan error)
 	go func() {
-		if err := restServer.Serve(cfg.ListenAddr); err != nil {
-			logger.Panicw("rest http server error", "error", err)
-		}
+		fatalErr <- restServer.Serve(cfg.ListenAddr)
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	cancel()
+	select {
+	case <-quit:
+		logger.Info("Shutting down server...")
+		cancel()
+		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+	case err := <-fatalErr:
+		cancel()
+		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+		logger.Panicw("rest http server error", "error", err)
+	}
 	wg.Wait()
-	logger.Info("Shutting down server...")
 }
