@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
 	"github.com/go-playground/validator/v10"
@@ -15,6 +17,7 @@ import (
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 	"github.com/emerishq/emeris-utils/ginsentry"
 	"github.com/emerishq/emeris-utils/logging"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -49,7 +52,7 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	errAssetLimitExceed = errors.New("more than " + strconv.Itoa(sh.Cfg.MaxAssetsReq) + " asset not allowed")
 
 	g.Use(logging.LogRequest(l.Desugar()))
-	g.Use(ginsentry.Middleware)
+
 	g.Use(catchPanics(l.Desugar()))
 
 	g.GET(r.getAllPrices())
@@ -86,8 +89,12 @@ var (
 
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
+	hub := sentrygin.GetHubFromContext(c)
+	hub.WithScope(func(scope *sentry.Scope) {
+		scope.SetTag("error", "rest")
+		hub.CaptureException(err)
+	})
 	var jsonErr interface{}
-
 	jsonErr = restError{
 		Error: err.Error(),
 	}
