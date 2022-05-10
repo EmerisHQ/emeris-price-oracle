@@ -3,21 +3,18 @@ package rest
 import (
 	"errors"
 	"net/http"
-	"net/http/httputil"
-	"runtime/debug"
 	"strconv"
-	"time"
 
 	"github.com/getsentry/sentry-go"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	ginzap "github.com/gin-contrib/zap"
 
 	"github.com/go-playground/validator/v10"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
-	"github.com/emerishq/emeris-utils/ginsentry"
 	"github.com/emerishq/emeris-utils/logging"
-	sentrygin "github.com/getsentry/sentry-go/gin"
+	"github.com/emerishq/emeris-utils/sentryx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -53,7 +50,8 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 
 	g.Use(logging.LogRequest(l.Desugar()))
 
-	g.Use(catchPanics(l.Desugar()))
+	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
+	g.Use(sentryx.GinMiddleware)
 
 	g.GET(r.getAllPrices())
 	g.GET(r.getChartData())
@@ -89,7 +87,7 @@ var (
 
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
-	hub := sentrygin.GetHubFromContext(c)
+	hub := sentry.GetHubFromContext(c.Request.Context())
 	hub.WithScope(func(scope *sentry.Scope) {
 		scope.SetTag("error", "rest")
 		hub.CaptureException(err)
@@ -127,25 +125,4 @@ func isSubset(subList []string, globalList []string) bool {
 		}
 	}
 	return true
-}
-
-// catchPanics returns a gin.HandlerFunc (middleware) that recovers from any
-// panics, logs and reports them to sentry.
-func catchPanics(logger *zap.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		defer func() {
-			if err := recover(); err != nil {
-				ginsentry.Recover(c, err)
-				httpRequest, _ := httputil.DumpRequest(c.Request, false)
-				logger.Sugar().Errorw("[Recovery from panic]",
-					"time", time.Now(),
-					"error", err,
-					"request", string(httpRequest),
-					"stack", string(debug.Stack()),
-				)
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
-	}
 }
