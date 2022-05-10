@@ -5,13 +5,16 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/getsentry/sentry-go"
+
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	ginzap "github.com/gin-contrib/zap"
 
 	"github.com/go-playground/validator/v10"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-utils/logging"
-	ginzap "github.com/gin-contrib/zap"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-utils/logging"
+	"github.com/emerishq/emeris-utils/sentryx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -46,7 +49,9 @@ func NewServer(sh *store.Handler, l *zap.SugaredLogger, c *config.Config) *Serve
 	errAssetLimitExceed = errors.New("more than " + strconv.Itoa(sh.Cfg.MaxAssetsReq) + " asset not allowed")
 
 	g.Use(logging.LogRequest(l.Desugar()))
+
 	g.Use(ginzap.RecoveryWithZap(l.Desugar(), true))
+	g.Use(sentryx.GinMiddleware)
 
 	g.GET(r.getAllPrices())
 	g.GET(r.getChartData())
@@ -82,8 +87,12 @@ var (
 
 // e writes err to the caller, with the given HTTP status.
 func e(c *gin.Context, status int, err error) {
+	hub := sentry.GetHubFromContext(c.Request.Context())
+	hub.WithScope(func(scope *sentry.Scope) {
+		scope.SetTag("error", "rest")
+		hub.CaptureException(err)
+	})
 	var jsonErr interface{}
-
 	jsonErr = restError{
 		Error: err.Error(),
 	}

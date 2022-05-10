@@ -13,11 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/daemon"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-utils/sentryx"
+	"github.com/getsentry/sentry-go"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"go.uber.org/zap"
@@ -81,15 +83,18 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 		default:
 		}
 
-		if err := fn(); err != nil {
+		if err := fn(ctx); err != nil {
 			logger.Errorw("PriceProvider", "SubscriptionWorker function name:", daemon.GetFunctionName(fn), "Error:", err)
 		}
 		time.Sleep(interval)
 	}
 }
 
-func (api *Api) SubscriptionBinance() error {
-	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens()
+func (api *Api) SubscriptionBinance(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionBinance"))
+	defer span.Finish()
+
+	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance, GetCNSWhitelistedTokens(): %w", err)
 	}
@@ -97,7 +102,7 @@ func (api *Api) SubscriptionBinance() error {
 		return fmt.Errorf("SubscriptionBinance: No whitelisted tokens")
 	}
 
-	req, err := http.NewRequest("GET", BinanceURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", BinanceURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionBinance: fetch binance: %w", err)
 	}
@@ -145,7 +150,7 @@ func (api *Api) SubscriptionBinance() error {
 			continue
 		}
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.BinanceStore, tokenSymbol, price, now.Unix()); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(ctx, store.BinanceStore, tokenSymbol, price, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionBinance, Store.UpsertToken(%s,%s,%f): %w", store.BinanceStore, tokenSymbol, price, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -156,8 +161,11 @@ func (api *Api) SubscriptionBinance() error {
 	return nil
 }
 
-func (api *Api) SubscriptionCoingecko() error {
-	pidToTickers, err := api.StoreHandler.GetCNSPriceIdsToTicker()
+func (api *Api) SubscriptionCoingecko(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionCoingecko"))
+	defer span.Finish()
+
+	pidToTickers, err := api.StoreHandler.GetCNSPriceIdsToTicker(ctx)
 	if err != nil {
 		return fmt.Errorf("SubscriptionCoingecko, GetCNSPriceIdsToTicker(): %w", err)
 	}
@@ -186,11 +194,11 @@ func (api *Api) SubscriptionCoingecko() error {
 		respTokenSymbols = append(respTokenSymbols, fmt.Sprintf("(ID: %s Symbol: %s)", token.ID, token.Symbol))
 		now := time.Now().Round(0)
 
-		if err = api.StoreHandler.Store.UpsertToken(store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix()); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(ctx, store.CoingeckoStore, tokenSymbol, token.CurrentPrice, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertToken(%s,%s,%f): %w", store.CoingeckoStore, tokenSymbol, token.CurrentPrice, err)
 		}
 
-		if err = api.StoreHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply); err != nil {
+		if err = api.StoreHandler.Store.UpsertTokenSupply(ctx, store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply); err != nil {
 			return fmt.Errorf("SubscriptionCoingecko, Store.UpsertTokenSupply(%s,%s,%f): %w", store.CoingeckoSupplyStore, tokenSymbol, token.CirculatingSupply, err)
 		}
 		time.Sleep(1 * time.Second)
@@ -199,8 +207,11 @@ func (api *Api) SubscriptionCoingecko() error {
 	return nil
 }
 
-func (api *Api) SubscriptionFixer() error {
-	req, err := http.NewRequest("GET", FixerURL, nil)
+func (api *Api) SubscriptionFixer(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionFixer"))
+	defer span.Finish()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", FixerURL, nil)
 	if err != nil {
 		return fmt.Errorf("SubscriptionFixer: fetch Fixer: %w", err)
 	}
@@ -250,7 +261,7 @@ func (api *Api) SubscriptionFixer() error {
 		}
 
 		now := time.Now()
-		if err = api.StoreHandler.Store.UpsertToken(store.FixerStore, fiatSymbol, d, now.Unix()); err != nil {
+		if err = api.StoreHandler.Store.UpsertToken(ctx, store.FixerStore, fiatSymbol, d, now.Unix()); err != nil {
 			return fmt.Errorf("SubscriptionFixer, Store.UpsertToken(%s,%s,%f): %w", store.FixerStore, fiatSymbol, d, err)
 		}
 	}

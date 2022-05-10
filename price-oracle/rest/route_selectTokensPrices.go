@@ -1,10 +1,11 @@
 package rest
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"go.uber.org/zap"
@@ -13,11 +14,12 @@ import (
 const getTokensPricesRoute = "/tokens"
 
 func getTokenPriceAndSupplies(
+	ctx context.Context,
 	tokens []string,
 	store *store.Handler,
 	logger *zap.SugaredLogger) ([]types.TokenPriceAndSupply, int, error) {
 
-	whitelistedTokens, err := store.GetCNSWhitelistedTokens()
+	whitelistedTokens, err := store.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
 		logger.Errorw("store.GetCNSWhitelistedTokens()", err.Error())
 		return nil, http.StatusInternalServerError, err
@@ -31,7 +33,7 @@ func getTokenPriceAndSupplies(
 		return nil, http.StatusForbidden, errNotWhitelistedAsset
 	}
 
-	tokenPriceAndSupplies, err := store.GetTokenPriceAndSupplies(tokens)
+	tokenPriceAndSupplies, err := store.GetTokenPriceAndSupplies(ctx, tokens)
 	if err != nil {
 		logger.Errorw("Store.GetTokenPriceAndSupplies()", err.Error())
 		return nil, http.StatusInternalServerError, err
@@ -58,7 +60,7 @@ func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 		return
 	}
 
-	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(tokens.Tokens, r.s.sh, r.s.l)
+	tokenPriceAndSupplies, httpStatus, err := getTokenPriceAndSupplies(ctx.Request.Context(), tokens.Tokens, r.s.sh, r.s.l)
 	if err != nil {
 		e(ctx, httpStatus, err)
 		return

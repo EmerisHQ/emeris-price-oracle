@@ -8,12 +8,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/rest"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-utils/logging"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/priceprovider"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/rest"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-utils/logging"
+	"github.com/getsentry/sentry-go"
 )
 
 var Version = "not specified"
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(context.Background(), db),
 		store.WithConfig(cfg),
 		store.WithLogger(logger),
 		store.WithSpotPriceCache(nil),
@@ -46,6 +47,23 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              cfg.SentryDSN,
+		Release:          Version,
+		SampleRate:       cfg.SentrySampleRate,
+		TracesSampleRate: cfg.SentryTracesSampleRate,
+		Environment:      cfg.SentryEnvironment,
+		AttachStacktrace: true,
+	}); err != nil {
+		logger.Fatalf("Sentry initialization failed: %v\n", err)
+	}
+	sentry.ConfigureScope(func(scope *sentry.Scope) {
+		scope.SetLevel(sentry.LevelWarning)
+	})
+	defer func() {
+		logger.Infow("sentry flush", "success within deadline", sentry.Flush(time.Second*3))
+	}()
 
 	var wg sync.WaitGroup
 
@@ -63,16 +81,21 @@ func main() {
 	}()
 
 	restServer := rest.NewServer(storeHandler, logger, cfg)
+	fatalErr := make(chan error)
 	go func() {
-		if err := restServer.Serve(cfg.ListenAddr); err != nil {
-			logger.Panicw("rest http server error", "error", err)
-		}
+		fatalErr <- restServer.Serve(cfg.ListenAddr)
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	cancel()
-	wg.Wait()
-	logger.Info("Shutting down server...")
+	select {
+	case <-quit:
+		logger.Info("Shutting down server...")
+		cancel()
+		wg.Wait()
+	case err := <-fatalErr:
+		cancel()
+		wg.Wait()
+		logger.Panicw("rest http server error", "error", err)
+	}
 }

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,15 +15,15 @@ import (
 
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/allinbits/emeris-utils/logging"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
+	models "github.com/emerishq/demeris-backend-models/cns"
+	cnsDB "github.com/emerishq/emeris-cns-server/cns/database"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-utils/logging"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -221,6 +222,7 @@ func setup(t *testing.T) (router, *gin.Context, *httptest.ResponseRecorder, func
 
 	w := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(w)
+	ctx.Request = httptest.NewRequest("", "/", nil)
 
 	server := &Server{
 		l:  logger,
@@ -245,7 +247,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(context.Background(), db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
@@ -304,18 +306,18 @@ func insertToken(t *testing.T, connStr string) {
 func insertWantData(r router, wantData types.AllPriceResponse) error {
 	for _, f := range wantData.Fiats {
 
-		if err := r.s.sh.Store.UpsertPrice(store.FiatsStore, f.Price, f.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(context.Background(), store.FiatsStore, f.Price, f.Symbol); err != nil {
 			return err
 		}
 	}
 
 	for _, t := range wantData.Tokens {
 
-		if err := r.s.sh.Store.UpsertPrice(store.TokensStore, t.Price, t.Symbol); err != nil {
+		if err := r.s.sh.Store.UpsertPrice(context.Background(), store.TokensStore, t.Price, t.Symbol); err != nil {
 			return err
 		}
 
-		if err := r.s.sh.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
+		if err := r.s.sh.Store.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, t.Symbol, t.Supply); err != nil {
 			return err
 		}
 	}

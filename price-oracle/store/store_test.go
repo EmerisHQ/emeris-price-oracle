@@ -15,21 +15,21 @@ import (
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"go.uber.org/zap"
 
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
+	models "github.com/emerishq/demeris-backend-models/cns"
+	cnsDB "github.com/emerishq/emeris-cns-server/cns/database"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewStoreHandler(t *testing.T) {
 	t.Parallel()
-	_, _, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
 	require.NotNil(t, storeHandler)
 
@@ -39,7 +39,7 @@ func TestNewStoreHandler(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	_, err := storeHandler.GetCNSWhitelistedTokens()
+	_, err := storeHandler.GetCNSWhitelistedTokens(ctx)
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -56,7 +56,7 @@ func TestNewStoreHandler(t *testing.T) {
 	_, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
 
-	_, err = storeHandler.GetFiatPrices(fiats)
+	_, err = storeHandler.GetFiatPrices(ctx, fiats)
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -73,7 +73,7 @@ func TestNewStoreHandler(t *testing.T) {
 	_, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
 
-	_, err = storeHandler.GetTokenPriceAndSupplies(tokens)
+	_, err = storeHandler.GetTokenPriceAndSupplies(ctx, tokens)
 	require.NoError(t, err)
 
 	storeHandler.SpotCache.Mu.RLock()
@@ -90,9 +90,8 @@ func TestNewStoreHandler(t *testing.T) {
 }
 
 func TestGetCNSWhitelistedTokens(t *testing.T) {
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	whiteList := []string{"ATOM", "LUNA"}
 
@@ -100,7 +99,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens()
+	whiteListFromStore, err := storeHandler.GetCNSWhitelistedTokens(ctx)
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromStore)
@@ -109,7 +108,7 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.WhitelistedTickers)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens()
+	whiteListFromCache, err := storeHandler.GetCNSWhitelistedTokens(ctx)
 	require.NoError(t, err)
 
 	require.Equal(t, whiteList, whiteListFromCache)
@@ -117,11 +116,10 @@ func TestGetCNSWhitelistedTokens(t *testing.T) {
 
 func TestCnsPriceIdQuery(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
-	whiteList, err := storeHandler.GetCNSPriceIdsToTicker()
+	whiteList, err := storeHandler.GetCNSPriceIdsToTicker(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, whiteList)
 
@@ -130,24 +128,23 @@ func TestCnsPriceIdQuery(t *testing.T) {
 
 func TestPriceTokenAggregator(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	tokens := []string{"ATOMUSDT", "LUNAUSDT"}
 	stores := []string{store.BinanceStore, store.CoingeckoStore}
 
 	for _, tk := range tokens {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
+			err := storeHandler.Store.UpsertToken(ctx, s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceTokenAggregator()
+	err := storeHandler.PriceTokenAggregator(ctx)
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(tokens)
+	prices, err := storeHandler.Store.GetTokenPriceAndSupplies(ctx, tokens)
 	require.NoError(t, err)
 
 	for i, p := range prices {
@@ -158,24 +155,23 @@ func TestPriceTokenAggregator(t *testing.T) {
 
 func TestPriceFiatAggregator(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	fiats := []string{"USDCHF", "USDEUR", "USDKRW"}
 	stores := []string{store.FixerStore}
 
 	for _, tk := range fiats {
 		for i, s := range stores {
-			err := storeHandler.Store.UpsertToken(s, tk, float64(10+i), time.Now().Unix())
+			err := storeHandler.Store.UpsertToken(ctx, s, tk, float64(10+i), time.Now().Unix())
 			require.NoError(t, err)
 		}
 	}
 
-	err := storeHandler.PriceFiatAggregator()
+	err := storeHandler.PriceFiatAggregator(ctx)
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetFiatPrices(fiats)
+	prices, err := storeHandler.Store.GetFiatPrices(ctx, fiats)
 	require.NoError(t, err)
 	require.NotNil(t, prices)
 
@@ -187,9 +183,8 @@ func TestPriceFiatAggregator(t *testing.T) {
 
 func TestGetTokenPriceAndSupplies(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	upsertedTokens, tokens, err := upsertTokens(storeHandler)
 	require.NoError(t, err)
@@ -198,7 +193,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	require.Nil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	tokensFromStore, err := storeHandler.GetTokenPriceAndSupplies(ctx, tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromStore)
@@ -207,7 +202,7 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.TokenPriceAndSupplies)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(tokens)
+	tokensFromCache, err := storeHandler.GetTokenPriceAndSupplies(ctx, tokens)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedTokens, tokensFromCache)
@@ -215,9 +210,8 @@ func TestGetTokenPriceAndSupplies(t *testing.T) {
 
 func TestGetFiatPrices(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	storeHandler.SpotCache.Mu.RLock()
 	require.Nil(t, storeHandler.SpotCache.FiatPrices)
@@ -226,7 +220,7 @@ func TestGetFiatPrices(t *testing.T) {
 	upsertedFiats, fiats, err := upsertFiats(storeHandler)
 	require.NoError(t, err)
 
-	fiatsFromStore, err := storeHandler.GetFiatPrices(fiats)
+	fiatsFromStore, err := storeHandler.GetFiatPrices(ctx, fiats)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedFiats, fiatsFromStore)
@@ -235,7 +229,7 @@ func TestGetFiatPrices(t *testing.T) {
 	require.NotNil(t, storeHandler.SpotCache.FiatPrices)
 	storeHandler.SpotCache.Mu.RUnlock()
 
-	fiatsFromCache, err := storeHandler.GetFiatPrices(fiats)
+	fiatsFromCache, err := storeHandler.GetFiatPrices(ctx, fiats)
 	require.NoError(t, err)
 
 	require.Equal(t, upsertedFiats, fiatsFromCache)
@@ -256,9 +250,8 @@ func newTestClient(fn roundTripFunc, timeout time.Duration) *http.Client {
 
 func TestGetChartData_CorrectDataReturned(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	storeHandler.ChartCache.Mu.RLock()
 	require.NotNil(t, storeHandler.ChartCache.Data)
@@ -298,7 +291,7 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.coinId, func(t *testing.T) {
 			t.Parallel()
-			resp, err := storeHandler.GetChartData(tt.coinId, tt.days, tt.currency, geckoClient)
+			resp, err := storeHandler.GetChartData(ctx, tt.coinId, tt.days, tt.currency, geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, resp)
 		})
@@ -307,9 +300,8 @@ func TestGetChartData_CorrectDataReturned(t *testing.T) {
 
 func TestGetChartData_CacheHit(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	storeHandler.ChartCache.Mu.RLock()
 	require.NotNil(t, storeHandler.ChartCache.Data)
@@ -333,23 +325,22 @@ func TestGetChartData_CacheHit(t *testing.T) {
 
 	// Test: SpotCache hit!
 	clientInvoked = 0
-	resp, err := storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+	resp, err := storeHandler.GetChartData(ctx, "bitcoin", "1", "usd", geckoClient)
 	require.NoError(t, err)
 	require.Equal(t, dataBTC, resp)
 	require.Equal(t, 1, clientInvoked)
 
 	// Call 20 times. Client should not be invoked.
 	for i := 0; i < 20; i++ {
-		_, _ = storeHandler.GetChartData("bitcoin", "1", "usd", geckoClient)
+		_, _ = storeHandler.GetChartData(ctx, "bitcoin", "1", "usd", geckoClient)
 		require.Equal(t, 1, clientInvoked)
 	}
 }
 
 func TestGetChartData_CacheEmptied(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	nowUnix := float32(time.Now().Unix())
 	dataBTC := generateChartData(2, nowUnix, 0)
@@ -377,7 +368,7 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 			}, time.Second)
 			geckoClient := gecko.NewClient(client)
 
-			resp, err := storeHandler.GetChartData("bitcoin", tt.days, "usd", geckoClient)
+			resp, err := storeHandler.GetChartData(ctx, "bitcoin", tt.days, "usd", geckoClient)
 			require.NoError(t, err)
 			require.Equal(t, resp, dataBTC)
 			storeHandler.ChartCache.Mu.RLock()
@@ -399,9 +390,8 @@ func TestGetChartData_CacheEmptied(t *testing.T) {
 
 func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, _, tDown := setup(t)
+	ctx, storeHandler, _, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	nowUnix := float32(time.Now().Unix())
 	daysInSevenYears := 7 * 365
@@ -468,7 +458,7 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 				}
 			}, time.Second)
 			geckoClient := gecko.NewClient(client)
-			resp, err := storeHandler.GetChartData("bitcoin", tt.name, "usd", geckoClient)
+			resp, err := storeHandler.GetChartData(ctx, "bitcoin", tt.name, "usd", geckoClient)
 			require.NoError(t, err)
 			storeHandler.ChartCache.Mu.RLock()
 			pricesFromCache := *storeHandler.ChartCache.Data[tt.cacheGranularity]["bitcoin-usd"].Prices
@@ -496,9 +486,8 @@ func TestGetChartData_FetchDataVSReturnData(t *testing.T) {
 
 func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	t.Parallel()
-	_, cancel, storeHandler, observedLogs, tDown := setup(t)
+	ctx, storeHandler, observedLogs, tDown := setup(t)
 	defer tDown()
-	defer cancel()
 
 	tests := []struct {
 		name       string
@@ -532,7 +521,7 @@ func TestHandler_GetGeckoIdForToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//t.Parallel()
-			got, err := storeHandler.GetGeckoIdForTokenNames(tt.tokenNames)
+			got, err := storeHandler.GetGeckoIdForTokenNames(ctx, tt.tokenNames)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, got)
 			if tt.checkLog {
@@ -572,7 +561,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db), // This call rums the migrations.
+		store.WithDB(context.Background(), db), // This call rums the migrations.
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),
@@ -585,7 +574,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	return storeHandler, nil
 }
 
-func setup(t *testing.T) (context.Context, func(), *store.Handler, *observer.ObservedLogs, func()) {
+func setup(t *testing.T) (context.Context, *store.Handler, *observer.ObservedLogs, func()) {
 	t.Helper()
 	ts, err := testserver.NewTestServer()
 	require.NoError(t, err)
@@ -611,7 +600,10 @@ func setup(t *testing.T) (context.Context, func(), *store.Handler, *observer.Obs
 	require.NotNil(t, handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, cancel, handler, observedLogs, func() { ts.Stop() }
+	return ctx, handler, observedLogs, func() {
+		cancel()
+		ts.Stop()
+	}
 }
 
 func insertToken(t *testing.T, connStr string) {
@@ -674,11 +666,11 @@ func upsertTokens(storeHandler *store.Handler) ([]types.TokenPriceAndSupply, []s
 
 	var tokens []string
 	for _, token := range upsertTokens {
-		if err := storeHandler.Store.UpsertPrice(store.TokensStore, token.Price, token.Symbol); err != nil {
+		if err := storeHandler.Store.UpsertPrice(context.Background(), store.TokensStore, token.Price, token.Symbol); err != nil {
 			return nil, nil, err
 		}
 
-		if err := storeHandler.Store.UpsertTokenSupply(store.CoingeckoSupplyStore, token.Symbol, token.Supply); err != nil {
+		if err := storeHandler.Store.UpsertTokenSupply(context.Background(), store.CoingeckoSupplyStore, token.Symbol, token.Supply); err != nil {
 			return nil, nil, err
 		}
 
@@ -702,7 +694,7 @@ func upsertFiats(storeHandler *store.Handler) ([]types.FiatPrice, []string, erro
 
 	var fiats []string
 	for _, fiat := range upsertFiats {
-		if err := storeHandler.Store.UpsertPrice(store.FiatsStore, fiat.Price, fiat.Symbol); err != nil {
+		if err := storeHandler.Store.UpsertPrice(context.Background(), store.FiatsStore, fiat.Price, fiat.Symbol); err != nil {
 			return nil, nil, err
 		}
 

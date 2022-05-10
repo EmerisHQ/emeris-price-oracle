@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	models "github.com/allinbits/demeris-backend-models/cns"
-	cnsDB "github.com/allinbits/emeris-cns-server/cns/database"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/sql"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	models "github.com/emerishq/demeris-backend-models/cns"
+	cnsDB "github.com/emerishq/emeris-cns-server/cns/database"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/sql"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/priceprovider"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
 	"github.com/cockroachdb/cockroach-go/v2/testserver"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/priceprovider"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/stretchr/testify/require"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 	"go.uber.org/zap"
@@ -72,10 +72,10 @@ func TestSubscriptionBinance(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionBinance()
+	err = api.SubscriptionBinance(context.Background())
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(store.BinanceStore)
+	prices, err := storeHandler.Store.GetPrices(context.Background(), store.BinanceStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -50.0)
@@ -111,10 +111,10 @@ func TestSubscriptionCoingecko(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionCoingecko()
+	err = api.SubscriptionCoingecko(context.Background())
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(store.CoingeckoStore)
+	prices, err := storeHandler.Store.GetPrices(context.Background(), store.CoingeckoStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[0].Symbol, "ATOMUSDT")
 	require.Equal(t, prices[0].Price, -39.41)
@@ -151,10 +151,10 @@ func TestSubscriptionFixer(t *testing.T) {
 		StoreHandler: storeHandler,
 	}
 
-	err = api.SubscriptionFixer()
+	err = api.SubscriptionFixer(context.Background())
 	require.NoError(t, err)
 
-	prices, err := storeHandler.Store.GetPrices(store.FixerStore)
+	prices, err := storeHandler.Store.GetPrices(context.Background(), store.FixerStore)
 	require.NoError(t, err)
 	require.Equal(t, prices[1].Symbol, "USDEUR")
 	require.Equal(t, prices[1].Price, 0.806942)
@@ -260,7 +260,7 @@ func getStoreHandler(t *testing.T, ts testserver.TestServer, logger *zap.Sugared
 	}
 
 	storeHandler, err := store.NewStoreHandler(
-		store.WithDB(db),
+		store.WithDB(context.Background(), db),
 		store.WithLogger(logger),
 		store.WithConfig(cfg),
 		store.WithSpotPriceCache(nil),

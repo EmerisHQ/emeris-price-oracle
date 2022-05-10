@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/getsentry/sentry-go"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
-	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
 )
@@ -29,11 +29,11 @@ func (m *SqlDB) GetConnectionString() string {
 	return m.connString
 }
 
-func (m *SqlDB) Init() error {
-	q, err := m.Query("SHOW TABLES FROM oracle")
+func (m *SqlDB) Init(ctx context.Context) error {
+	q, err := m.db.QueryxContext(ctx, "SHOW TABLES FROM oracle")
 	if err != nil {
 		if strings.Contains(err.Error(), "target database or schema does not exist") {
-			if err = m.createDatabase(); err != nil {
+			if err = m.createDatabase(ctx); err != nil {
 				return err
 			}
 		} else {
@@ -47,14 +47,16 @@ func (m *SqlDB) Init() error {
 		}
 	}
 
-	if err = m.runMigrations(); err != nil {
+	if err = m.runMigrations(ctx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
+func (m *SqlDB) GetTokenPriceAndSupplies(ctx context.Context, tokens []string) ([]types.TokenPriceAndSupply, error) {
+	defer sentry.StartSpan(ctx, "db.GetTokenPriceAndSupplies").Finish()
+
 	query := "SELECT * FROM " + store.TokensStore + " WHERE symbol=$1"
 	for i := 2; i <= len(tokens); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
@@ -70,7 +72,7 @@ func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAnd
 	var price float64
 	var supply float64
 
-	rows, err := m.Query(query, symbolList...)
+	rows, err := m.db.QueryxContext(ctx, query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +80,7 @@ func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAnd
 		if err := rows.Scan(&symbol, &price); err != nil {
 			return nil, err
 		}
-		rowGeckoSupply, err := m.Query("SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
+		rowGeckoSupply, err := m.db.QueryxContext(ctx, "SELECT * FROM "+store.CoingeckoSupplyStore+" WHERE symbol=$1", symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +106,9 @@ func (m *SqlDB) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAnd
 	return priceAndSupplies, nil
 }
 
-func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
+func (m *SqlDB) GetFiatPrices(ctx context.Context, fiats []string) ([]types.FiatPrice, error) {
+	defer sentry.StartSpan(ctx, "db.GetFiatPrices").Finish()
+
 	query := "SELECT * FROM " + store.FiatsStore + " WHERE symbol=$1"
 	for i := 2; i <= len(fiats); i++ {
 		query += " OR" + " symbol=$" + strconv.Itoa(i)
@@ -117,7 +121,7 @@ func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 
 	var fiatPrices []types.FiatPrice //nolint:prealloc
 	var price types.FiatPrice
-	rows, err := m.Query(query, symbolList...)
+	rows, err := m.db.QueryxContext(ctx, query, symbolList...)
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +138,11 @@ func (m *SqlDB) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	return fiatPrices, nil
 }
 
-func (m *SqlDB) GetTokenNames() ([]string, error) {
+func (m *SqlDB) GetTokenNames(ctx context.Context) ([]string, error) {
+	defer sentry.StartSpan(ctx, "db.GetTokenNames").Finish()
+
 	var whitelists []string
-	q, err := m.Query("SELECT  y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
+	q, err := m.db.QueryxContext(ctx, "SELECT  y.x->'ticker',y.x->'fetch_price' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
 		return nil, err
 	}
@@ -158,10 +164,12 @@ func (m *SqlDB) GetTokenNames() ([]string, error) {
 
 // GetPriceIDToTicker returns all not null price_ids with their ticker
 // Returns map price_id -> ticker; Ex: cosmos -> atom; osmosis -> osmo
-func (m *SqlDB) GetPriceIDToTicker() (map[string]string, error) {
+func (m *SqlDB) GetPriceIDToTicker(ctx context.Context) (map[string]string, error) {
+	defer sentry.StartSpan(ctx, "db.GetPriceIDToTicker").Finish()
+
 	priceIDtoTicker := make(map[string]string)
 	seen := make(map[string]bool)
-	q, err := m.Query("SELECT  y.x->'ticker',y.x->'price_id' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
+	q, err := m.db.QueryxContext(ctx, "SELECT  y.x->'ticker',y.x->'price_id' FROM cns.chains jt, LATERAL (SELECT json_array_elements(jt.denoms) x) y")
 	if err != nil {
 		return nil, err
 	}
@@ -195,10 +203,12 @@ func (m *SqlDB) GetPriceIDToTicker() (map[string]string, error) {
 	return priceIDtoTicker, nil
 }
 
-func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
+func (m *SqlDB) GetPrices(ctx context.Context, from string) ([]types.Prices, error) {
+	defer sentry.StartSpan(ctx, "db.GetPrices").Finish()
+
 	var prices []types.Prices //nolint:prealloc
 	var price types.Prices
-	rows, err := m.Query("SELECT * FROM " + from)
+	rows, err := m.db.QueryxContext(ctx, "SELECT * FROM "+from)
 	if err != nil {
 		return nil, fmt.Errorf("fatal: GetPrices: %w", err)
 	}
@@ -215,68 +225,90 @@ func (m *SqlDB) GetPrices(from string) ([]types.Prices, error) {
 	return prices, nil
 }
 
-func (m *SqlDB) UpsertPrice(to string, price float64, token string) error {
-	tx := m.db.MustBegin()
+func (m *SqlDB) UpsertPrice(ctx context.Context, to string, price float64, token string) error {
+	defer sentry.StartSpan(ctx, "db.UpsertPrice").Finish()
 
-	result := tx.MustExec("UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1) WHERE symbol = ($2)", price, token)
+	if err != nil {
+		return err
+	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("DB update: %w", err)
+		return err
 	}
 	// If you perform an update without a token column, it does not respond as an error; it responds with zero.
 	// So you have to insert a new one in the column.
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", token, price)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2));", token, price)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
-func (m *SqlDB) UpsertToken(to string, symbol string, price float64, time int64) error {
-	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
+func (m *SqlDB) UpsertToken(ctx context.Context, to string, symbol string, price float64, time int64) error {
+	defer sentry.StartSpan(ctx, "db.UpsertToken").Finish()
+
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET price = ($1),updatedat = ($2) WHERE symbol = ($3)", price, time, symbol)
+	if err != nil {
+		return err
+	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("UpsertToken DB UPDATE: %w", err)
+		return err
 	}
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2),($3));", symbol, price, time)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("UpsertToken DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
-func (m *SqlDB) UpsertTokenSupply(to string, symbol string, supply float64) error {
-	tx := m.db.MustBegin()
-	result := tx.MustExec("UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+func (m *SqlDB) UpsertTokenSupply(ctx context.Context, to string, symbol string, supply float64) error {
+	defer sentry.StartSpan(ctx, "db.UpsertTokenSupply").Finish()
+
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	result, err := tx.ExecContext(ctx, "UPDATE "+to+" SET supply = ($1) WHERE symbol = ($2)", supply, symbol)
+	if err != nil {
+		return err
+	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("UpsertTokenSupply DB UPDATE: %w", err)
+		return err
 	}
 	if rowsAffected == 0 {
-		tx.MustExec("INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
+		_, err := tx.ExecContext(ctx, "INSERT INTO "+to+" VALUES (($1),($2));", symbol, supply)
+		if err != nil {
+			return err
+		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("UpsertTokenSupply DB commit: %w", err)
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (m *SqlDB) Query(query string, args ...interface{}) (*sqlx.Rows, error) {
-	q, err := m.db.Queryx(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return q, nil
+	return m.db.Queryx(query, args...)
 }
 
 // NewDB returns an Instance connected to the database pointed by connString.
@@ -310,34 +342,4 @@ func NewWithDriver(connString string, driver string) (*SqlDB, error) {
 // Close closes the connection held by m.
 func (m *SqlDB) Close() error {
 	return m.db.Close()
-}
-
-// Exec executes query with the given params.
-// If params is nil, query is assumed to be of the `SELECT` kind, and the resulting data will be written in dest.
-func (m *SqlDB) Exec(query string, params interface{}, dest interface{}) error {
-	return crdbsqlx.ExecuteTx(context.Background(), m.db, nil, func(tx *sqlx.Tx) error {
-		if dest != nil {
-			if params != nil {
-				return tx.Select(dest, query, params)
-			}
-
-			return tx.Select(dest, query)
-		}
-
-		res, err := tx.NamedExec(query, params)
-		if err != nil {
-			return fmt.Errorf("transaction named exec error, %w", err)
-		}
-
-		re, err := res.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("transaction named exec error, %w", err)
-		}
-
-		if re == 0 {
-			return fmt.Errorf("affected rows are zero")
-		}
-
-		return nil
-	})
 }

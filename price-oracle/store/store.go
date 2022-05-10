@@ -1,33 +1,36 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/getsentry/sentry-go"
 	gecko "github.com/superoo7/go-gecko/v3"
 	geckoTypes "github.com/superoo7/go-gecko/v3/types"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-utils/sentryx"
 	"go.uber.org/zap"
 
 	"time"
 )
 
 type Store interface {
-	Init() error // runs migrations
+	Init(context.Context) error // runs migrations
 	Close() error
-	GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error)
-	GetFiatPrices(fiats []string) ([]types.FiatPrice, error)
-	GetTokenNames() ([]string, error)
-	GetPriceIDToTicker() (map[string]string, error)
-	GetPrices(from string) ([]types.Prices, error)
-	UpsertPrice(to string, price float64, token string) error
-	UpsertToken(to string, symbol string, price float64, time int64) error
-	UpsertTokenSupply(to string, symbol string, supply float64) error
+	GetTokenPriceAndSupplies(ctx context.Context, tokens []string) ([]types.TokenPriceAndSupply, error)
+	GetFiatPrices(ctx context.Context, fiats []string) ([]types.FiatPrice, error)
+	GetTokenNames(ctx context.Context) ([]string, error)
+	GetPriceIDToTicker(context.Context) (map[string]string, error)
+	GetPrices(ctx context.Context, from string) ([]types.Prices, error)
+	UpsertPrice(ctx context.Context, to string, price float64, token string) error
+	UpsertToken(ctx context.Context, to string, symbol string, price float64, time int64) error
+	UpsertTokenSupply(ctx context.Context, to string, symbol string, supply float64) error
 }
 
 const (
@@ -80,7 +83,7 @@ type TokenAndFiatCache struct {
 // the zero index represent the unix timestamp and the first index is the value.
 //
 // Discussion can be found in this GH issue:
-// https://github.com/allinbits/demeris-backend/issues/109#issuecomment-993513347
+// https://github.com/emerishq/demeris-backend/issues/109#issuecomment-993513347
 //
 // RefreshInterval is always 5 minutes. To know why, follow the description of
 // GetChartData function.
@@ -92,13 +95,13 @@ type ChartDataCache struct {
 
 type option func(*Handler) error
 
-func WithDB(store Store) func(*Handler) error {
+func WithDB(ctx context.Context, store Store) func(*Handler) error {
 	return func(handler *Handler) error {
 		if store == nil {
 			return fmt.Errorf("received nil reference for SqlDB")
 		}
 		handler.Store = store
-		return handler.Store.Init() // Init the DB i.e. Run migrations.
+		return handler.Store.Init(ctx) // Init the DB i.e. Run migrations.
 	}
 }
 
@@ -238,8 +241,8 @@ func NewStoreHandler(options ...option) (*Handler, error) {
 // don't have some name present in the CNS DB, log and continue.
 //
 // If the (param<name>) is empty, return all.
-func (h *Handler) GetGeckoIdForTokenNames(names []string) (map[string]string, error) {
-	pidToTicker, err := h.GetCNSPriceIdsToTicker()
+func (h *Handler) GetGeckoIdForTokenNames(ctx context.Context, names []string) (map[string]string, error) {
+	pidToTicker, err := h.GetCNSPriceIdsToTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +273,7 @@ func (h *Handler) GetGeckoIdForTokenNames(names []string) (map[string]string, er
 // GetCNSWhitelistedTokens returns the whitelisted tokens.
 // It first checks the in-memory cache.
 // If cache is nil, it fetches and updates the cache.
-func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
+func (h *Handler) GetCNSWhitelistedTokens(ctx context.Context) ([]string, error) {
 	var tokens []string
 	h.SpotCache.Mu.RLock()
 	if h.SpotCache.WhitelistedTickers != nil {
@@ -281,7 +284,7 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 		return tokens, nil
 	}
 
-	names, err := h.Store.GetTokenNames()
+	names, err := h.Store.GetTokenNames(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +295,7 @@ func (h *Handler) GetCNSWhitelistedTokens() ([]string, error) {
 	return names, nil
 }
 
-func (h *Handler) GetCNSPriceIdsToTicker() (map[string]string, error) {
+func (h *Handler) GetCNSPriceIdsToTicker(ctx context.Context) (map[string]string, error) {
 	h.SpotCache.Mu.RLock()
 	pidToTkr := make(map[string]string, len(h.SpotCache.PriceIDtoTicker))
 	if h.SpotCache.PriceIDtoTicker != nil {
@@ -305,7 +308,7 @@ func (h *Handler) GetCNSPriceIdsToTicker() (map[string]string, error) {
 		return pidToTkr, nil
 	}
 
-	idsToTicker, err := h.Store.GetPriceIDToTicker()
+	idsToTicker, err := h.Store.GetPriceIDToTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +322,7 @@ func (h *Handler) GetCNSPriceIdsToTicker() (map[string]string, error) {
 // GetTokenPriceAndSupplies returns a list of TokenPriceAndSupply. It first
 // checks if in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
-func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceAndSupply, error) {
+func (h *Handler) GetTokenPriceAndSupplies(ctx context.Context, tokens []string) ([]types.TokenPriceAndSupply, error) {
 	h.SpotCache.Mu.RLock()
 	cachedTokens := make([]string, 0, len(h.SpotCache.TokenPriceAndSupplies))
 	for t := range h.SpotCache.TokenPriceAndSupplies {
@@ -328,7 +331,7 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 	h.SpotCache.Mu.RUnlock()
 
 	if h.SpotCache.TokenPriceAndSupplies == nil || !isSubset(tokens, cachedTokens) {
-		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(tokens)
+		tokensDetails, err := h.Store.GetTokenPriceAndSupplies(ctx, tokens)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +359,7 @@ func (h *Handler) GetTokenPriceAndSupplies(tokens []string) ([]types.TokenPriceA
 // GetFiatPrices returns a list of FiatPrice. It first checks if
 // in-memory cache is still valid and all requested tokens are cached.
 // If not it fetches all the requested tokens and updates the cache.
-func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
+func (h *Handler) GetFiatPrices(ctx context.Context, fiats []string) ([]types.FiatPrice, error) {
 	h.SpotCache.Mu.RLock()
 	cachedFiats := make([]string, 0, len(h.SpotCache.FiatPrices))
 	for f := range h.SpotCache.FiatPrices {
@@ -365,7 +368,7 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 	h.SpotCache.Mu.RUnlock()
 
 	if len(cachedFiats) == 0 || !isSubset(fiats, cachedFiats) {
-		fiatPrices, err := h.Store.GetFiatPrices(fiats)
+		fiatPrices, err := h.Store.GetFiatPrices(ctx, fiats)
 		if err != nil {
 			return nil, err
 		}
@@ -390,6 +393,7 @@ func (h *Handler) GetFiatPrices(fiats []string) ([]types.FiatPrice, error) {
 }
 
 func (h *Handler) GetChartData(
+	ctx context.Context,
 	coinId string,
 	days string,
 	currency string,
@@ -460,13 +464,16 @@ func (h *Handler) GetChartData(
 	}, nil
 }
 
-func (h *Handler) PriceTokenAggregator() error {
+func (h *Handler) PriceTokenAggregator(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "aggregator", sentry.TransactionName("PriceTokenAggregator"))
+	defer span.Finish()
+
 	// symbolKV[Symbol][Store]=price
 	symbolKV := make(map[string]map[string]float64)
 	stores := []string{BinanceStore, CoingeckoStore}
 
 	whitelist := make(map[string]struct{})
-	cnsWhitelist, err := h.GetCNSWhitelistedTokens()
+	cnsWhitelist, err := h.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
 		return fmt.Errorf("GetCNSWhitelistedTokens: %w", err)
 	}
@@ -476,7 +483,7 @@ func (h *Handler) PriceTokenAggregator() error {
 	}
 
 	for _, s := range stores {
-		prices, err := h.Store.GetPrices(s)
+		prices, err := h.Store.GetPrices(ctx, s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -510,7 +517,7 @@ func (h *Handler) PriceTokenAggregator() error {
 			continue // Best effort, update as much as we can.
 		}
 
-		if err = h.Store.UpsertPrice(TokensStore, mean, token); err != nil {
+		if err = h.Store.UpsertPrice(ctx, TokensStore, mean, token); err != nil {
 			h.Logger.Errorw("PriceTokenAggregator", "UpsertPrice Err:", err, "Token:", token)
 			continue // Best effort, update as much as we can.
 		}
@@ -518,7 +525,10 @@ func (h *Handler) PriceTokenAggregator() error {
 	return nil
 }
 
-func (h *Handler) PriceFiatAggregator() error {
+func (h *Handler) PriceFiatAggregator(ctx context.Context) error {
+	span, ctx := sentryx.StartSpan(ctx, "aggregator", sentry.TransactionName("PriceFiatAggregator"))
+	defer span.Finish()
+
 	// symbolKV[Symbol][Store]=price
 	symbolKV := make(map[string]map[string]float64)
 	stores := []string{FixerStore}
@@ -530,7 +540,7 @@ func (h *Handler) PriceFiatAggregator() error {
 	}
 
 	for _, s := range stores {
-		prices, err := h.Store.GetPrices(s)
+		prices, err := h.Store.GetPrices(ctx, s)
 		if err != nil {
 			return fmt.Errorf("Store.GetPrices(%s): %w", s, err)
 		}
@@ -561,7 +571,7 @@ func (h *Handler) PriceFiatAggregator() error {
 			continue // Best effort, update as much as we can.
 		}
 
-		if err := h.Store.UpsertPrice(FiatsStore, mean, fiat); err != nil {
+		if err := h.Store.UpsertPrice(ctx, FiatsStore, mean, fiat); err != nil {
 			h.Logger.Errorw("PriceFiatAggregator", "UpsertPrice Err:", err, "Token:", fiat)
 			continue // Best effort, update as much as we can.
 		}

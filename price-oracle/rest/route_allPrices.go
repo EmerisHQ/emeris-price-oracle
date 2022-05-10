@@ -3,7 +3,7 @@ package rest
 import (
 	"net/http"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/types"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
@@ -11,7 +11,7 @@ import (
 const getAllPriceRoute = "/prices"
 
 func (r *router) allPricesHandler(ctx *gin.Context) {
-	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens()
+	whitelistedTokens, err := r.s.sh.GetCNSWhitelistedTokens(ctx.Request.Context())
 	if err != nil {
 		r.s.l.Errorw("Store.GetCNSWhitelistedTokens()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
@@ -24,7 +24,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		whitelistedTokenSymbols = append(whitelistedTokenSymbols, token+types.USDT)
 	}
 
-	tokenPriceAndSupplies, err := r.s.sh.GetTokenPriceAndSupplies(whitelistedTokenSymbols)
+	tokenPriceAndSupplies, err := r.s.sh.GetTokenPriceAndSupplies(ctx.Request.Context(), whitelistedTokenSymbols)
 	if err != nil {
 		r.s.l.Errorw("Store.GetTokenPriceAndSupplies()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)
@@ -37,7 +37,7 @@ func (r *router) allPricesHandler(ctx *gin.Context) {
 		whitelistedFiatSymbols = append(whitelistedFiatSymbols, types.USD+fiat)
 	}
 
-	fiatPrices, err := r.s.sh.GetFiatPrices(whitelistedFiatSymbols)
+	fiatPrices, err := r.s.sh.GetFiatPrices(ctx.Request.Context(), whitelistedFiatSymbols)
 	if err != nil {
 		r.s.l.Errorw("Store.GetFiatPrices()", err.Error())
 		e(ctx, http.StatusInternalServerError, err)

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"math/big"
@@ -11,12 +12,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/allinbits/emeris-price-oracle/price-oracle/config"
+	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 )
 
 type (
-	AggFunc    = func() error
+	AggFunc    = func(context.Context) error
 	WorkerFunc = func(
+		context.Context,
 		chan struct{},
 		time.Duration,
 		*zap.SugaredLogger,
@@ -79,6 +81,7 @@ func or(chans ...chan struct{}) chan struct{} {
 // So that worker does not compete with the daemon when trying to notify.
 func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) WorkerFunc {
 	return func(
+		ctx context.Context,
 		done chan struct{},
 		pulseInterval time.Duration,
 		logger *zap.SugaredLogger,
@@ -102,7 +105,7 @@ func MakeDaemon(timeout time.Duration, recoverCount int, worker WorkerFunc) Work
 			startWorker := func() {
 				logger.Infow("Daemon", "starts function:", GetFunctionName(fn))
 				workerDone = make(chan struct{})
-				workerHeartbeat, workerFatalErr = worker(or(workerDone, done), pulseInterval, logger, cfg, fn)
+				workerHeartbeat, workerFatalErr = worker(ctx, or(workerDone, done), pulseInterval, logger, cfg, fn)
 			}
 			startWorker()
 
