@@ -20,13 +20,13 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 		Currency string `form:"vs_currency"`
 	}
 	if err := ctx.ShouldBindQuery(&reqQueries); err != nil {
-		r.s.l.Errorw("Invalid request query:", err)
+		r.s.l.Errorw("Invalid request query:", "error", err)
 		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query"))
 		return
 	}
 
 	if _, ok := validDays[reqQueries.Days]; !ok {
-		r.s.l.Errorw("Invalid request query:", reqQueries.Days)
+		r.s.l.Errorw("Invalid request query:", "error", reqQueries.Days)
 		e(ctx, http.StatusBadRequest, fmt.Errorf("invalid request query"))
 		return
 	}
@@ -57,7 +57,7 @@ func (r *router) chartDataHandler(ctx *gin.Context) {
 	geckoClient := gecko.NewClient(&http.Client{Timeout: r.s.c.HttpClientTimeout})
 	chartData, err := r.s.sh.GetChartData(ctx.Request.Context(), coinId, reqQueries.Days, reqQueries.Currency, geckoClient)
 	if err != nil {
-		r.s.l.Errorw("Store.GetChartData()", err)
+		r.s.l.Errorw("Store.GetChartData()", "error", err)
 		e(ctx, http.StatusInternalServerError, err)
 		return
 	}

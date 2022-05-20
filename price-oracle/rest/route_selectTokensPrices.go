@@ -21,7 +21,7 @@ func getTokenPriceAndSupplies(
 
 	whitelistedTokens, err := store.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
-		logger.Errorw("store.GetCNSWhitelistedTokens()", err.Error())
+		logger.Errorw("store.GetCNSWhitelistedTokens()", "error", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 	whitelistedTokenSymbols := make([]string, 0, len(whitelistedTokens))
@@ -35,7 +35,7 @@ func getTokenPriceAndSupplies(
 
 	tokenPriceAndSupplies, err := store.GetTokenPriceAndSupplies(ctx, tokens)
 	if err != nil {
-		logger.Errorw("Store.GetTokenPriceAndSupplies()", err.Error())
+		logger.Errorw("Store.GetTokenPriceAndSupplies()", "error", err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
 	return tokenPriceAndSupplies, http.StatusOK, nil
@@ -44,7 +44,7 @@ func getTokenPriceAndSupplies(
 func (r *router) tokensPriceAndSuppliesHandler(ctx *gin.Context) {
 	var tokens types.Tokens
 	if err := ctx.BindJSON(&tokens); err != nil {
-		r.s.l.Errorw("TokenPriceAndSupplies", err.Error())
+		r.s.l.Errorw("TokenPriceAndSupplies", "error", err.Error())
 		e(ctx, http.StatusBadRequest, err)
 		return
 	}
