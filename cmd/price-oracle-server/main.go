@@ -49,10 +49,17 @@ func main() {
 	}
 
 	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              cfg.SentryDSN,
-		Release:          Version,
-		SampleRate:       cfg.SentrySampleRate,
-		TracesSampleRate: cfg.SentryTracesSampleRate,
+		Dsn:        cfg.SentryDSN,
+		Release:    Version,
+		SampleRate: cfg.SentrySampleRate,
+		TracesSampler: sentry.TracesSamplerFunc(func(ctx sentry.SamplingContext) sentry.Sampled {
+			sampleRate := cfg.SentryTracesSampleRate
+			switch ctx.Span.Op {
+			case "subscription", "aggregator":
+				sampleRate = sampleRate / 1000.
+			}
+			return sentry.UniformTracesSampler(sampleRate).Sample(ctx)
+		}),
 		Environment:      cfg.SentryEnvironment,
 		AttachStacktrace: true,
 	}); err != nil {
