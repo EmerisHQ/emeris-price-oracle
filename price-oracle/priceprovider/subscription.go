@@ -15,6 +15,8 @@ import (
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/daemon"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/store"
+	"github.com/emerishq/emeris-utils/sentryx"
+	"github.com/getsentry/sentry-go"
 
 	"github.com/emerishq/emeris-price-oracle/price-oracle/config"
 	"github.com/emerishq/emeris-price-oracle/price-oracle/types"
@@ -89,9 +91,8 @@ func SubscriptionWorker(ctx context.Context, logger *zap.SugaredLogger, cfg *con
 }
 
 func (api *Api) SubscriptionBinance(ctx context.Context) error {
-	// Disable sentry trace because of spamming
-	// span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionBinance"))
-	// defer span.Finish()
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionBinance"))
+	defer span.Finish()
 
 	whitelistedTokens, err := api.StoreHandler.GetCNSWhitelistedTokens(ctx)
 	if err != nil {
@@ -161,9 +162,8 @@ func (api *Api) SubscriptionBinance(ctx context.Context) error {
 }
 
 func (api *Api) SubscriptionCoingecko(ctx context.Context) error {
-	// Disable sentry trace because of spamming
-	// span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionCoingecko"))
-	// defer span.Finish()
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionCoingecko"))
+	defer span.Finish()
 
 	pidToTickers, err := api.StoreHandler.GetCNSPriceIdsToTicker(ctx)
 	if err != nil {
@@ -208,9 +208,8 @@ func (api *Api) SubscriptionCoingecko(ctx context.Context) error {
 }
 
 func (api *Api) SubscriptionFixer(ctx context.Context) error {
-	// Disable sentry trace because of spamming
-	// span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionFixer"))
-	// defer span.Finish()
+	span, ctx := sentryx.StartSpan(ctx, "subscription", sentry.TransactionName("SubscriptionFixer"))
+	defer span.Finish()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", FixerURL, nil)
 	if err != nil {
