@@ -56,7 +56,7 @@ func main() {
 			sampleRate := cfg.SentryTracesSampleRate
 			switch ctx.Span.Op {
 			case "subscription", "aggregator":
-				sampleRate = sampleRate / 1000.
+				sampleRate /= 1000.
 			}
 			return sentry.UniformTracesSampler(sampleRate).Sample(ctx)
 		}),
